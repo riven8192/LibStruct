@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
+import net.indiespot.struct.runtime.StructMemory;
+
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
 import org.objectweb.asm.Handle;
@@ -19,8 +21,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	public VarStack stack = new VarStack();
 	public VarLocal local = new VarLocal();
 
-	public FlowAnalysisMethodVisitor(MethodVisitor mv, int access, String name, String desc, String signature, String[] exceptions) {
+	private final String toString;
+
+	public FlowAnalysisMethodVisitor(MethodVisitor mv, int access, String owner, String name, String desc, String signature, String[] exceptions) {
 		super(Opcodes.ASM4, mv);
+
+		toString = owner + "." + name + "" + desc;
 
 		String params = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
 		int slot = 0;
@@ -77,7 +83,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		switch (opcode) {
 		case ACONST_NULL:
-			stack.push(VarType.REFERENCE);
+			stack.push(VarType.NULL);
 			break;
 
 		case ICONST_M1:
@@ -418,7 +424,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ARETURN: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT)
 				opcode = IRETURN;
 			stack.eqEmpty();
@@ -501,7 +507,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ALOAD: {
-			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE));
+			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = ILOAD;
 				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
@@ -531,7 +537,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ASTORE: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = ISTORE;
 				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
@@ -574,7 +580,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break; // no-op
 
 		case INSTANCEOF: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				super.visitInsn(POP); // discard REF
 				super.visitInsn(ICONST_0); // false (struct is never instanceof any type)
@@ -633,29 +639,56 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		String params = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
 		String ret = desc.substring(desc.indexOf(')') + 1);
 
-		switch (opcode) {
-		case INVOKESPECIAL:
-		case INVOKEVIRTUAL:
-		case INVOKEINTERFACE: {
+		if(opcode == INVOKESTATIC || //
+				opcode == INVOKEVIRTUAL || //
+				opcode == INVOKEINTERFACE || //
+				opcode == INVOKESPECIAL) {
 			String[] arr = splitDescArray(params);
+			for(int i = arr.length - 1, ii = 0; i >= 0; i--, ii++) {
+				System.out.println(ii);
+				System.out.println("arr[" + i + "]=" + arr[i] + " <- " + stack.peek(ii));
+				if(stack.peek(ii) == VarType.STRUCT) {
+					if(descToType(arr[i]) == A_REFERENCE) {
+						// RFC from TheAgentD:
+						// - passing struct as java/lang/Object parameter... :o(
+						// - supports rewriting up to 3 parameters
+						if(i == arr.length - 1) {
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrappedStructFlag + ")Ljava/lang/String;");
+							arr[i] = "Ljava/lang/String;";
+						}
+						else if(i == arr.length - 2) {
+							this.visitInsn(SWAP);
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrappedStructFlag + ")Ljava/lang/String;");
+							this.visitInsn(SWAP);
+							arr[i] = "Ljava/lang/String;";
+						}
+						else if(i == arr.length - 3) {
+							this.visitInsn(DUP2_X1);
+							this.visitInsn(POP2);
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrappedStructFlag + ")Ljava/lang/String;");
+							this.visitInsn(DUP_X2);
+							this.visitInsn(POP);
+							arr[i] = "Ljava/lang/String;";
+						}
+						else {
+							throw new IllegalStateException("Error: method parameter cannot accept struct value.\r\n" + //
+									"\t\tCall site: " + this.toString + "\r\n" + //
+									"\t\tTarget: " + owner + "." + name + "" + desc + "\r\n" + //
+									"\t\tParameters: " + stack.topToString(arr.length));
+						}
+					}
+				}
+			}
 			for(int i = arr.length - 1; i >= 0; i--) {
 				popDescType(stack, descToType(arr[i]));
 			}
-			stack.popEQ(VarType.REFERENCE);
-			pushDescType(stack, descToType(ret));
-			break;
-		}
 
-		case INVOKESTATIC: {
-			String[] arr = splitDescArray(params);
-			for(int i = arr.length - 1; i >= 0; i--) {
-				popDescType(stack, descToType(arr[i]));
+			if(opcode != INVOKESTATIC) {
+				stack.popEQ(VarType.REFERENCE);
 			}
 			pushDescType(stack, descToType(ret));
-			break;
 		}
-
-		default:
+		else {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
@@ -701,7 +734,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case IF_ACMPEQ: {
-			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY)));
+			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL)));
 			if(got == VarType.STRUCT) {
 				opcode = IF_ICMPEQ;
 				System.out.println("\t2)\t" + opcodeToString(opcode));
@@ -709,7 +742,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 		}
 		case IF_ACMPNE: {
-			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY)));
+			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL)));
 			if(got == VarType.STRUCT) {
 				opcode = IF_ICMPNE;
 				System.out.println("\t2)\t" + opcodeToString(opcode));
@@ -718,7 +751,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		}
 
 		case IFNULL: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = IFEQ;
 				System.out.println("\t2)\t" + opcodeToString(opcode));
@@ -726,7 +759,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 		}
 		case IFNONNULL: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = IFNE;
 				System.out.println("\t2)\t" + opcodeToString(opcode));
@@ -947,10 +980,11 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			return stack.popEQ(VarType.INT);
 		}
 		if(descType == A_REFERENCE) {
-			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
+			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY, VarType.NULL));
 		}
 		if(descType == A_STRUCT) {
-			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT));
+			//return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT));
+			return stack.popEQ(VarType.STRUCT);
 		}
 		if(descType == A_STRUCT_ARRAY) {
 			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));

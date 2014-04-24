@@ -5,9 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class StructMemory {
-	public static final boolean CHECK_ALLOC_OVERFLOW = false;
-	public static final boolean CHECK_MEMORY_ACCESS_REGION = false;
-	public static final boolean CHECK_POINTER_ALIGNMENT = false;
+	public static final boolean CHECK_ALLOC_OVERFLOW = true;
+	public static final boolean CHECK_MEMORY_ACCESS_REGION = true;
+	public static final boolean CHECK_POINTER_ALIGNMENT = true;
 
 	private static final boolean manually_fill_and_copy = true;
 	private static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
@@ -65,21 +65,28 @@ public class StructMemory {
 
 	public static int[] mapArray(ByteBuffer bb, int sizeof) {
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
-		int length = bb.remaining() / sizeof;
+		int count = bb.remaining() / sizeof;
+		if(count == 0)
+			throw new IllegalStateException("no usable space in buffer");
 		int handle = pointer2handle(addr);
-		fillMemoryByWord(handle, sizeof * length, 0x00000000);
-		int[] arr = new int[length];
+		fillMemoryByWord(handle, sizeof * count, 0x00000000);
+		int[] arr = new int[count];
 		for(int i = 0; i < arr.length; i++)
 			arr[i] = handle + i;
 		return arr;
 	}
 
+	public static String toString(int handle) {
+		return "<struct#" + handle + ">";
+	}
+
 	public static long alignBufferToWord(ByteBuffer bb) {
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
-		int off = (int) (addr & 0x3);
-		if(off != 0) {
-			bb.position(bb.position() + (4 - off));
-			addr += (4 - off);
+		int error = (int) (addr & 0x3);
+		if(error != 0) {
+			int advance = 4 - error;
+			bb.position(bb.position() + advance);
+			addr += advance;
 		}
 		return addr;
 	}

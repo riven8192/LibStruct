@@ -4,14 +4,21 @@ import java.nio.ByteBuffer;
 
 public class StructUtil {
 	public static long getPointer(Object struct) {
-		throw new UnsupportedOperationException();
+		throwFit();
+		return 0L;
 	}
 
 	public static boolean isReachable(Object struct) {
-		throw new UnsupportedOperationException();
+		throwFit();
+		return false;
 	}
 
 	public static <T> T[] map(Class<T> structType, ByteBuffer bb) {
-		throw new UnsupportedOperationException();
+		throwFit();
+		return null;
+	}
+
+	private static void throwFit() {
+		throw new UnsupportedOperationException("callsite was not transformed by struct library");
 	}
 }

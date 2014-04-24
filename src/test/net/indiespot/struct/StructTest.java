@@ -13,7 +13,8 @@ public class StructTest {
 		//TestPerformance.test();
 		//TheAgentD.main(args);
 
-		if(true) {
+		if(!true) {
+			TestNull.test();
 			TestOneInstance.test();
 			TestOneInstanceNull.test();
 			TestOneInstanceNullRef.test();
@@ -46,12 +47,86 @@ public class StructTest {
 				//expected.printStackTrace();
 			}
 
-			//TestMapping.test();
 		}
 
+		//TestMapping.test();
 		TestStructField.test();
+		TestStructAsObjectParam.test();
 
 		System.out.println("done2");
+	}
+
+	public static class TestStructAsObjectParam {
+		public static void test() {
+			System.out.println("w00t");
+			Vec3 vec = new Vec3();
+
+			System.out.println(vec);
+
+			// --
+
+			test(null);
+			test(vec);
+
+			test(null, null);
+			test(null, vec);
+			test(vec, null);
+			test(vec, vec);
+
+			test(null, null, null);
+			test(null, null, vec);
+			test(null, vec, null);
+			test(null, vec, vec);
+			test(vec, null, null);
+			test(vec, null, vec);
+			test(vec, vec, null);
+			test(vec, vec, vec);
+
+			// --
+
+			test("v");
+			test(vec);
+
+			test("v", "v");
+			test("v", vec);
+			test(vec, "v");
+			test(vec, vec);
+
+			test("v", "v", "v");
+			test("v", "v", vec);
+			test("v", vec, "v");
+			test("v", vec, vec);
+			test(vec, "v", "v");
+			test(vec, "v", vec);
+			test(vec, vec, "v");
+			test(vec, vec, vec);
+		}
+
+		private static void test(Object a) {
+			System.out.println("a=" + a);
+		}
+
+		private static void test(Object a, Object b) {
+			System.out.println("a=" + a);
+			System.out.println("b=" + b);
+		}
+
+		private static void test(Object a, Object b, Object c) {
+			System.out.println("a=" + a);
+			System.out.println("b=" + b);
+			System.out.println("c=" + c);
+		}
+	}
+
+	public static class TestNull {
+		public static void test() {
+			Vec3 vec = null;
+			vec = new Vec3();
+			System.out.println(vec.toString());
+			vec = null;
+			vec = new Vec3();
+			System.out.println(vec.toString());
+		}
 	}
 
 	public static class TestStructField {
@@ -60,9 +135,10 @@ public class StructTest {
 			TestStructField.testStatic();
 		}
 
-		public Vec3 vec1 = new Vec3();
+		public Vec3 vec1;
 
 		public void testInstance() {
+			vec1 = new Vec3();
 			vec1.x = 43.21f;
 			Vec3 that = vec1;
 			vec1 = that;
@@ -70,9 +146,10 @@ public class StructTest {
 			assert (that.x == 43.21f);
 		}
 
-		public static Vec3 vec2 = new Vec3();
+		public static Vec3 vec2;
 
 		public static void testStatic() {
+			vec2 = new Vec3();
 			vec2.x = 12.34f;
 			Vec3 that = vec2;
 			vec2 = that;
@@ -83,7 +160,10 @@ public class StructTest {
 
 	public static class TestMapping {
 		public static void test() {
-			ByteBuffer bb = ByteBuffer.allocateDirect(((10 * 3) << 2) + 3);
+			int alignMargin = 4 - 1;
+			int sizeof = 3 << 2;
+			int count = 10;
+			ByteBuffer bb = ByteBuffer.allocateDirect(count * sizeof + alignMargin);
 			StructMemory.alignBufferToWord(bb);
 			Vec3[] mapped = StructUtil.map(Vec3.class, bb);
 			//System.out.println(mapped.length);

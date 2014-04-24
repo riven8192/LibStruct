@@ -41,7 +41,8 @@ import test.net.indiespot.struct.StructUtil;
 
 public class StructBuild {
 
-	private static final String printClass = "test/net/indiespot/struct/StructTest$TestStructField";
+	private static final String printClass = "test/net/indiespot/struct/StructTest$TestStructAsObjectParam";
+	private static final boolean printClassAndTerminate = false;
 	public static final String plainStructFlag = "$truct";//"net/indiespot/struct/transform/StructFlag";
 	public static final String wrappedStructFlag = "L" + plainStructFlag + ";";
 
@@ -153,7 +154,8 @@ public class StructBuild {
 	private static Set<String> wrappedStructTypes = new HashSet<>();
 	private static Map<String, StructInfo> struct2info = new HashMap<>();
 	private static Map<String, Map<String, ReturnValueStrategy>> fqcn2method2strategy = new HashMap<>();
-	private static Map<String, Set<String>> fqcn2rewriteMethods = new HashMap<>();
+	private static Map<String, Set<String>> fqcn2structCreationMethods = new HashMap<>();
+	private static Map<String, Set<String>> fqcn2structAccessMethods = new HashMap<>();
 
 	public static void registerClass(byte[] bytecode) {
 		gatherClassInfo(bytecode);
@@ -166,7 +168,7 @@ public class StructBuild {
 			flagClassMethods(className, bytecode);
 		}
 
-		for(Entry<String, Set<String>> entry : fqcn2rewriteMethods.entrySet()) {
+		for(Entry<String, Set<String>> entry : fqcn2structAccessMethods.entrySet()) {
 			String fqcn = entry.getKey();
 			for(String methodName : entry.getValue()) {
 				System.out.println("REWRITE: " + fqcn + "." + methodName);
@@ -183,13 +185,19 @@ public class StructBuild {
 
 			System.out.println("rewriting class: " + className);
 
-			if(className.equals(printClass))
+			if(className.equals(printClass)) {
 				printClass(bytecode1);
+			}
 
 			byte[] bytecode2 = rewriteClass(className, bytecode1);
 
-			if(className.equals(printClass))
+			if(className.equals(printClass)) {
 				printClass(bytecode2);
+
+				if(printClassAndTerminate) {
+					System.exit(0);
+				}
+			}
 
 			output.put(className, bytecode2);
 		}
@@ -296,9 +304,9 @@ public class StructBuild {
 			public MethodVisitor visitMethod(int access, final String methodName, final String methodDesc, String signature, String[] exceptions) {
 				return new MethodVisitor(Opcodes.ASM4, super.visitMethod(access, methodName, methodDesc, signature, exceptions)) {
 					{
-						for(String struct : struct2info.keySet()) {
-							if(methodDesc.contains("L" + struct + ";")) {
-								this.flagRewriteMethod();
+						for(String wrappedStructType : wrappedStructTypes) {
+							if(methodDesc.contains(wrappedStructType)) {
+								this.flagRewriteMethod(false);
 							}
 						}
 					}
@@ -306,16 +314,31 @@ public class StructBuild {
 					@Override
 					public void visitTypeInsn(int opcode, String type) {
 						if(opcode == NEW) {
-							if(struct2info.containsKey(type)) {
-								this.flagRewriteMethod();
+							if(plainStructFlag.contains(type)) {
+								this.flagRewriteMethod(true);
+							}
+						}
+						if(opcode == INSTANCEOF) {
+							if(plainStructFlag.contains(type)) {
+								this.flagRewriteMethod(true);
+							}
+						}
+						if(opcode == ANEWARRAY) {
+							if(plainStructFlag.contains(type)) {
+								this.flagRewriteMethod(true);
 							}
 						}
 					}
 
 					@Override
 					public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-						if(struct2info.containsKey(owner)) {
-							this.flagRewriteMethod();
+						if(plainStructFlag.contains(owner)) {
+							this.flagRewriteMethod(false);
+						}
+						for(String wrappedStructType : wrappedStructTypes) {
+							if(desc.contains(wrappedStructType)) {
+								this.flagRewriteMethod(false);
+							}
 						}
 
 						super.visitFieldInsn(opcode, owner, name, desc);
@@ -323,18 +346,43 @@ public class StructBuild {
 
 					@Override
 					public void visitMethodInsn(int opcode, String owner, String name, String desc) {
-						if(struct2info.containsKey(owner)) {
-							this.flagRewriteMethod();
+						if(plainStructFlag.contains(owner)) {
+							this.flagRewriteMethod(false);
+						}
+						for(String wrappedStructType : wrappedStructTypes) {
+							if(desc.contains(wrappedStructType)) {
+								this.flagRewriteMethod(false);
+							}
 						}
 
 						super.visitMethodInsn(opcode, owner, name, desc);
 					}
 
-					private void flagRewriteMethod() {
-						Set<String> rewriteMethods = fqcn2rewriteMethods.get(fqcn);
-						if(rewriteMethods == null)
-							fqcn2rewriteMethods.put(fqcn, rewriteMethods = new HashSet<>());
-						rewriteMethods.add(methodName + methodDesc);
+					@Override
+					public void visitLdcInsn(Object cst) {
+						if(cst instanceof Type) {
+							if(plainStructFlag.contains(((Type) cst).getInternalName())) {
+								this.flagRewriteMethod(false);
+							}
+						}
+
+						super.visitLdcInsn(cst);
+					}
+
+					private void flagRewriteMethod(boolean forNew) {
+						if(true) {
+							Set<String> methods = fqcn2structAccessMethods.get(fqcn);
+							if(methods == null)
+								fqcn2structAccessMethods.put(fqcn, methods = new HashSet<>());
+							methods.add(methodName + methodDesc);
+						}
+
+						if(forNew) {
+							Set<String> methods = fqcn2structCreationMethods.get(fqcn);
+							if(methods == null)
+								fqcn2structCreationMethods.put(fqcn, methods = new HashSet<>());
+							methods.add(methodName + methodDesc);
+						}
 					}
 				};
 			}
@@ -429,14 +477,14 @@ public class StructBuild {
 
 				if(false) {
 					// do we need to rewrite this method?
-					Set<String> rewriteMethods = fqcn2rewriteMethods.get(fqcn);
+					Set<String> rewriteMethods = fqcn2structAccessMethods.get(fqcn);
 					if(rewriteMethods == null || !rewriteMethods.contains(methodName + methodDesc))
 						return mv; // nope!
 				}
 
 				final String _methodName = methodName;
 
-				final FlowAnalysisMethodVisitor flow = new FlowAnalysisMethodVisitor(mv, access, methodName, methodDesc, signature, exceptions);
+				final FlowAnalysisMethodVisitor flow = new FlowAnalysisMethodVisitor(mv, access, fqcn, methodName, methodDesc, signature, exceptions);
 				return new MethodVisitor(Opcodes.ASM4, flow) {
 
 					@Override
@@ -653,7 +701,7 @@ public class StructBuild {
 					@Override
 					public void visitLdcInsn(Object cst) {
 						if(cst instanceof Type) {
-							if(struct2info.containsKey(((Type) cst).getInternalName())) {
+							if(plainStructFlag.contains(((Type) cst).getInternalName())) {
 								lastLdcStruct = ((Type) cst).getInternalName();
 								cst = Type.getType(wrappedStructFlag);
 							}
