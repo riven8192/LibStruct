@@ -10,43 +10,75 @@ import net.indiespot.struct.runtime.StructMemory;
 
 public class StructTest {
 	public static void main(String[] args) {
-		TestOneInstance.test();
-		TestOneInstanceNull.test();
-		TestOneInstanceNullRef.test();
-		TestOneInstanceInstanceof.test();
-		TestTwoInstances.test();
-
-		TestFields.test();
-		TestSum.test();
-
-		TestSetter.test();
-		TestMethodPass.test();
-
-		TestIfFlow.test();
-		TestLoopFlow.test();
-
-		TestConstructor.test();
-		TestTryFinally.test();
-		TestTryCatchFinally.test();
-
-		TestArray.test();
-
-		TestInstanceMethod.test();
-		TestStructReturnType.test();
-		try {
-			TestStack.test();
-			//throw new IllegalStateException();
-		}
-		catch (IllegalStackAccessError expected) {
-			// ok!
-			//expected.printStackTrace();
-		}
-
 		//TestPerformance.test();
-		//TestMapping.test();
-		
-		TheAgentD.main(args);
+		//TheAgentD.main(args);
+
+		if(true) {
+			TestOneInstance.test();
+			TestOneInstanceNull.test();
+			TestOneInstanceNullRef.test();
+			TestOneInstanceInstanceof.test();
+			TestTwoInstances.test();
+
+			TestFields.test();
+			TestSum.test();
+
+			TestSetter.test();
+			TestMethodPass.test();
+
+			TestIfFlow.test();
+			TestLoopFlow.test();
+
+			TestConstructor.test();
+			TestTryFinally.test();
+			TestTryCatchFinally.test();
+
+			TestArray.test();
+
+			TestInstanceMethod.test();
+			TestStructReturnType.test();
+			try {
+				TestStack.test();
+				//throw new IllegalStateException();
+			}
+			catch (IllegalStackAccessError expected) {
+				// ok!
+				//expected.printStackTrace();
+			}
+
+			//TestMapping.test();
+		}
+
+		TestStructField.test();
+
 		System.out.println("done2");
+	}
+
+	public static class TestStructField {
+		public static void test() {
+			new TestStructField().testInstance();
+			TestStructField.testStatic();
+		}
+
+		public Vec3 vec1 = new Vec3();
+
+		public void testInstance() {
+			vec1.x = 43.21f;
+			Vec3 that = vec1;
+			vec1 = that;
+			assert (vec1.x == 43.21f);
+			assert (that.x == 43.21f);
+		}
+
+		public static Vec3 vec2 = new Vec3();
+
+		public static void testStatic() {
+			vec2.x = 12.34f;
+			Vec3 that = vec2;
+			vec2 = that;
+			assert (vec2.x == 12.34f);
+			assert (that.x == 12.34f);
+		}
 	}
 
 	public static class TestMapping {
@@ -58,7 +90,7 @@ public class StructTest {
 			//for(int i = 0; i < mapped.length; i++) {
 			//	System.out.println(mapped[i].toString());
 			//}
-			System.out.println("done:"+bb);
+			System.out.println("done:" + bb);
 		}
 	}
 

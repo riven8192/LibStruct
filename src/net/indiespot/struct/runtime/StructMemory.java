@@ -4,18 +4,16 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import test.net.indiespot.struct.StructUtil;
-
 public class StructMemory {
-	public static final boolean CHECK_ALLOC_OVERFLOW = true;
-	public static final boolean CHECK_MEMORY_ACCESS_REGION = true;
-	public static final boolean CHECK_POINTER_ALIGNMENT = true;
+	public static final boolean CHECK_ALLOC_OVERFLOW = false;
+	public static final boolean CHECK_MEMORY_ACCESS_REGION = false;
+	public static final boolean CHECK_POINTER_ALIGNMENT = false;
 
 	private static final boolean manually_fill_and_copy = true;
 	private static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
-	private static final StructAllocationStack threadLocalStack;
+	public static final StructAllocationStack threadLocalStack;
 	static {
-		ByteBuffer bb = ByteBuffer.allocateDirect(1024 * 1024);
+		ByteBuffer bb = ByteBuffer.allocateDirect(256 * 1024);
 		immortable_buffers.add(bb);
 
 		long addr = StructMemory.alignBufferToWord(bb);

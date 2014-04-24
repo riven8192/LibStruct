@@ -41,7 +41,7 @@ import test.net.indiespot.struct.StructUtil;
 
 public class StructBuild {
 
-	private static final String printClass = "test/net/indiespot/struct/StructTest$TestMapping";
+	private static final String printClass = "test/net/indiespot/struct/StructTest$TestStructField";
 	public static final String plainStructFlag = "$truct";//"net/indiespot/struct/transform/StructFlag";
 	public static final String wrappedStructFlag = "L" + plainStructFlag + ";";
 
@@ -149,6 +149,8 @@ public class StructBuild {
 
 	private static final String RENAMED_CONSTRUCTOR_NAME = "_<init>_";
 	private static Map<String, byte[]> fqcn2bytecode = new HashMap<>();
+	private static Set<String> plainStructTypes = new HashSet<>();
+	private static Set<String> wrappedStructTypes = new HashSet<>();
 	private static Map<String, StructInfo> struct2info = new HashMap<>();
 	private static Map<String, Map<String, ReturnValueStrategy>> fqcn2method2strategy = new HashMap<>();
 	private static Map<String, Set<String>> fqcn2rewriteMethods = new HashMap<>();
@@ -213,6 +215,9 @@ public class StructBuild {
 				if(desc.equals("L" + jvmClassName(StructType.class) + ";")) {
 					System.out.println("\tfound struct: " + fqcn);
 					struct2info.put(fqcn, info = new StructInfo());
+					plainStructTypes.add(fqcn);
+					wrappedStructTypes.add("L" + fqcn + ";");
+
 					return new AnnotationVisitor(Opcodes.ASM4, super.visitAnnotation(desc, visible)) {
 						public void visit(String name, Object value) {
 							if(name.equals("sizeof")) {
@@ -374,7 +379,7 @@ public class StructBuild {
 
 			@Override
 			public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-				System.out.println("\tfield: " + name);
+				System.out.println("\tfield1: " + name + " " + desc);
 
 				if(struct2info.containsKey(fqcn)) {
 					if((access & ACC_STATIC) == 0) {
@@ -383,7 +388,11 @@ public class StructBuild {
 					}
 				}
 
-				return super.visitField(access, name, desc, signature, value);
+				if(wrappedStructTypes.contains(desc))
+					desc = wrappedStructFlag;
+				System.out.println("\tfield2: " + name + " " + desc);
+				String finalFieldDesc = desc.replace(wrappedStructFlag, "I");
+				return super.visitField(access, name, finalFieldDesc, signature, value);
 			}
 
 			@Override
@@ -510,6 +519,7 @@ public class StructBuild {
 								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "write", "(" + wrappedStructFlag + type + "I)V");
 								return;
 							}
+
 						}
 						else if(opcode == GETFIELD) {
 							if(struct2info.containsKey(owner)) {
@@ -520,6 +530,10 @@ public class StructBuild {
 								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "read", "(" + wrappedStructFlag + "I)" + type);
 								return;
 							}
+						}
+
+						if(wrappedStructTypes.contains(desc)) {
+							desc = wrappedStructFlag;
 						}
 
 						super.visitFieldInsn(opcode, owner, name, desc);

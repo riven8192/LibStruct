@@ -10,9 +10,9 @@ public class VarStack {
 		stack = new VarType[16];
 	}
 
-	public void push(VarType var) {
+	public VarType push(VarType var) {
 		try {
-			stack[index++] = var;
+			return stack[index++] = var;
 		}
 		finally {
 			System.out.println("\t\t\tstack.push(" + var + ") -> " + this);

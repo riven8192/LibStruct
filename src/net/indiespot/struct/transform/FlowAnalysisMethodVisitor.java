@@ -599,19 +599,23 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		int descType = descToType(desc);
 		switch (opcode) {
 		case GETSTATIC:
-			pushDescType(stack, descType);
+			if(pushDescType(stack, descType) == VarType.STRUCT)
+				desc = "I";
 			break;
 		case PUTSTATIC:
-			popDescType(stack, descType);
+			if(popDescType(stack, descType) == VarType.STRUCT)
+				desc = "I";
 			break;
 
 		case GETFIELD:
 			stack.popEQ(VarType.REFERENCE);
-			pushDescType(stack, descType);
+			if(pushDescType(stack, descType) == VarType.STRUCT)
+				desc = "I";
 			break;
 
 		case PUTFIELD:
-			popDescType(stack, descType);
+			if(popDescType(stack, descType) == VarType.STRUCT)
+				desc = "I";
 			stack.popEQ(VarType.REFERENCE);
 			break;
 
@@ -899,60 +903,61 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		}
 	}
 
-	private static void pushDescType(VarStack stack, int descType) {
+	private static VarType pushDescType(VarStack stack, int descType) {
 		if(descType == NO_WORD) {
 			// no-op
+			return null;
 		}
-		else if(descType == A_FLOAT) {
+		if(descType == A_FLOAT) {
+			return stack.push(VarType.MISC);
+		}
+		if(descType == A_LONG_OR_DOUBLE) {
 			stack.push(VarType.MISC);
+			return stack.push(VarType.MISC);
 		}
-		else if(descType == A_LONG_OR_DOUBLE) {
-			stack.push(VarType.MISC);
-			stack.push(VarType.MISC);
+		if(descType == AN_INT) {
+			return stack.push(VarType.INT);
 		}
-		else if(descType == AN_INT) {
-			stack.push(VarType.INT);
+		if(descType == A_STRUCT) {
+			return stack.push(VarType.STRUCT);
 		}
-		else if(descType == A_STRUCT) {
-			stack.push(VarType.STRUCT);
+		if(descType == A_STRUCT_ARRAY) {
+			return stack.push(VarType.STRUCT_ARRAY);
 		}
-		else if(descType == A_STRUCT_ARRAY) {
-			stack.push(VarType.STRUCT_ARRAY);
+		if(descType == A_REFERENCE) {
+			return stack.push(VarType.REFERENCE);
 		}
-		else if(descType == A_REFERENCE) {
-			stack.push(VarType.REFERENCE);
-		}
-		else {
-			throw new IllegalStateException();
-		}
+
+		throw new IllegalStateException();
 	}
 
-	private static void popDescType(VarStack stack, int descType) {
+	private static VarType popDescType(VarStack stack, int descType) {
 		if(descType == NO_WORD) {
 			// no-op
+			return null;
 		}
-		else if(descType == A_FLOAT) {
-			stack.popEQ(EnumSet.of(VarType.MISC, VarType.INT));
+		if(descType == A_FLOAT) {
+			return stack.popEQ(EnumSet.of(VarType.MISC, VarType.INT));
 		}
-		else if(descType == A_LONG_OR_DOUBLE) {
+		if(descType == A_LONG_OR_DOUBLE) {
 			stack.popEQ(VarType.MISC);
-			stack.popEQ(VarType.MISC);
+			return stack.popEQ(VarType.MISC);
 		}
-		else if(descType == AN_INT) {
-			stack.popEQ(VarType.INT);
+		if(descType == AN_INT) {
+			return stack.popEQ(VarType.INT);
 		}
-		else if(descType == A_REFERENCE) {
-			stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
+		if(descType == A_REFERENCE) {
+			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
 		}
-		else if(descType == A_STRUCT) {
-			stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT));
+		if(descType == A_STRUCT) {
+			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT));
 		}
-		else if(descType == A_STRUCT_ARRAY) {
-			stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
+		if(descType == A_STRUCT_ARRAY) {
+			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
 		}
-		else {
-			throw new IllegalStateException();
-		}
+
+		throw new IllegalStateException();
+
 	}
 
 	private static int setDescType(VarLocal local, int slot, int descType) {

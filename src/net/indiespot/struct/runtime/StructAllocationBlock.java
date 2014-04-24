@@ -3,7 +3,7 @@ package net.indiespot.struct.runtime;
 public class StructAllocationBlock {
 	final int wordSizeof;
 	final int handleOffset;
-	int wordsAllocated;
+	protected int wordsAllocated;
 
 	public StructAllocationBlock(int handleOffset, int sizeof) {
 		this.handleOffset = handleOffset;
@@ -12,8 +12,9 @@ public class StructAllocationBlock {
 	}
 
 	public int allocate(int sizeof) {
-		if(sizeof <= 0)
-			throw new IllegalArgumentException();
+		if(StructMemory.CHECK_ALLOC_OVERFLOW)
+			if(sizeof <= 0)
+				throw new IllegalArgumentException();
 
 		int wordSizeof = bytesToWords(sizeof);
 		if(StructMemory.CHECK_ALLOC_OVERFLOW)

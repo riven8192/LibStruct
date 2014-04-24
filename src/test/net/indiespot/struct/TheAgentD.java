@@ -2,14 +2,14 @@ package test.net.indiespot.struct;
 
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.TakeStruct;
+import net.indiespot.struct.runtime.StructMemory;
 
 public class TheAgentD {
 
-	private static int iterations = 10_000;
+	private static int iterations = 100_000_000;
 	private static int tests = 16;
 
 	public static void main(String[] args) {
-
 		for(int t = 0; t < tests; t++) {
 			testVec3((float) Math.random());
 			testNormalVec3((float) Math.random());
@@ -19,10 +19,14 @@ public class TheAgentD {
 	private static void testVec3(float start) {
 		long time = System.nanoTime();
 
-		Vec3 vec3 = vec3(start, start, start);
+		Vec3 vec3 = new Vec3(start, start, start);
 		for(int i = 0; i < iterations; i++) {
-			vec3.add(vec3(1, 2, 3)).mul(vec3(0.75f, 0.75f, 0.75f));
-			//update(vec3);
+			StructMemory.threadLocalStack.save();
+			
+			//vec3.add(vec3(1, 2, 3)).mul(vec3(0.75f, 0.75f, 0.75f));
+			vec3.add(new Vec3(1, 2, 3)).mul(new Vec3(0.75f, 0.75f, 0.75f));
+			
+			StructMemory.threadLocalStack.restore();
 		}
 
 		System.out.println((System.nanoTime() - time) / 1000 / 1000f + ": " + vec3.toString());
