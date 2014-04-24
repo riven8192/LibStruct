@@ -71,3 +71,22 @@ array[5].x += 9.9f; // segfault much?
 ByteBuffer bb = ByteBuffer.allocateDirect(12*100).order(ByteOrder.nativeOrder());
 Vec3[] mapped = StructUtil.map(Vec3.class, bb);
 ```
+
+
+
+## How to enable structs in your application
+Create a text file (e.g.: structdef.txt) and put it in your classpath.
+```
+test/net/indiespot/struct/Vec3
+your/project/YourStruct
+etc, etc
+```
+
+Launch the JVM with the provided Java Agent attached, and pass it the name of the file listing your struct types:
+```
+-javaagent:struct-agent.jar=structdef.txt
+```
+The agent will scan your classpath for the bytecode of these classes - in this
+case for "test/net/indiespot/struct/Vec3.class" (note that it doesn't actually
+load the class). Once it found all structs, it will start (lazily) rewriting
+all classes that any classloader attempts to load and resolve.
