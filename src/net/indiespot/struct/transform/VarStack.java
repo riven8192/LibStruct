@@ -24,7 +24,8 @@ public class VarStack {
 			return stack[index++] = var;
 		}
 		finally {
-			System.out.println("\t\t\tstack.push(" + var + ") -> " + this);
+			if(StructBuild.print_log)
+				System.out.println("\t\t\tstack.push(" + var + ") -> " + this);
 		}
 	}
 
@@ -33,7 +34,8 @@ public class VarStack {
 			return stack[--index];
 		}
 		finally {
-			System.out.println("\t\t\tstack.pop(" + stack[index] + ") -> " + this);
+			if(StructBuild.print_log)
+				System.out.println("\t\t\tstack.pop(" + stack[index] + ") -> " + this);
 		}
 	}
 
@@ -46,7 +48,8 @@ public class VarStack {
 			return stack[index - 1 - off];
 		}
 		finally {
-			System.out.println("\t\t\tstack.peek(" + stack[index - 1 - off] + ") -> " + this);
+			if(StructBuild.print_log)
+				System.out.println("\t\t\tstack.peek(" + stack[index - 1 - off] + ") -> " + this);
 		}
 	}
 

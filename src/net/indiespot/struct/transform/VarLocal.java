@@ -18,7 +18,8 @@ public class VarLocal {
 		while (index >= local.length) {
 			local = Arrays.copyOf(local, local.length * 2);
 		}
-		System.out.println("\t\t\tlocal.set(" + index + ", " + var.name() + ")");
+		if(StructBuild.print_log)
+			System.out.println("\t\t\tlocal.set(" + index + ", " + var.name() + ")");
 		local[index] = var;
 	}
 

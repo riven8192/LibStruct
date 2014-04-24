@@ -13,7 +13,7 @@ public class StructTest {
 		//TestPerformance.test();
 		//TheAgentD.main(args);
 
-		if(!true) {
+		if(true) {
 			TestNull.test();
 			TestOneInstance.test();
 			TestOneInstanceNull.test();
@@ -58,74 +58,117 @@ public class StructTest {
 
 	public static class TestStructAsObjectParam {
 		public static void test() {
-			System.out.println("w00t");
 			Vec3 vec = new Vec3();
+			Object ref = new Vec3();
 
-			System.out.println(vec);
+			System.out.println("vec=" + vec);
+			System.out.println("ref=" + ref);
 
-			// --
+			{
+				test(null);
+				test(vec);
 
-			test(null);
-			test(vec);
+				test(null, null);
+				test(null, vec);
+				test(vec, null);
+				test(vec, vec);
 
-			test(null, null);
-			test(null, vec);
-			test(vec, null);
-			test(vec, vec);
+				test(null, null, null);
+				test(null, null, vec);
+				test(null, vec, null);
+				test(null, vec, vec);
+				test(vec, null, null);
+				test(vec, null, vec);
+				test(vec, vec, null);
+				test(vec, vec, vec);
+			}
 
-			test(null, null, null);
-			test(null, null, vec);
-			test(null, vec, null);
-			test(null, vec, vec);
-			test(vec, null, null);
-			test(vec, null, vec);
-			test(vec, vec, null);
-			test(vec, vec, vec);
+			{
+				test("v");
+				test(vec);
 
-			// --
+				test("v", "v");
+				test("v", vec);
+				test(vec, "v");
+				test(vec, vec);
 
-			test("v");
-			test(vec);
+				test("v", "v", "v");
+				test("v", "v", vec);
+				test("v", vec, "v");
+				test("v", vec, vec);
+				test(vec, "v", "v");
+				test(vec, "v", vec);
+				test(vec, vec, "v");
+				test(vec, vec, vec);
+			}
 
-			test("v", "v");
-			test("v", vec);
-			test(vec, "v");
-			test(vec, vec);
+			{
+				Vec3 vc3 = new Vec3();
+				test(vc3, vec, vec);
+				test(vc3, vec, vc3);
+				test(vec, vec, vc3);
 
-			test("v", "v", "v");
-			test("v", "v", vec);
-			test("v", vec, "v");
-			test("v", vec, vec);
-			test(vec, "v", "v");
-			test(vec, "v", vec);
-			test(vec, vec, "v");
-			test(vec, vec, vec);
+				vc3 = null;
+				test(vc3, vec, vec);
+				test(vc3, vec, vc3);
+				test(vec, vec, vc3);
+			}
+
+			{
+				// stringify support for last 3 struct params
+				test("v", "v", "v", "v");
+				test("v", "v", "v", vec);
+				test("v", "v", vec, "v");
+				test("v", vec, "v", "v");
+				//test(vec, "v", "v", "v"); // will bark!
+
+				// deterministically null-structs are not stringified
+				vec = null;
+				test("v", "v", "v", "v");
+				test("v", "v", "v", vec);
+				test("v", "v", vec, "v");
+				test("v", vec, "v", "v");
+			}
+
 		}
 
 		private static void test(Object a) {
-			System.out.println("a=" + a);
+			//
 		}
 
 		private static void test(Object a, Object b) {
-			System.out.println("a=" + a);
-			System.out.println("b=" + b);
+			//
 		}
 
 		private static void test(Object a, Object b, Object c) {
-			System.out.println("a=" + a);
-			System.out.println("b=" + b);
-			System.out.println("c=" + c);
+			//
+		}
+
+		private static void test(Object a, Object b, Object c, Object d) {
+			//
 		}
 	}
 
 	public static class TestNull {
 		public static void test() {
+			new Vec3();
 			Vec3 vec = null;
+			System.out.println(vec);
 			vec = new Vec3();
-			System.out.println(vec.toString());
+			System.out.println(vec);
 			vec = null;
 			vec = new Vec3();
-			System.out.println(vec.toString());
+			System.out.println(vec);
+
+			//if(Math.random() < 0.5)
+			//	vec = new Vec3();
+			//else
+			//	vec = null;
+			//test(vec);
+		}
+
+		private static void test(Vec3 nullStruct) {
+			System.out.println(nullStruct);
 		}
 	}
 

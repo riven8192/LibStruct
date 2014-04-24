@@ -8,6 +8,7 @@ import java.util.EnumSet;
 import java.util.List;
 
 import net.indiespot.struct.runtime.StructMemory;
+import net.indiespot.struct.runtime.UnsupportedCallsiteException;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
@@ -21,12 +22,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	public VarStack stack = new VarStack();
 	public VarLocal local = new VarLocal();
 
-	private final String toString;
+	private final String callsiteDescription;
 
 	public FlowAnalysisMethodVisitor(MethodVisitor mv, int access, String owner, String name, String desc, String signature, String[] exceptions) {
 		super(Opcodes.ASM4, mv);
 
-		toString = owner + "." + name + "" + desc;
+		callsiteDescription = owner + "." + name + "" + desc;
 
 		String params = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
 		int slot = 0;
@@ -79,7 +80,9 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitInsn(int opcode) {
-		System.out.println("\t1)\t" + opcodeToString(opcode));
+		if(StructBuild.print_log)
+			if(StructBuild.print_log)
+				System.out.println("\t1)\t" + opcodeToString(opcode));
 
 		switch (opcode) {
 		case ACONST_NULL:
@@ -457,13 +460,15 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
-		System.out.println("\t2)\t" + opcodeToString(opcode));
+		if(StructBuild.print_log)
+			System.out.println("\t2)\t" + opcodeToString(opcode));
 		super.visitInsn(opcode);
 	}
 
 	@Override
 	public void visitIntInsn(int opcode, int operand) {
-		System.out.println("\t\t" + opcodeToString(opcode));
+		if(StructBuild.print_log)
+			System.out.println("\t\t" + opcodeToString(opcode));
 
 		switch (opcode) {
 		case BIPUSH:
@@ -485,7 +490,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitVarInsn(int opcode, int var) {
-		System.out.println("\t\t" + opcodeToString(opcode) + " " + var);
+		if(StructBuild.print_log)
+			System.out.println("\t\t" + opcodeToString(opcode) + " " + var);
 
 		switch (opcode) {
 		case ILOAD:
@@ -510,7 +516,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = ILOAD;
-				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
+				if(StructBuild.print_log)
+					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
 			}
 			stack.push(got);
 			break;
@@ -540,7 +547,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = ISTORE;
-				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
+				if(StructBuild.print_log)
+					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
 			}
 			local.set(var, got);
 			break;
@@ -558,11 +566,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitTypeInsn(int opcode, String type) {
-		System.out.println("\t\t" + opcodeToString(opcode) + " " + type);
+		if(StructBuild.print_log)
+			System.out.println("\t\t" + opcodeToString(opcode) + " " + type);
 
 		switch (opcode) {
 		case NEW:
-			if(type.equals(StructBuild.plainStructFlag))
+			if(type.equals(StructBuild.plain_struct_flag))
 				stack.push(VarType.STRUCT);
 			else
 				stack.push(VarType.REFERENCE);
@@ -570,7 +579,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case ANEWARRAY:
 			stack.popEQ(VarType.INT); // length
-			if(type.equals(StructBuild.plainStructFlag))
+			if(type.equals(StructBuild.plain_struct_flag))
 				stack.push(VarType.STRUCT_ARRAY);
 			else
 				stack.push(VarType.REFERENCE);
@@ -600,7 +609,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-		System.out.println("\t\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
+		if(StructBuild.print_log)
+			System.out.println("\t\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 
 		int descType = descToType(desc);
 		switch (opcode) {
@@ -634,7 +644,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitMethodInsn(int opcode, String owner, String name, String desc) {
-		System.out.println("\t\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
+		if(StructBuild.print_log)
+			System.out.println("\t\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 
 		String params = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
 		String ret = desc.substring(desc.indexOf(')') + 1);
@@ -645,40 +656,72 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				opcode == INVOKESPECIAL) {
 			String[] arr = splitDescArray(params);
 			for(int i = arr.length - 1, ii = 0; i >= 0; i--, ii++) {
-				System.out.println(ii);
-				System.out.println("arr[" + i + "]=" + arr[i] + " <- " + stack.peek(ii));
 				if(stack.peek(ii) == VarType.STRUCT) {
 					if(descToType(arr[i]) == A_REFERENCE) {
-						// RFC from TheAgentD:
-						// - passing struct as java/lang/Object parameter... :o(
+						// RFC from TheAgentD: stringify
+						// - passing STRUCT argument to REFERENCE parameter... :o(
 						// - supports rewriting up to 3 parameters
+
+						arr[i] = "Ljava/lang/String;";
 						if(i == arr.length - 1) {
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrappedStructFlag + ")Ljava/lang/String;");
-							arr[i] = "Ljava/lang/String;";
+							// ...,struct
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrapped_struct_flag + ")Ljava/lang/String;");
+							// ...,string
 						}
 						else if(i == arr.length - 2) {
+							// ...,struct,a
 							this.visitInsn(SWAP);
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrappedStructFlag + ")Ljava/lang/String;");
+							// ...,a,struct
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrapped_struct_flag + ")Ljava/lang/String;");
+							// ...,a,string
 							this.visitInsn(SWAP);
-							arr[i] = "Ljava/lang/String;";
+							// ...,string,a
 						}
 						else if(i == arr.length - 3) {
+							// ...,struct,b,a
 							this.visitInsn(DUP2_X1);
+							// ...,b,a,struct,b,a
 							this.visitInsn(POP2);
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrappedStructFlag + ")Ljava/lang/String;");
+							// ...,b,a,struct
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructBuild.wrapped_struct_flag + ")Ljava/lang/String;");
+							// ...,b,a,string
 							this.visitInsn(DUP_X2);
+							// ...,string,b,a,string
 							this.visitInsn(POP);
-							arr[i] = "Ljava/lang/String;";
+							// ...,string,b,a
 						}
 						else {
-							throw new IllegalStateException("Error: method parameter cannot accept struct value.\r\n" + //
-									"\t\tCall site: " + this.toString + "\r\n" + //
-									"\t\tTarget: " + owner + "." + name + "" + desc + "\r\n" + //
-									"\t\tParameters: " + stack.topToString(arr.length));
+							String msg = "cannot stringify struct @ method parameter " + (i + 1) + "/" + arr.length + ": " + //
+									"struct stringification is limited to the last 3 parameters of a method";
+
+							VarStack args = new VarStack();
+							for(int k = 0; k < arr.length; k++)
+								pushDescType(args, descToType(arr[k]));
+
+							throw new UnsupportedCallsiteException(msg, //
+									callsiteDescription, // callsite
+									owner + "." + name + "" + desc,// target
+									args.topToString(arr.length), //
+									stack.topToString(arr.length));
 						}
 					}
 				}
 			}
+
+			for(int i = arr.length - 1, ii = 0; i >= 0; i--, ii++) {
+				if(stack.peek(ii) == VarType.NULL) {
+					if(descToType(arr[i]) == A_STRUCT) {
+						String msg = "not allowed to pass null-argument to a struct-parameter";
+
+						VarStack args = new VarStack();
+						for(int k = 0; k < arr.length; k++)
+							pushDescType(args, descToType(arr[k]));
+
+						throw new UnsupportedCallsiteException(msg, callsiteDescription, owner + "." + name + "" + desc, args.topToString(arr.length), stack.topToString(arr.length));
+					}
+				}
+			}
+
 			for(int i = arr.length - 1; i >= 0; i--) {
 				popDescType(stack, descToType(arr[i]));
 			}
@@ -692,9 +735,10 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
-		if(desc.contains(StructBuild.wrappedStructFlag)) {
-			desc = desc.replace(StructBuild.wrappedStructFlag, "I");
-			System.out.println("\t2)\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
+		if(desc.contains(StructBuild.wrapped_struct_flag)) {
+			desc = desc.replace(StructBuild.wrapped_struct_flag, "I");
+			if(StructBuild.print_log)
+				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 		}
 		super.visitMethodInsn(opcode, owner, name, desc);
 	}
@@ -711,7 +755,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitJumpInsn(int opcode, Label label) {
-		System.out.println("\t\t" + opcodeToString(opcode));
+		if(StructBuild.print_log)
+			System.out.println("\t\t" + opcodeToString(opcode));
 
 		switch (opcode) {
 		case IFEQ:
@@ -737,7 +782,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL)));
 			if(got == VarType.STRUCT) {
 				opcode = IF_ICMPEQ;
-				System.out.println("\t2)\t" + opcodeToString(opcode));
+				if(StructBuild.print_log)
+					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
 		}
@@ -745,7 +791,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL)));
 			if(got == VarType.STRUCT) {
 				opcode = IF_ICMPNE;
-				System.out.println("\t2)\t" + opcodeToString(opcode));
+				if(StructBuild.print_log)
+					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
 		}
@@ -754,7 +801,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = IFEQ;
-				System.out.println("\t2)\t" + opcodeToString(opcode));
+				if(StructBuild.print_log)
+					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
 		}
@@ -762,7 +810,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
 			if(got == VarType.STRUCT) {
 				opcode = IFNE;
-				System.out.println("\t2)\t" + opcodeToString(opcode));
+				if(StructBuild.print_log)
+					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
 		}
@@ -783,7 +832,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				if(labels[i] == label)
 					index = i;
 
-			System.out.println("\t\t\t\t" + opcodeToString(opcode) + " label[" + index + "] jump to " + label);
+			if(StructBuild.print_log)
+				System.out.println("\t\t\t\t" + opcodeToString(opcode) + " label[" + index + "] jump to " + label);
 
 			if(index == -1)
 				index = labelIndex++;
@@ -803,7 +853,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			if(labels[i] == label)
 				index = i;
 
-		System.out.println("\t\t\t\tvisit label[" + index + "] <= " + label);
+		if(StructBuild.print_log)
+			System.out.println("\t\t\t\tvisit label[" + index + "] <= " + label);
 
 		if(index != -1) {
 			stack = stackAtLabel[index];
@@ -821,7 +872,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitLdcInsn(Object cst) {
-		System.out.println("\t\tLDC " + cst);
+		if(StructBuild.print_log)
+			System.out.println("\t\tLDC " + cst);
 
 		if(cst instanceof Integer) {
 			stack.push(VarType.INT);
@@ -841,7 +893,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.push(VarType.REFERENCE);
 		}
 		else if(cst instanceof Type) {
-			if(((Type) cst).getClassName().equals(StructBuild.plainStructFlag)) {
+			if(((Type) cst).getClassName().equals(StructBuild.plain_struct_flag)) {
+				// LDC Vec3.class -> LDC 0 
 				stack.push(VarType.STRUCT_TYPE);
 				cst = Integer.valueOf(0);
 			}
@@ -861,7 +914,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitIincInsn(int var, int increment) {
-		System.out.println("\t\tIINC");
+		if(StructBuild.print_log)
+			System.out.println("\t\tIINC");
 
 		local.getEQ(var, VarType.INT);
 
@@ -1090,9 +1144,9 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			return A_LONG_OR_DOUBLE;
 		if(desc.equals("D"))
 			return A_LONG_OR_DOUBLE;
-		if(desc.equals(StructBuild.wrappedStructFlag))
+		if(desc.equals(StructBuild.wrapped_struct_flag))
 			return A_STRUCT;
-		if(desc.equals("[" + StructBuild.wrappedStructFlag))
+		if(desc.equals("[" + StructBuild.wrapped_struct_flag))
 			return A_STRUCT_ARRAY;
 		if(desc.startsWith("L"))
 			return A_REFERENCE; // type

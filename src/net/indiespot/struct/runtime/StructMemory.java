@@ -77,7 +77,7 @@ public class StructMemory {
 	}
 
 	public static String toString(int handle) {
-		return "<struct#" + handle + ">";
+		return "<struct@" + handle2pointer(handle) + ">";
 	}
 
 	public static long alignBufferToWord(ByteBuffer bb) {
