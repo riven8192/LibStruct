@@ -1,5 +1,7 @@
 package net.indiespot.struct.transform;
 
+import java.util.EnumSet;
+
 public class VarLocal {
 	private VarType[] local;
 
@@ -8,6 +10,7 @@ public class VarLocal {
 	}
 
 	public void set(int index, VarType var) {
+		System.out.println("\t\t\tlocal.set("+index+", "+var.name()+")");
 		local[index] = var;
 	}
 
@@ -16,8 +19,15 @@ public class VarLocal {
 	}
 
 	public void getEQ(int index, VarType type) {
-		if (type != get(index))
+		if(type != get(index))
 			throw new IllegalStateException();
+	}
+
+	public VarType getEQ(int index, EnumSet<VarType> types) {
+		VarType got = get(index);
+		if(!types.contains(got))
+			throw new IllegalStateException("expected: "+types+", found: "+got);
+		return got;
 	}
 
 	public VarLocal copy() {

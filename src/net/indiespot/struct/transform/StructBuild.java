@@ -30,7 +30,6 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.util.TraceClassVisitor;
@@ -39,7 +38,10 @@ import test.net.indiespot.struct.StructUtil;
 
 public class StructBuild {
 
-	private static final String printClass = "test/net/indiespot/struct/StructTest$TestTryCatchFinally";
+	//private static final String printClass = "test/net/indiespot/struct/StructTest$TestOneInstance";
+	private static final String printClass = "test/net/indiespot/struct/StructTest$TestOneInstanceInstanceof";//"test/net/indiespot/struct/StructTest";//"test/net/indiespot/struct/Vec3";
+	public static final String plainStructFlag = StructFlag.class.getName().replace('.', '/');
+	public static final String wrappedStructFlag = "L" + plainStructFlag + ";";
 
 	public static void main(String[] args) throws Exception {
 		File bin = new File("./bin/");
@@ -54,11 +56,13 @@ public class StructBuild {
 			jar(fqcn2bytecode, out);
 		}
 
-		String[] cmds = new String[4];
+		String[] cmds = new String[6];
 		cmds[0] = System.getProperty("java.home") + "/bin/java.exe";
-		cmds[1] = "-cp";
-		cmds[2] = "./lib/asm-4.2/asm-all-4.2.jar;./lib/output.jar;./bin";
-		cmds[3] = "test.net.indiespot.struct.StructTest";
+		cmds[1] = "-showversion";
+		cmds[2] = "-ea";
+		cmds[3] = "-cp";
+		cmds[4] = "./lib/asm-4.2/asm-all-4.2.jar;./lib/output.jar;./bin";
+		cmds[5] = "test.net.indiespot.struct.StructTest";
 
 		Process proc = Runtime.getRuntime().exec(cmds);
 		final InputStream stdout = proc.getInputStream();
@@ -88,7 +92,7 @@ public class StructBuild {
 			}
 		}).start();
 
-		System.out.println("process closed with: " + proc.waitFor());
+		System.out.println("process terminated with exit-code: " + proc.waitFor());
 		jar.delete();
 		jar.deleteOnExit();
 	}
@@ -382,31 +386,34 @@ public class StructBuild {
 			@Override
 			public MethodVisitor visitMethod(int access, String methodName, String methodDesc, String signature, String[] exceptions) {
 				final String origMethodDesc = methodDesc;
+
 				System.out.println("\tmethod1: " + methodName + " " + methodDesc);
 
 				String returnsStructType = null;
 				for(String struct : struct2info.keySet()) {
 					if(methodDesc.endsWith(")L" + struct + ";"))
 						returnsStructType = struct;
-					methodDesc = methodDesc.replace("L" + struct + ";", "I");
+					methodDesc = methodDesc.replace("L" + struct + ";", wrappedStructFlag);
 				}
 				final String _returnsStructType = returnsStructType;
 
 				if(struct2info.containsKey(fqcn)) {
 					if(methodName.equals("<init>"))
-						methodName = RENAMED_CONSTRUCTOR_NAME; 
+						methodName = RENAMED_CONSTRUCTOR_NAME;
 
 					if((access & ACC_STATIC) == 0) {
 						// make instance methods static
 						// add 'this' as first parameter
 						access |= ACC_STATIC;
-						methodDesc = "(I" + methodDesc.substring(1);
+						methodDesc = "(" + wrappedStructFlag + methodDesc.substring(1);
 					}
 				}
 
 				System.out.println("\tmethod2: " + methodName + " " + methodDesc);
 
-				final MethodVisitor mv = super.visitMethod(access, methodName, methodDesc, signature, exceptions);
+				String finalMethodName = methodName.replace(wrappedStructFlag, "I");
+				String finalMethodDesc = methodDesc.replace(wrappedStructFlag, "I");
+				final MethodVisitor mv = super.visitMethod(access, finalMethodName, finalMethodDesc, signature, exceptions);
 
 				if(false) {
 					// do we need to rewrite this method?
@@ -444,13 +451,13 @@ public class StructBuild {
 						if(local != null) {
 							for(int i = 0; i < local.length; i++) {
 								if(struct2info.containsKey(local[i]))
-									local[i] = "I";
+									local[i] = wrappedStructFlag;
 							}
 						}
 						if(stack != null) {
 							for(int i = 0; i < stack.length; i++) {
 								if(struct2info.containsKey(stack[i]))
-									stack[i] = "I";
+									stack[i] = wrappedStructFlag;
 							}
 						}
 
@@ -462,19 +469,21 @@ public class StructBuild {
 						if(opcode == NEW) {
 							if(struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
-								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocate", "(I)I");
+								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocate", "(I)" + wrappedStructFlag);
 								return;
 							}
 						}
-						else if(opcode == INSTANCEOF) {
-							if(flow.stack.peek() == VarType.INT) {
-								super.visitInsn(POP); // ref
-								super.visitInsn(ICONST_0); // false
+						else if(opcode == ANEWARRAY) {
+							if(struct2info.containsKey(type)) {
+								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
+								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocateArray", "(II)[" + wrappedStructFlag);
+								flow.stack.popEQ(VarType.STRUCT_ARRAY);
+								flow.stack.push(VarType.STRUCT_ARRAY);
 								return;
 							}
 						}
 						else if(opcode == CHECKCAST) {
-							if(flow.stack.peek() == VarType.INT) {
+							if(flow.stack.peek() == VarType.STRUCT) {
 								//super.visitInsn(POP); // ref
 								//super.visitMethodInsn(Opcodes.INVOKESTATIC, jvmClassName(StructMemory.class), "execCheckcastInsn", "()V");
 								return;
@@ -492,7 +501,7 @@ public class StructBuild {
 								int offset = info.field2offset.get(name).intValue();
 								String type = info.field2type.get(name);
 								super.visitIntInsn(BIPUSH, offset);
-								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "write", "(I" + type + "I)V");
+								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "write", "(" + wrappedStructFlag + type + "I)V");
 								return;
 							}
 						}
@@ -502,7 +511,7 @@ public class StructBuild {
 								int offset = info.field2offset.get(name).intValue();
 								String type = info.field2type.get(name);
 								super.visitIntInsn(BIPUSH, offset);
-								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "read", "(II)" + type);
+								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "read", "(" + wrappedStructFlag + "I)" + type);
 								return;
 							}
 						}
@@ -518,7 +527,7 @@ public class StructBuild {
 						for(String structType : struct2info.keySet()) {
 							if(desc.endsWith(")L" + structType + ";"))
 								returnsStructType = structType;
-							desc = desc.replace("L" + structType + ";", "I");
+							desc = desc.replace(structType, plainStructFlag);
 						}
 
 						if(struct2info.containsKey(fqcn) && _methodName.equals(RENAMED_CONSTRUCTOR_NAME)) {
@@ -536,29 +545,29 @@ public class StructBuild {
 
 									// add 'this' as first parameter
 									opcode = INVOKESTATIC;
-									desc = "(I" + desc.substring(1);
+									desc = "(" + wrappedStructFlag + desc.substring(1);
 								}
 							}
 							else if(opcode == INVOKEVIRTUAL) {
 								// add 'this' as first parameter
 								opcode = INVOKESTATIC;
-								desc = "(I" + desc.substring(1);
+								desc = "(" + wrappedStructFlag + desc.substring(1);
 							}
 						}
 
 						if(owner.equals(StructBuild.jvmClassName(StructUtil.class))) {
-							if(name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
-								if(flow.stack.peek() == VarType.INT) {
+							if(name.equals("getPointer") && desc.equals("(" + wrappedStructFlag + ")J")) {
+								if(flow.stack.peek() == VarType.STRUCT) {
 									owner = StructBuild.jvmClassName(StructMemory.class);
 									name = "handle2pointer";
-									desc = "(I)J";
+									desc = "(" + wrappedStructFlag + ")J";
 								}
 							}
-							else if(name.equals("isReachable") && desc.equals("(Ljava/lang/Object;)Z")) {
-								if(flow.stack.peek() == VarType.INT) {
+							else if(name.equals("isReachable") && desc.equals("(" + wrappedStructFlag + ")Z")) {
+								if(flow.stack.peek() == VarType.STRUCT) {
 									owner = StructBuild.jvmClassName(StructMemory.class);
 									name = "isValid";
-									desc = "(I)Z";
+									desc = "(" + wrappedStructFlag + ")Z";
 								}
 							}
 						}
@@ -578,7 +587,7 @@ public class StructBuild {
 							}
 							else if(strategy == ReturnValueStrategy.COPY) {
 								super.visitIntInsn(BIPUSH, struct2info.get(returnsStructType).sizeof);
-								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocateCopy", "(II)I");
+								super.visitMethodInsn(INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocateCopy", "(" + wrappedStructFlag + "I)" + wrappedStructFlag);
 							}
 							else {
 								throw new IllegalStateException();
@@ -588,17 +597,6 @@ public class StructBuild {
 
 					@Override
 					public void visitInsn(int opcode) {
-						if(opcode == ACONST_NULL) {
-							if(!flow.stack.isEmpty() && flow.stack.peek() == VarType.INT) {
-								opcode = ICONST_0;
-							}
-						}
-						else if(opcode == ARETURN) {
-							if(!flow.stack.isEmpty() && flow.stack.peek() == VarType.INT) {
-								opcode = IRETURN;
-							}
-						}
-
 						switch (opcode) {
 						case RETURN:
 						case ARETURN:
@@ -611,52 +609,6 @@ public class StructBuild {
 						}
 
 						super.visitInsn(opcode);
-					}
-
-					@Override
-					public void visitVarInsn(int opcode, int var) {
-						if(opcode == ASTORE) {
-							if(!flow.stack.isEmpty() && flow.stack.peek() == VarType.INT) {
-								opcode = ISTORE;
-							}
-						}
-						else if(opcode == ALOAD) {
-							if(flow.local.get(var) == VarType.INT) {
-								opcode = ILOAD;
-							}
-						}
-
-						super.visitVarInsn(opcode, var);
-					}
-
-					@Override
-					public void visitJumpInsn(int opcode, Label label) {
-						if(opcode == IFNULL) {
-							if(!flow.stack.isEmpty() && flow.stack.peek() == VarType.INT) {
-								opcode = IFEQ;
-							}
-						}
-						else if(opcode == IFNONNULL) {
-							if(!flow.stack.isEmpty() && flow.stack.peek() == VarType.INT) {
-								opcode = IFNE;
-							}
-						}
-						else if(opcode == IF_ACMPNE) {
-							if(!flow.stack.isEmpty() && flow.stack.peek() == VarType.INT) {
-								if(flow.stack.peek(1) == VarType.INT) {
-									opcode = IF_ICMPNE;
-								}
-							}
-						}
-						else if(opcode == IF_ACMPEQ) {
-							if(!flow.stack.isEmpty() && flow.stack.peek() == VarType.INT) {
-								if(flow.stack.peek(1) == VarType.INT) {
-									opcode = IF_ICMPEQ;
-								}
-							}
-						}
-
-						super.visitJumpInsn(opcode, label);
 					}
 				};
 			}

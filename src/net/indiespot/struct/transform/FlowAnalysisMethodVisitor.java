@@ -16,7 +16,6 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 public class FlowAnalysisMethodVisitor extends MethodVisitor {
-
 	public VarStack stack = new VarStack();
 	public VarLocal local = new VarLocal();
 
@@ -26,7 +25,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		String params = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
 		int slot = 0;
 		if((access & Opcodes.ACC_STATIC) == 0) {
-			local.set(slot++, VarType.REF); // 'this'
+			local.set(slot++, VarType.REFERENCE); // 'this'
 		}
 		for(String d : splitDescArray(params)) {
 			slot = setDescType(local, slot, descToType(d));
@@ -74,11 +73,11 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitInsn(int opcode) {
-		System.out.println("\t\t" + opcodeToString(opcode));
+		System.out.println("\t1)\t" + opcodeToString(opcode));
 
 		switch (opcode) {
 		case ACONST_NULL:
-			stack.push(VarType.REF);
+			stack.push(VarType.REFERENCE);
 			break;
 
 		case ICONST_M1:
@@ -105,48 +104,67 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.push(VarType.MISC);
 			break;
 
-		case IALOAD:
 		case BALOAD:
 		case CALOAD:
 		case SALOAD:
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
+			stack.popEQ(VarType.REFERENCE); // array
+			stack.push(VarType.INT); // value
+			break;
+
+		case IALOAD:
+			stack.popEQ(VarType.INT); // index
+			stack.popEQ(VarType.REFERENCE); // array
 			stack.push(VarType.INT); // value
 			break;
 
 		case FALOAD:
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
+			stack.popEQ(VarType.REFERENCE); // array
 			stack.push(VarType.MISC); // value
 			break;
 
 		case LALOAD:
 		case DALOAD:
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
+			stack.popEQ(VarType.REFERENCE); // array
 			stack.push(VarType.MISC); // value
 			stack.push(VarType.MISC); // value
 			break;
 
 		case AALOAD:
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
-			stack.push(VarType.REF); // value
+			switch (stack.pop()) { // array
+			case REFERENCE:
+				stack.push(VarType.REFERENCE); // value
+				break;
+			case STRUCT_ARRAY:
+				stack.push(VarType.STRUCT); // value
+				opcode = IALOAD;
+				break;
+			default:
+				throw new IllegalStateException();
+			}
 			break;
 
-		case IASTORE:
 		case BASTORE:
 		case CASTORE:
 		case SASTORE:
 			stack.popEQ(VarType.INT); // value
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
+			stack.popEQ(VarType.REFERENCE); // array
+			break;
+
+		case IASTORE:
+			stack.popEQ(VarType.INT); // value
+			stack.popEQ(VarType.INT); // index
+			stack.popEQ(VarType.REFERENCE); // array
 			break;
 
 		case FASTORE:
 			stack.popEQ(VarType.MISC); // value
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
+			stack.popEQ(VarType.REFERENCE); // array
 			break;
 
 		case LASTORE:
@@ -154,14 +172,20 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.popEQ(VarType.MISC); // value
 			stack.popEQ(VarType.MISC); // value
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
+			stack.popEQ(VarType.REFERENCE); // array
 			break;
 
-		case AASTORE:
-			stack.popEQ(VarType.REF); // value
+		case AASTORE: {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT)); // value
+			if(got == VarType.STRUCT)
+				opcode = IASTORE;
 			stack.popEQ(VarType.INT); // index
-			stack.popEQ(VarType.REF); // array
+			if(got == VarType.STRUCT)
+				stack.popEQ(VarType.STRUCT_ARRAY); // array
+			else
+				stack.popEQ(VarType.REFERENCE); // array
 			break;
+		}
 
 		case POP:
 			stack.pop();
@@ -388,12 +412,15 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			local = null;
 			break;
 
-		case ARETURN:
-			stack.popEQ(VarType.REF);
+		case ARETURN: {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			if(got == VarType.STRUCT)
+				opcode = IRETURN;
 			stack.eqEmpty();
 			stack = null;
 			local = null;
 			break;
+		}
 
 		case RETURN:
 			stack.eqEmpty();
@@ -402,23 +429,24 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ARRAYLENGTH:
-			stack.popEQ(VarType.REF);
+			stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
 			stack.push(VarType.INT);
 			break;
 
 		case MONITORENTER:
 		case MONITOREXIT:
-			stack.popEQ(VarType.REF);
+			stack.popEQ(VarType.REFERENCE);
 			break;
 
 		case ATHROW:
-			stack.popEQ(VarType.REF);
+			stack.popEQ(VarType.REFERENCE);
 			break;
 
 		default:
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
+		System.out.println("\t2)\t" + opcodeToString(opcode));
 		super.visitInsn(opcode);
 	}
 
@@ -434,7 +462,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case NEWARRAY:
 			stack.popEQ(VarType.INT); // length
-			stack.push(VarType.REF);
+			stack.push(VarType.REFERENCE);
 			break;
 
 		default:
@@ -446,7 +474,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitVarInsn(int opcode, int var) {
-		System.out.println("\t\t" + opcodeToString(opcode));
+		System.out.println("\t\t" + opcodeToString(opcode) + " " + var);
 
 		switch (opcode) {
 		case ILOAD:
@@ -467,10 +495,15 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.push(VarType.MISC);
 			break;
 
-		case ALOAD:
-			local.getEQ(var, VarType.REF);
-			stack.push(VarType.REF);
+		case ALOAD: {
+			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			if(got == VarType.STRUCT) {
+				opcode = ILOAD;
+				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
+			}
+			stack.push(got);
 			break;
+		}
 
 		// ---
 
@@ -492,10 +525,15 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			local.set(var + 1, VarType.MISC);
 			break;
 
-		case ASTORE:
-			stack.popEQ(VarType.REF);
-			local.set(var, VarType.REF);
+		case ASTORE: {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			if(got == VarType.STRUCT) {
+				opcode = ISTORE;
+				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
+			}
+			local.set(var, got);
 			break;
+		}
 
 		case RET:
 			throw new UnsupportedOperationException();
@@ -509,25 +547,38 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitTypeInsn(int opcode, String type) {
-		System.out.println("\t\t" + opcodeToString(opcode));
+		System.out.println("\t\t" + opcodeToString(opcode) + " " + type);
 
 		switch (opcode) {
 		case NEW:
-			stack.push(VarType.REF); // using 'type'
+			if(type.equals(StructBuild.plainStructFlag))
+				stack.push(VarType.STRUCT);
+			else
+				stack.push(VarType.REFERENCE);
 			break;
 
 		case ANEWARRAY:
-			stack.popEQ(VarType.INT);// length
-			stack.push(VarType.REF); // array
+			stack.popEQ(VarType.INT); // length
+			if(type.equals(StructBuild.plainStructFlag))
+				stack.push(VarType.STRUCT_ARRAY);
+			else
+				stack.push(VarType.REFERENCE);
 			break;
 
 		case CHECKCAST:
 			break; // no-op
 
-		case INSTANCEOF:
-			stack.popEQ(VarType.REF);
+		case INSTANCEOF: {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			if(got == VarType.STRUCT) {
+				super.visitInsn(POP); // discard REF
+				super.visitInsn(ICONST_0); // false (struct is never instanceof any type)
+				stack.push(VarType.INT);
+				return;
+			}
 			stack.push(VarType.INT);
 			break;
+		}
 
 		default:
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
@@ -550,13 +601,13 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case GETFIELD:
-			stack.popEQ(VarType.REF);
+			stack.popEQ(VarType.REFERENCE);
 			pushDescType(stack, descType);
 			break;
 
 		case PUTFIELD:
 			popDescType(stack, descType);
-			stack.popEQ(VarType.REF);
+			stack.popEQ(VarType.REFERENCE);
 			break;
 
 		default:
@@ -580,7 +631,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			for(int i = arr.length - 1; i >= 0; i--) {
 				popDescType(stack, descToType(arr[i]));
 			}
-			stack.popEQ(VarType.REF);
+			stack.popEQ(VarType.REFERENCE);
 			pushDescType(stack, descToType(ret));
 			break;
 		}
@@ -603,6 +654,10 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
+		if(desc.contains(StructBuild.wrappedStructFlag)) {
+			desc = desc.replace(StructBuild.wrappedStructFlag, "I");
+			System.out.println("\t2)\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
+		}
 		super.visitMethodInsn(opcode, owner, name, desc);
 	}
 
@@ -640,16 +695,39 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.popEQ(VarType.INT);
 			break;
 
-		case IF_ACMPEQ:
-		case IF_ACMPNE:
-			stack.popEQ(VarType.REF);
-			stack.popEQ(VarType.REF);
+		case IF_ACMPEQ: {
+			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY)));
+			if(got == VarType.STRUCT) {
+				opcode = IF_ICMPEQ;
+				System.out.println("\t2)\t" + opcodeToString(opcode));
+			}
 			break;
+		}
+		case IF_ACMPNE: {
+			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY)));
+			if(got == VarType.STRUCT) {
+				opcode = IF_ICMPNE;
+				System.out.println("\t2)\t" + opcodeToString(opcode));
+			}
+			break;
+		}
 
-		case IFNULL:
-		case IFNONNULL:
-			stack.popEQ(VarType.REF);
+		case IFNULL: {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			if(got == VarType.STRUCT) {
+				opcode = IFEQ;
+				System.out.println("\t2)\t" + opcodeToString(opcode));
+			}
 			break;
+		}
+		case IFNONNULL: {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			if(got == VarType.STRUCT) {
+				opcode = IFNE;
+				System.out.println("\t2)\t" + opcodeToString(opcode));
+			}
+			break;
+		}
 
 		case GOTO:
 			break; // no-op
@@ -696,7 +774,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		for(Label catchHandler : catchHandlers) {
 			if(catchHandler == label) {
-				stack.push(VarType.REF);
+				stack.push(VarType.REFERENCE);
 			}
 		}
 
@@ -722,13 +800,13 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.push(VarType.MISC);
 		}
 		else if(cst instanceof String) {
-			stack.push(VarType.REF);
+			stack.push(VarType.REFERENCE);
 		}
 		else if(cst instanceof Type) {
-			stack.push(VarType.REF);
+			stack.push(VarType.REFERENCE);
 		}
 		else if(cst instanceof Object[]) { // FIXME
-			stack.push(VarType.REF);
+			stack.push(VarType.REFERENCE);
 		}
 		else {
 			throw new IllegalStateException("cst=" + cst.getClass());
@@ -821,15 +899,21 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		else if(descType == A_FLOAT) {
 			stack.push(VarType.MISC);
 		}
-		else if(descType == LONG_OR_DOUBLE) {
+		else if(descType == A_LONG_OR_DOUBLE) {
 			stack.push(VarType.MISC);
 			stack.push(VarType.MISC);
 		}
 		else if(descType == AN_INT) {
 			stack.push(VarType.INT);
 		}
-		else if(descType == REFERENCE) {
-			stack.push(VarType.REF);
+		else if(descType == A_STRUCT) {
+			stack.push(VarType.STRUCT);
+		}
+		else if(descType == A_STRUCT_ARRAY) {
+			stack.push(VarType.STRUCT_ARRAY);
+		}
+		else if(descType == A_REFERENCE) {
+			stack.push(VarType.REFERENCE);
 		}
 		else {
 			throw new IllegalStateException();
@@ -843,15 +927,21 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		else if(descType == A_FLOAT) {
 			stack.popEQ(EnumSet.of(VarType.MISC, VarType.INT));
 		}
-		else if(descType == LONG_OR_DOUBLE) {
+		else if(descType == A_LONG_OR_DOUBLE) {
 			stack.popEQ(VarType.MISC);
 			stack.popEQ(VarType.MISC);
 		}
 		else if(descType == AN_INT) {
 			stack.popEQ(VarType.INT);
 		}
-		else if(descType == REFERENCE) {
-			stack.popEQ(VarType.REF);
+		else if(descType == A_REFERENCE) {
+			stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
+		}
+		else if(descType == A_STRUCT) {
+			stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT));
+		}
+		else if(descType == A_STRUCT_ARRAY) {
+			stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
 		}
 		else {
 			throw new IllegalStateException();
@@ -865,48 +955,77 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		else if(descType == A_FLOAT) {
 			local.set(slot++, VarType.MISC);
 		}
-		else if(descType == LONG_OR_DOUBLE) {
+		else if(descType == A_LONG_OR_DOUBLE) {
 			local.set(slot++, VarType.MISC);
 			local.set(slot++, VarType.MISC);
 		}
 		else if(descType == AN_INT) {
 			local.set(slot++, VarType.INT);
 		}
-		else if(descType == REFERENCE) {
-			local.set(slot++, VarType.REF);
+		else if(descType == A_STRUCT) {
+			local.set(slot++, VarType.STRUCT);
 		}
+		else if(descType == A_STRUCT_ARRAY) {
+			local.set(slot++, VarType.STRUCT_ARRAY);
+		}
+		else if(descType == A_REFERENCE) {
+			local.set(slot++, VarType.REFERENCE);
+		}
+
 		else {
 			throw new IllegalStateException();
 		}
 		return slot;
 	}
 
-	private static String[] splitDescArray(String desc) {
+	public String[] splitDescArray(String desc) {
+		final String orig = desc;
 		List<String> parts = new ArrayList<>();
 
-		while (!desc.isEmpty()) {
-			int type = descToType(desc.substring(0, 1));
-			if(type == REFERENCE) {
-				int io = desc.indexOf(';');
-				parts.add(desc.substring(0, io));
-				desc = desc.substring(io + 1);
+		try {
+			while (!desc.isEmpty()) {
+				String type = getFirstType(desc);
+				desc = desc.substring(type.length());
+				parts.add(type);
 			}
-			else {
-				parts.add(desc.substring(0, 1));
-				desc = desc.substring(1);
-			}
+		}
+		catch (Exception exc) {
+			throw new IllegalStateException(orig, exc);
 		}
 
 		return parts.toArray(new String[parts.size()]);
 	}
 
+	private String getFirstType(String desc) {
+		String c = desc.substring(0, 1);
+		int type = descToType(c);
+		if(type != A_REFERENCE) {
+			return c;
+		}
+
+		if(c.equals("[")) {
+			return "[" + getFirstType(desc.substring(1));
+		}
+
+		if(c.equals("L")) {
+			int io = desc.indexOf(';');
+			if(io == -1)
+				throw new IllegalStateException();
+			return desc.substring(0, io + 1);
+		}
+
+		throw new IllegalStateException();
+	}
+
 	private static int NO_WORD = 11;
 	private static int AN_INT = 12;
 	private static int A_FLOAT = 13;
-	private static int LONG_OR_DOUBLE = 14;
-	private static int REFERENCE = 15;
+	private static int A_LONG_OR_DOUBLE = 14;
+	private static int A_STRUCT = 15;
+	private static int A_STRUCT_ARRAY = 16;
+	private static int A_REFERENCE = 17;
 
-	private static int descToType(String desc) {
+	private int descToType(String desc) {
 		if(desc.equals("V"))
 			return NO_WORD; // void
 		if(desc.equals("Z"))
@@ -922,13 +1041,17 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		if(desc.equals("F"))
 			return A_FLOAT;
 		if(desc.equals("J"))
-			return LONG_OR_DOUBLE;
+			return A_LONG_OR_DOUBLE;
 		if(desc.equals("D"))
-			return LONG_OR_DOUBLE;
+			return A_LONG_OR_DOUBLE;
+		if(desc.equals(StructBuild.wrappedStructFlag))
+			return A_STRUCT;
+		if(desc.equals("[" + StructBuild.wrappedStructFlag))
+			return A_STRUCT_ARRAY;
 		if(desc.startsWith("L"))
-			return REFERENCE; // type
+			return A_REFERENCE; // type
 		if(desc.startsWith("["))
-			return REFERENCE; // array
+			return A_REFERENCE; // array
 		throw new UnsupportedOperationException("unexpected desc: " + desc);
 	}
 }

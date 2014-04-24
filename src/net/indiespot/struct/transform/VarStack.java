@@ -29,12 +29,7 @@ public class VarStack {
 	}
 
 	public VarType peek() {
-		try {
-			return stack[index - 1];
-		}
-		finally {
-			System.out.println("\t\t\tstack.peek(" + stack[index - 1] + ") -> " + this);
-		}
+		return peek(0);
 	}
 
 	public VarType peek(int off) {
@@ -53,21 +48,25 @@ public class VarStack {
 		return copy;
 	}
 
-	public void popEQ(VarType type) {
+	public VarType popEQ(VarType type) {
 		if(type != peek())
 			throw new IllegalStateException("type=" + peek() + ", required=" + type);
-		pop();
+		return pop();
 	}
 
-	public void popEQ(EnumSet<VarType> types) {
+	public VarType popEQ(EnumSet<VarType> types) {
 		if(!types.contains(peek()))
 			throw new IllegalStateException("type=" + peek() + ", required=" + types);
-		pop();
+		return pop();
 	}
 
 	public void popNE(VarType type) {
 		if(type == pop())
 			throw new IllegalStateException();
+	}
+
+	public int size() {
+		return index;
 	}
 
 	public boolean isEmpty() {

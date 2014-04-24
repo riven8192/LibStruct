@@ -4,9 +4,10 @@ import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.TakeStruct;
+import net.indiespot.struct.transform.StructFlag;
 
 @StructType(sizeof = 12)
-public class Vec3 {
+public class Vec3 implements StructFlag {
 	@StructField(offset = 0) public float x;
 	@StructField(offset = 4) public float y;
 	@StructField(offset = 8) public float z;

@@ -2,18 +2,22 @@ package net.indiespot.struct.runtime;
 
 public class StructAllocationStack extends StructAllocationBlock {
 	private final int[] stack = new int[100];
-	private int index;
+	private int level;
 
 	public StructAllocationStack(int handleOffset, int sizeof) {
 		super(handleOffset, sizeof);
 	}
 
 	public void save() {
-		stack[index++] = this.wordsAllocated;
+		stack[level++] = wordsAllocated;
 	}
 
 	public void restore() {
-		this.wordsAllocated = stack[--index];
+		wordsAllocated = stack[--level];
+	}
+
+	public int level() {
+		return level;
 	}
 
 	public boolean isOnStack(int handle) {
