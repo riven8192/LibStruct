@@ -32,27 +32,27 @@ public class StructTest {
 			TestTryCatchFinally.test();
 
 			TestArray.test();
+			TestMapping.test();
 
 			TestInstanceMethod.test();
 			TestStructReturnType.test();
 			try {
 				TestStack.test();
-				//throw new IllegalStateException();
+				// throw new IllegalStateException();
 			} catch (IllegalStackAccessError expected) {
 				// ok!
 				expected.printStackTrace();
 			}
 
 		}
-		
+
 		// TestStructField.test();
-		ParticleTestStruct.main(args);
+		// ParticleTestStruct.main(args);
 		// TestMultiThreadedAllocation.test();
 
 		// TestPerformance.test();
-		//TheAgentD.main(args);
+		// TheAgentD.main(args);
 
-		// TestMapping.test();
 		TestStructField.test();
 		TestStructAsObjectParam.test();
 
@@ -245,10 +245,15 @@ public class StructTest {
 			ByteBuffer bb = ByteBuffer.allocateDirect(count * sizeof + alignMargin);
 			StructMemory.alignBufferToWord(bb);
 			Vec3[] mapped = StructUtil.map(Vec3.class, bb);
-			// System.out.println(mapped.length);
-			// for(int i = 0; i < mapped.length; i++) {
-			// System.out.println(mapped[i].toString());
-			// }
+			long p1 = StructUtil.getPointer(mapped[0]);
+			long p2 = StructUtil.getPointer(mapped[1]);
+			if (p2 - p1 != 12)
+				throw new IllegalStateException();
+
+			System.out.println(mapped.length);
+			for (int i = 0; i < mapped.length; i++) {
+				System.out.println(mapped[i].toString());
+			}
 			System.out.println("done:" + bb);
 		}
 	}
@@ -624,6 +629,11 @@ public class StructTest {
 			Vec3[] arr = new Vec3[10];
 			arr[arr.length - 1].x = 4.5f;
 			arr[arr.length - 1].set(5.6f, 6.7f, 7.8f);
+
+			long p1 = StructUtil.getPointer(arr[0]);
+			long p2 = StructUtil.getPointer(arr[1]);
+			if (p2 - p1 != 12)
+				throw new IllegalStateException();
 
 			Vec3 a = arr[0];
 			Vec3 b = arr[1];

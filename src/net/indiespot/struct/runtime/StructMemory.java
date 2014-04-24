@@ -57,24 +57,27 @@ public class StructMemory {
 	}
 
 	public static int[] allocateArray(int length, int sizeof, StructAllocationStack stack) {
-		int handle = stack.allocate(sizeof * length);
-		fillMemoryByWord(handle, sizeof * length, 0x00000000);
+		int strideWords = sizeof2wordsCeil(sizeof);
+		int strideBytes = strideWords << 2;
+		int handle = stack.allocate(strideBytes * length);
+		fillMemoryByWord(handle, strideWords * length, 0x00000000);
 		int[] arr = new int[length];
 		for (int i = 0; i < arr.length; i++)
-			arr[i] = handle + i;
+			arr[i] = handle + i * strideWords;
 		return arr;
 	}
 
 	public static int[] mapArray(ByteBuffer bb, int sizeof) {
+		int strideWords = sizeof2wordsCeil(sizeof);
+		int strideBytes = strideWords << 2;
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
-		int count = bb.remaining() / sizeof;
+		int count = bb.remaining() / strideBytes;
 		if (count == 0)
 			throw new IllegalStateException("no usable space in buffer");
 		int handle = pointer2handle(addr);
-		// fillMemoryByWord(handle, sizeof * count, 0x00000000);
 		int[] arr = new int[count];
 		for (int i = 0; i < arr.length; i++)
-			arr[i] = handle + i;
+			arr[i] = handle + i * strideWords;
 		return arr;
 	}
 
@@ -120,6 +123,10 @@ public class StructMemory {
 
 	public static int sizeof2words(int sizeof) {
 		return sizeof >> 2;
+	}
+
+	public static int sizeof2wordsCeil(int sizeof) {
+		return (sizeof + 3) >> 2;
 	}
 
 	public static long handle2pointer(int handle) {
