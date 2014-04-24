@@ -145,13 +145,20 @@ public static void callsite() {
 ```
 
 
+## Performance
++ Allocating structs on the stack is about 3x faster than instantiating an equal instance.
++ Accessing fields of structs is just as fast as accessing fields of instances.
++ Calling methods on fields is just as fast as calling methods on instances.
++ Due to structs being sequentially allocated, they are guaranteed to be in a contiguous block of memory (even you call 'new Vec3' in a loop, use 'new Vec3[n]' or 'map(Vec3.class, n)'), leading to less cache misses and higher throughput.
++ Due to the lack of actual objects, the GC will never have to collect your structs, you can create and discard tens of millions per second, without GC hickups.
 
 ## How to enable structs in your application
 Create a text file (e.g.: structdef.txt) and put it in your classpath.
 ```
 test/net/indiespot/struct/Vec3
-your/project/YourStruct
-etc, etc
+your/project/math/Vec2
+your/project/math/Vec3
+your/project/math/Vec4
 ```
 
 Launch the JVM with the provided Java Agent attached, and pass it the name of the file listing your struct types:
