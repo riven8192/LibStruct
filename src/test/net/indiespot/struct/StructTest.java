@@ -14,6 +14,7 @@ public class StructTest {
 			TestOneInstanceInstanceof.test();
 			TestTwoInstances.test();
 			TestFields.test();
+			TestSetter.test();
 			TestSum.test();
 			TestMethodPass.test();
 			TestIfFlow.test();
@@ -21,8 +22,10 @@ public class StructTest {
 			TestAddress.test();
 			TestInstanceMethod.test();
 			TestStructReturnType.test();
+			TestStack.test();
 		}
-		TestStack.test();
+
+		TestSetter.test();
 	}
 
 	public static class TestOneInstance {
@@ -98,6 +101,21 @@ public class StructTest {
 			assert vec2.x == 14.34f;
 			assert vec2.y == 16.46f;
 			assert vec2.z == 18.58f;
+		}
+	}
+
+	public static class TestSetter {
+		public static void test() {
+			Vec3 v = new Vec3();
+			echo(v.x);
+			echo(v.y);
+			echo(v.z);
+			Vec3 ref = v.set(4567.8f, 4.5f, 3);
+			if(v != ref)
+				throw new IllegalStateException();
+			echo(v.x);
+			echo(v.y);
+			echo(v.z);
 		}
 	}
 

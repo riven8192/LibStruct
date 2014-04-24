@@ -565,24 +565,29 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		switch (opcode) {
 		case INVOKESPECIAL:
-		case INVOKEVIRTUAL:
-			for(String d : splitDescArray(params)) {
-				popDescType(stack, descToType(d));
+		case INVOKEVIRTUAL: {
+			String[] arr = splitDescArray(params);
+			for(int i = arr.length - 1; i >= 0; i--) {
+				popDescType(stack, descToType(arr[i]));
 			}
 			stack.popEQ(VarType.REF);
 			pushDescType(stack, descToType(ret));
 			break;
+		}
 
-		case INVOKESTATIC:
-			for(String d : splitDescArray(params)) {
-				popDescType(stack, descToType(d));
+		case INVOKESTATIC: {
+			String[] arr = splitDescArray(params);
+			for(int i = arr.length - 1; i >= 0; i--) {
+				popDescType(stack, descToType(arr[i]));
 			}
 			pushDescType(stack, descToType(ret));
 			break;
+		}
 
-		case INVOKEINTERFACE:
+		case INVOKEINTERFACE: {
 			// TODO
 			break;
+		}
 
 		default:
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));

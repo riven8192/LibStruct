@@ -145,7 +145,7 @@ public class StructBuild {
 
 	public static Map<String, byte[]> rewriteClasses() {
 
-		final String printClass = "test/net/indiespot/struct/StructTest$TestStack";
+		final String printClass = "test/net/indiespot/struct/StructTest$TestSetter";
 
 		Map<String, byte[]> output = new HashMap<>();
 		for(Entry<String, byte[]> entry : fqcn2bytecode.entrySet()) {

@@ -3,6 +3,7 @@ package test.net.indiespot.struct;
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.StructField;
+import net.indiespot.struct.cp.TakeStruct;
 
 @StructType(sizeof = 12)
 public class Vec3 {
@@ -20,6 +21,14 @@ public class Vec3 {
 		this.x *= that.x;
 		this.y *= that.y;
 		this.z *= that.z;
+	}
+
+	@TakeStruct
+	public Vec3 set(float x, float y, float z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		return this;
 	}
 
 	@CopyStruct
