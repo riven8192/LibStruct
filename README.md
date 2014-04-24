@@ -149,7 +149,7 @@ public static void callsite() {
 + Allocating structs on the stack is about 3x faster than instantiating an equal instance.
 + Accessing fields of structs is just as fast as accessing fields of instances.
 + Calling methods on fields is just as fast as calling methods on instances.
-+ Due to structs being sequentially allocated, they are guaranteed to be in a contiguous block of memory (even you call 'new Vec3' in a loop, use 'new Vec3[n]' or 'map(Vec3.class, n)'), leading to less cache misses and higher throughput.
++ Due to structs being sequentially allocated, they are guaranteed to be in a contiguous block of memory (regardless of whether you call new Vec3() in a loop, map(Vec3.class, n) or new Vec3[n]), leading to less cache misses and higher throughput.
 + Due to the lack of actual objects, the GC will never have to collect your structs, you can create and discard tens of millions per second, without GC hickups.
 
 ## How to enable structs in your application
