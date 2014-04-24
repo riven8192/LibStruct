@@ -5,25 +5,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class StructMemory {
-	public static final boolean CHECK_ALLOC_OVERFLOW = true;
-	public static final boolean CHECK_MEMORY_ACCESS_REGION = true;
-	public static final boolean CHECK_POINTER_ALIGNMENT = true;
+	public static final boolean CHECK_ALLOC_OVERFLOW = !true;
+	public static final boolean CHECK_MEMORY_ACCESS_REGION = !true;
+	public static final boolean CHECK_POINTER_ALIGNMENT = !true;
 
 	private static final boolean manually_fill_and_copy = true;
-	private static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
-	public static final StructAllocationStack threadLocalStack;
-	static {
-		ByteBuffer bb = ByteBuffer.allocateDirect(256 * 1024);
-		immortable_buffers.add(bb);
-
-		long addr = StructMemory.alignBufferToWord(bb);
-		int handleOffset = pointer2handle(addr);
-
-		threadLocalStack = new StructAllocationStack(handleOffset, bb.remaining());
-	}
+	static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
 
 	public static int allocate(int sizeof) {
-		int handle = threadLocalStack.allocate(sizeof);
+		return allocate(sizeof, StructThreadLocalStack.get());
+	}
+
+	public static int[] allocateArray(int length, int sizeof) {
+		return allocateArray(length, sizeof, StructThreadLocalStack.get());
+	}
+
+	// ---
+
+	public static int allocate(int sizeof, StructAllocationStack stack) {
+		int handle = stack.allocate(sizeof);
 
 		if(manually_fill_and_copy) {
 			fillMemoryByWord(handle, sizeof2words(sizeof), 0x00000000);
@@ -38,8 +38,12 @@ public class StructMemory {
 		return handle;
 	}
 
+	public static int allocateSkipZeroFill(int sizeof, StructAllocationStack stack) {
+		return stack.allocate(sizeof);
+	}
+
 	public static int allocateCopy(int srcHandle, int sizeof) {
-		int dstHandle = threadLocalStack.allocate(sizeof);
+		int dstHandle = StructThreadLocalStack.get().allocate(sizeof);
 
 		if(manually_fill_and_copy) {
 			copyMemoryByWord(srcHandle, dstHandle, sizeof2words(sizeof));
@@ -54,8 +58,8 @@ public class StructMemory {
 		return dstHandle;
 	}
 
-	public static int[] allocateArray(int length, int sizeof) {
-		int handle = threadLocalStack.allocate(sizeof * length);
+	public static int[] allocateArray(int length, int sizeof, StructAllocationStack stack) {
+		int handle = stack.allocate(sizeof * length);
 		fillMemoryByWord(handle, sizeof * length, 0x00000000);
 		int[] arr = new int[length];
 		for(int i = 0; i < arr.length; i++)
@@ -109,15 +113,7 @@ public class StructMemory {
 	}
 
 	public static boolean isValid(int handle) {
-		return threadLocalStack.isOnStack(handle);
-	}
-
-	public static void saveStack() {
-		threadLocalStack.save();
-	}
-
-	public static void restoreStack() {
-		threadLocalStack.restore();
+		return StructThreadLocalStack.get().isOnStack(handle);
 	}
 
 	public static void execCheckcastInsn() {
@@ -138,25 +134,31 @@ public class StructMemory {
 				throw new IllegalStateException("pointer must be 32-bit aligned");
 		long handle = pointer >> 2;
 		if(handle > 0xFFFF_FFFFL)
-			throw new IllegalStateException();
+			throw new IllegalStateException("pointer too big to fit in compressed pointer (addressable memory is 16 GB)");
 		return (int) handle;
 	}
 
+	//private static final float[] backing_memory = new float[256 * 1024];
+
 	public static final void write(int handle, float value, int fieldOffset) {
 		if(CHECK_MEMORY_ACCESS_REGION) {
-			if(threadLocalStack.isOnBlock(handle) && !threadLocalStack.isOnStack(handle)) {
+			StructAllocationStack stack = StructThreadLocalStack.get();
+			if(stack.isOnBlock(handle) && !stack.isOnStack(handle)) {
 				throw new IllegalStackAccessError();
 			}
 		}
+		//backing_memory[handle + fieldOffset] = value;
 		StructUnsafe.UNSAFE.putFloat(handle2pointer(handle) + fieldOffset, value);
 	}
 
 	public static final float read(int handle, int fieldOffset) {
 		if(CHECK_MEMORY_ACCESS_REGION) {
-			if(threadLocalStack.isOnBlock(handle) && !threadLocalStack.isOnStack(handle)) {
+			StructAllocationStack stack = StructThreadLocalStack.get();
+			if(stack.isOnBlock(handle) && !stack.isOnStack(handle)) {
 				throw new IllegalStackAccessError();
 			}
 		}
+		//return backing_memory[handle + fieldOffset];
 		return StructUnsafe.UNSAFE.getFloat(handle2pointer(handle) + fieldOffset);
 	}
 }

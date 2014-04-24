@@ -21,10 +21,13 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
 import net.indiespot.struct.cp.CopyStruct;
+import net.indiespot.struct.cp.ForceUninitializedMemory;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.StructField;
+import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructMemory;
+import net.indiespot.struct.runtime.StructThreadLocalStack;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
@@ -41,7 +44,7 @@ import test.net.indiespot.struct.StructUtil;
 
 public class StructBuild {
 	public static final boolean print_log = false;
-	private static final String print_class = null;//"test/net/indiespot/struct/StructTest$TestStructAsObjectParam";
+	private static final String print_class = "test/net/indiespot/struct/Vec3";
 	private static final boolean print_class_and_terminate = false;
 	public static final String plain_struct_flag = "$truct";//"net/indiespot/struct/transform/StructFlag";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
@@ -64,6 +67,10 @@ public class StructBuild {
 		cmds.add(System.getProperty("java.home") + "/bin/java.exe");
 		cmds.add("-showversion");
 		//cmds.add("-XX:-DoEscapeAnalysis");
+		//cmds.add("-XX:+UnlockDiagnosticVMOptions");
+		//cmds.add("-XX:+LogCompilation");
+		//cmds.add("-XX:LogFile=C:\\Users\\Skip-Cloudwise\\foo.log");
+		//cmds.add("-Xprof");
 		cmds.add("-ea");
 		cmds.add("-cp");
 		cmds.add("./lib/asm-4.2/asm-all-4.2.jar;./lib/output.jar;./bin");
@@ -154,7 +161,9 @@ public class StructBuild {
 	private static Set<String> plain_struct_types = new HashSet<>();
 	private static Set<String> wrapped_struct_types = new HashSet<>();
 	private static Map<String, StructInfo> struct2info = new HashMap<>();
+	private static Set<String> fqcn2skipzerofill = new HashSet<>();
 	private static Map<String, Map<String, ReturnValueStrategy>> fqcn2method2strategy = new HashMap<>();
+	private static Map<String, Map<String, Integer>> fqcn2method2locals = new HashMap<>();
 
 	private static final boolean struct_rewrite_early_out = true;
 	private static Map<String, Set<String>> fqcn2struct_creation_methods = new HashMap<>();
@@ -226,7 +235,10 @@ public class StructBuild {
 			// find struct.sizeof
 			@Override
 			public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-				if(desc.equals("L" + jvmClassName(StructType.class) + ";")) {
+				if(desc.equals("L" + jvmClassName(ForceUninitializedMemory.class) + ";")) {
+					fqcn2skipzerofill.add(fqcn);
+				}
+				else if(desc.equals("L" + jvmClassName(StructType.class) + ";")) {
 					if(print_log)
 						System.out.println("\tfound struct: " + fqcn);
 					struct2info.put(fqcn, info = new StructInfo());
@@ -301,6 +313,17 @@ public class StructBuild {
 								System.out.println("\t\t\twith struct return value, with Pass strategy");
 						}
 						return super.visitAnnotation(desc, visible);
+					}
+
+					@Override
+					public void visitMaxs(int maxStack, int maxLocals) {
+
+						Map<String, Integer> method2locals = fqcn2method2locals.get(fqcn);
+						if(method2locals == null)
+							fqcn2method2locals.put(fqcn, method2locals = new HashMap<>());
+						method2locals.put(methodName + methodDesc, maxLocals);
+
+						super.visitMaxs(maxStack, maxLocals);
 					}
 				};
 			}
@@ -508,11 +531,16 @@ public class StructBuild {
 				if(struct_rewrite_early_out) {
 					// do we need to rewrite this method?
 					Set<String> rewriteMethods = fqcn2struct_access_methods.get(fqcn);
-					boolean earlyOut = (rewriteMethods == null) || !rewriteMethods.contains(origMethodName + origMethodDesc);
+					boolean hasStructAccess = (rewriteMethods == null) || !rewriteMethods.contains(origMethodName + origMethodDesc);
 					if(print_log)
-						System.out.println("early out for rewrite? [" + earlyOut + "] " + fqcn + "." + origMethodName + origMethodDesc);
-					if(earlyOut)
+						System.out.println("early out for rewrite? [hasStructAccess=" + hasStructAccess + "] " + fqcn + "." + origMethodName + origMethodDesc);
+					if(hasStructAccess)
 						return mv; // nope!
+				}
+				final boolean hasStructCreation;
+				{
+					Set<String> rewriteMethods = fqcn2struct_creation_methods.get(fqcn);
+					hasStructCreation = (rewriteMethods != null) && rewriteMethods.contains(origMethodName + origMethodDesc);
 				}
 
 				final String _methodName = methodName;
@@ -536,7 +564,31 @@ public class StructBuild {
 
 						super.visitCode();
 
-						super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructMemory.class), "saveStack", "()V");
+						if(hasStructCreation) {
+							// ...
+							super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructThreadLocalStack.class), "saveStack", "()L" + StructAllocationStack.class.getName().replace('.', '/') + ";");
+							// ..., sas
+							super.visitVarInsn(ASTORE, fqcn2method2locals.get(fqcn).get(origMethodName + origMethodDesc).intValue());
+						}
+					}
+
+					@Override
+					public void visitInsn(int opcode) {
+						if(hasStructCreation)
+							switch (opcode) {
+							case RETURN:
+							case ARETURN:
+							case IRETURN:
+							case FRETURN:
+							case LRETURN:
+							case DRETURN:
+								//super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructMemory.class), "restoreStack", "()V");
+								super.visitVarInsn(ALOAD, fqcn2method2locals.get(fqcn).get(origMethodName + origMethodDesc).intValue());
+								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructBuild.jvmClassName(StructAllocationStack.class), "restore", "()V");
+								break;
+							}
+
+						super.visitInsn(opcode);
 					}
 
 					@Override
@@ -562,7 +614,13 @@ public class StructBuild {
 						if(opcode == NEW) {
 							if(struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
-								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocate", "(I)" + wrapped_struct_flag);
+								//super.visitMethodInsn(Opcodes.INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocate", "(I)" + wrapped_struct_flag);
+
+								super.visitVarInsn(ALOAD, fqcn2method2locals.get(fqcn).get(origMethodName + origMethodDesc).intValue());
+								if(fqcn2skipzerofill.contains(fqcn))
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocateSkipZeroFill", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag);
+								else
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructBuild.jvmClassName(StructMemory.class), "allocate", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag);
 								return;
 							}
 						}
@@ -712,22 +770,6 @@ public class StructBuild {
 								throw new IllegalStateException();
 							}
 						}
-					}
-
-					@Override
-					public void visitInsn(int opcode) {
-						switch (opcode) {
-						case RETURN:
-						case ARETURN:
-						case IRETURN:
-						case FRETURN:
-						case LRETURN:
-						case DRETURN:
-							super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructMemory.class), "restoreStack", "()V");
-							break;
-						}
-
-						super.visitInsn(opcode);
 					}
 
 					private String lastLdcStruct;

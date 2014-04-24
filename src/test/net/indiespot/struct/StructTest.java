@@ -10,8 +10,11 @@ import net.indiespot.struct.runtime.StructMemory;
 
 public class StructTest {
 	public static void main(String[] args) {
+
+		//TestMultiThreadedAllocation.test();
+
 		//TestPerformance.test();
-		//TheAgentD.main(args);
+		TheAgentD.main(args);
 
 		if(true) {
 			TestNull.test();
@@ -40,11 +43,11 @@ public class StructTest {
 			TestStructReturnType.test();
 			try {
 				TestStack.test();
-				//throw new IllegalStateException();
+				throw new IllegalStateException();
 			}
 			catch (IllegalStackAccessError expected) {
 				// ok!
-				//expected.printStackTrace();
+				expected.printStackTrace();
 			}
 
 		}
@@ -54,6 +57,30 @@ public class StructTest {
 		TestStructAsObjectParam.test();
 
 		System.out.println("done2");
+	}
+
+	public static class TestMultiThreadedAllocation {
+		public static void test() {
+			Thread[] ts = new Thread[8];
+			for(int i = 0; i < ts.length; i++) {
+				ts[i] = new Thread(new Runnable() {
+					@Override
+					public void run() {
+						TheAgentD.main(new String[0]);
+					}
+				});
+			}
+
+			try {
+				for(int i = 0; i < ts.length; i++)
+					ts[i].start();
+				for(int i = 0; i < ts.length; i++)
+					ts[i].join();
+			}
+			catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 
 	public static class TestStructAsObjectParam {
@@ -626,7 +653,7 @@ public class StructTest {
 			Vec3[] arr3 = new Vec3[1024];
 			Vec3[] arr4 = new Vec3[1024];
 
-			for(int k = 0; k < 1024; k++) {
+			for(int k = 0; k < 16; k++) {
 				System.out.println();
 				float p = 0;
 				sv.x = nv.x = rndm.nextFloat();
@@ -703,7 +730,7 @@ public class StructTest {
 
 		private static void benchInstanceNew2(NormalVec3[] arr) {
 			for(int i = 0; i < arr.length; i++) {
-				arr[i] = new NormalVec3();
+				arr[i] = new NormalVec3(1, 2, 3);
 			}
 		}
 
@@ -715,7 +742,7 @@ public class StructTest {
 
 		private static void benchStructNew2(Vec3[] arr) {
 			for(int i = 0; i < arr.length; i++) {
-				arr[i] = new Vec3();
+				arr[i] = new Vec3(1, 2, 3);
 			}
 		}
 

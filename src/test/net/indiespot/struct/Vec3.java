@@ -4,15 +4,17 @@ import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.TakeStruct;
+import net.indiespot.struct.cp.ForceUninitializedMemory;
 
 @StructType(sizeof = 12)
+@ForceUninitializedMemory
 public class Vec3 {
 	@StructField(offset = 0) public float x;
 	@StructField(offset = 4) public float y;
 	@StructField(offset = 8) public float z;
 
 	public Vec3() {
-
+		this(0.0f, 0.0f, 0.0f);
 	}
 
 	public Vec3(float x, float y, float z) {
