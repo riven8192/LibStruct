@@ -7,9 +7,12 @@ import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.IllegalStackAccessError;
 import net.indiespot.struct.runtime.StructMemory;
+import net.indiespot.struct.runtime.StructUtil;
 
 public class StructTest {
 	public static void main(String[] args) {
+		TestStructEnv.test();
+
 		if(true) {
 			TestNull.test();
 			TestOneInstance.test();
@@ -55,6 +58,38 @@ public class StructTest {
 		TheAgentD.main(args);
 
 		System.out.println("done2");
+	}
+
+	public static class TestStructEnv {
+		public static void test() {
+			test0();
+			test1();
+			test2();
+			test3();
+		}
+
+		public static void test0() {
+			try {
+				assert false;
+
+				throw new IllegalStateException("asserts must be enabled");
+			}
+			catch (AssertionError err) {
+				System.out.println("StructTest: asserts are enabled.");
+			}
+		}
+
+		public static void test1() {
+			assert StructUtil.isReachable(null) == false;
+		}
+
+		public static void test2() {
+			assert StructUtil.isReachable(new Vec3()) == true;
+		}
+
+		public static void test3() {
+			assert StructUtil.getPointer(new Vec3()) > 0L;
+		}
 	}
 
 	public static class TestMultiThreadedAllocation {
@@ -823,5 +858,64 @@ public class StructTest {
 
 	public static void echo(boolean v) {
 		System.out.println(v);
+	}
+
+	public static class Vec3 {
+		public float x;
+		public float y;
+		public float z;
+		public static int aaaaaaah;
+
+		public Vec3() {
+			this(0.0f, 0.0f, 0.0f);
+		}
+
+		public Vec3(float x, float y, float z) {
+			this.x = x;
+			this.y = y;
+			this.z = z;
+		}
+
+		public Vec3(float xyz) {
+			this(xyz, xyz, xyz);
+		}
+
+		@TakeStruct
+		public Vec3 add(Vec3 that) {
+			this.x += that.x;
+			this.y += that.y;
+			this.z += that.z;
+			return this;
+		}
+
+		@TakeStruct
+		public Vec3 mul(Vec3 that) {
+			this.x *= that.x;
+			this.y *= that.y;
+			this.z *= that.z;
+			return this;
+		}
+
+		@TakeStruct
+		public Vec3 set(float x, float y, float z) {
+			this.x = x;
+			this.y = y;
+			this.z = z;
+			return this;
+		}
+
+		@CopyStruct
+		public Vec3 copy() {
+			return this;
+		}
+
+		public static void noob() {
+			System.out.println("n00b!");
+		}
+
+		@Override
+		public String toString() {
+			return "Vec3[" + x + ", " + y + ", " + z + "]";
+		}
 	}
 }

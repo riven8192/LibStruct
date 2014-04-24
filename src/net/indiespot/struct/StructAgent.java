@@ -42,7 +42,14 @@ public class StructAgent {
 				if(className.startsWith("sun/"))
 					return null;
 
-				return StructEnv.rewriteClass(className, classfileBuffer);
+				try {
+					return StructEnv.rewriteClass(className, classfileBuffer);
+				}
+				catch (Throwable t) {
+					t.printStackTrace();
+					System.exit(-1);
+					return null;
+				}
 			}
 		});
 	}

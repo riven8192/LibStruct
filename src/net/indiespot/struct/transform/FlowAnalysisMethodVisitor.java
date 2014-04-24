@@ -69,15 +69,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		super.visitFrame(type, nLocal, local, nStack, stack);
 	}
 
-	private List<Label> catchHandlers = new ArrayList<>();
-
-	@Override
-	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
-		super.visitTryCatchBlock(start, end, handler, type);
-
-		catchHandlers.add(handler);
-	}
-
 	@Override
 	public void visitInsn(int opcode) {
 		if(StructEnv.print_log)
@@ -840,6 +831,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
+		// whatever we're jumping to, will have the same stack/local as we currently have
 		{
 			int index = -1;
 			for(int i = 0; i < labelIndex; i++)
@@ -859,24 +851,68 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		super.visitJumpInsn(opcode, label);
 	}
 
-	@Override
-	public void visitLabel(Label label) {
+	private static class TryCatchBlock {
+		public final Label start, end, handler;
 
+		public TryCatchBlock(Label start, Label end, Label handler) {
+			this.start = start;
+			this.end = end;
+			this.handler = handler;
+		}
+	}
+
+	private List<TryCatchBlock> tryCatchBlocks = new ArrayList<>();
+
+	@Override
+	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
+		super.visitTryCatchBlock(start, end, handler, type);
+
+		if(StructEnv.print_log)
+			System.out.println("\t\t_TRYCATCH [" + start + " - " + end + "] -> " + handler + "," + type);
+
+		tryCatchBlocks.add(new TryCatchBlock(start, end, handler));
+	}
+
+	private boolean saveOrRestoreStateAtLabel(Label label) {
 		int index = -1;
 		for(int i = 0; i < labelIndex; i++)
 			if(labels[i] == label)
 				index = i;
 
-		if(StructEnv.print_log)
-			System.out.println("\t\t\t\tvisit label[" + index + "] <= " + label);
-
-		if(index != -1) {
-			stack = stackAtLabel[index];
-			local = localAtLabel[index];
+		if(index == -1) {
+			index = labelIndex++;
+			if(StructEnv.print_log)
+				System.out.println("\t\t\tsaving label state [" + index + "] <= " + label);
+			labels[index] = label;
+			stackAtLabel[index] = (stack == null) ? null : stack.copy();
+			localAtLabel[index] = (local == null) ? null : local.copy();
+			return false;
 		}
 
-		for(Label catchHandler : catchHandlers) {
-			if(catchHandler == label) {
+		stack = stackAtLabel[index];
+		local = localAtLabel[index];
+		if(stack == null || local == null)
+			throw new IllegalStateException();
+		if(StructEnv.print_log)
+			System.out.println("\t\t\trestored label state [" + index + "] <= " + label);
+		return true;
+	}
+
+	@Override
+	public void visitLabel(Label label) {
+
+		if(StructEnv.print_log)
+			System.out.println("\t\t_LABEL <= " + label);
+
+		this.saveOrRestoreStateAtLabel(label);
+
+		for(TryCatchBlock tryCatchBlock : tryCatchBlocks) {
+			if(tryCatchBlock.handler == label) {
+				if(stack == null) {
+					if(!this.saveOrRestoreStateAtLabel(tryCatchBlock.start)) {
+						throw new IllegalStateException();
+					}
+				}
 				stack.push(VarType.REFERENCE);
 			}
 		}

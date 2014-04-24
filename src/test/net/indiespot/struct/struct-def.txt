@@ -1,5 +1,5 @@
-test/net/indiespot/struct/Vec3 SIZEOF 12
-test/net/indiespot/struct/Vec3 SKIPZEROFILL
-test/net/indiespot/struct/Vec3 FIELD x F 0
-test/net/indiespot/struct/Vec3 FIELD y F 4
-test/net/indiespot/struct/Vec3 FIELD z F 8
+test/net/indiespot/struct/StructTest$Vec3 SIZEOF 12
+test/net/indiespot/struct/StructTest$Vec3 SKIPZEROFILL
+test/net/indiespot/struct/StructTest$Vec3 FIELD x F 0
+test/net/indiespot/struct/StructTest$Vec3 FIELD y F 4
+test/net/indiespot/struct/StructTest$Vec3 FIELD z F 8

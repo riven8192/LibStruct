@@ -14,6 +14,7 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.StructThreadLocalStack;
+import net.indiespot.struct.runtime.StructUtil;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
@@ -25,8 +26,6 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
-
-import test.net.indiespot.struct.StructUtil;
 
 public class StructEnv {
 	public static final boolean print_log = false;
@@ -147,6 +146,9 @@ public class StructEnv {
 								if(desc.contains(wrappedStructType)) {
 									this.flagRewriteMethod(false);
 								}
+							}
+							if(owner.equals(jvmClassName(StructUtil.class))) {
+								this.flagRewriteMethod(false);
 							}
 
 							super.visitMethodInsn(opcode, owner, name, desc);
@@ -502,17 +504,41 @@ public class StructEnv {
 
 						if(owner.equals(StructEnv.jvmClassName(StructUtil.class))) {
 							if(name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
-								if(flow.stack.peek() == VarType.STRUCT) {
+								if(flow.stack.peek() == VarType.NULL) {
+									// ..., NULL
+									super.visitInsn(Opcodes.POP);
+									// ...
+									super.visitInsn(Opcodes.ICONST_M1);
+									// ..., -1
+									super.visitInsn(Opcodes.I2L);
+									// ..., -1L
+									return;
+								}
+								else if(flow.stack.peek() == VarType.STRUCT) {
 									owner = StructEnv.jvmClassName(StructMemory.class);
 									name = "handle2pointer";
 									desc = "(" + wrapped_struct_flag + ")J";
 								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
 							}
 							else if(name.equals("isReachable") && desc.equals("(Ljava/lang/Object;)Z")) {
-								if(flow.stack.peek() == VarType.STRUCT) {
+								if(flow.stack.peek() == VarType.NULL) {
+									// ..., NULL
+									super.visitInsn(Opcodes.POP);
+									// ...
+									super.visitInsn(Opcodes.ICONST_0);
+									// ..., 'false'
+									return;
+								}
+								else if(flow.stack.peek() == VarType.STRUCT) {
 									owner = StructEnv.jvmClassName(StructMemory.class);
 									name = "isValid";
 									desc = "(" + wrapped_struct_flag + ")Z";
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
 							}
 							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;)[Ljava/lang/Object;")) {
@@ -530,6 +556,9 @@ public class StructEnv {
 										name = "mapArray";
 										desc = "(Ljava/nio/ByteBuffer;I)[" + wrapped_struct_flag;
 									}
+								}
+								else {
+									throw new IllegalStateException();
 								}
 							}
 						}

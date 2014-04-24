@@ -20,13 +20,13 @@ public class TheAgentD {
 	private static void testVec3(float start) {
 		long time = System.nanoTime();
 
-		Vec3 vec3 = new Vec3(start, start, start);
+		StructTest.Vec3 vec3 = new StructTest.Vec3(start, start, start);
 		for(int i = 0; i < iterations; i++) {
 			StructAllocationStack sas = StructThreadLocalStack.saveStack();
 
-			vec3.add(new Vec3(1, 2, 3)).mul(new Vec3(0.75f, 0.75f, 0.75f));
-			vec3.add(new Vec3(1, 2, 3)).mul(new Vec3(0.75f, 0.75f, 0.75f));
-			vec3.add(new Vec3(1, 2, 3)).mul(new Vec3(0.75f, 0.75f, 0.75f));
+			vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new StructTest.Vec3(0.75f, 0.75f, 0.75f));
+			vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new StructTest.Vec3(0.75f, 0.75f, 0.75f));
+			vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new StructTest.Vec3(0.75f, 0.75f, 0.75f));
 
 			sas.restore();
 		}
