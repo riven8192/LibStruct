@@ -10,13 +10,7 @@ import net.indiespot.struct.runtime.StructMemory;
 
 public class StructTest {
 	public static void main(String[] args) {
-
-		//TestMultiThreadedAllocation.test();
-
-		//TestPerformance.test();
-		TheAgentD.main(args);
-
-		if(true) {
+		if (true) {
 			TestNull.test();
 			TestOneInstance.test();
 			TestOneInstanceNull.test();
@@ -43,16 +37,22 @@ public class StructTest {
 			TestStructReturnType.test();
 			try {
 				TestStack.test();
-				throw new IllegalStateException();
-			}
-			catch (IllegalStackAccessError expected) {
+				//throw new IllegalStateException();
+			} catch (IllegalStackAccessError expected) {
 				// ok!
 				expected.printStackTrace();
 			}
 
 		}
+		
+		// TestStructField.test();
+		ParticleTestStruct.main(args);
+		// TestMultiThreadedAllocation.test();
 
-		//TestMapping.test();
+		// TestPerformance.test();
+		//TheAgentD.main(args);
+
+		// TestMapping.test();
 		TestStructField.test();
 		TestStructAsObjectParam.test();
 
@@ -62,7 +62,7 @@ public class StructTest {
 	public static class TestMultiThreadedAllocation {
 		public static void test() {
 			Thread[] ts = new Thread[8];
-			for(int i = 0; i < ts.length; i++) {
+			for (int i = 0; i < ts.length; i++) {
 				ts[i] = new Thread(new Runnable() {
 					@Override
 					public void run() {
@@ -72,12 +72,11 @@ public class StructTest {
 			}
 
 			try {
-				for(int i = 0; i < ts.length; i++)
+				for (int i = 0; i < ts.length; i++)
 					ts[i].start();
-				for(int i = 0; i < ts.length; i++)
+				for (int i = 0; i < ts.length; i++)
 					ts[i].join();
-			}
-			catch (InterruptedException e) {
+			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
@@ -147,7 +146,7 @@ public class StructTest {
 				test("v", "v", "v", vec);
 				test("v", "v", vec, "v");
 				test("v", vec, "v", "v");
-				//test(vec, "v", "v", "v"); // will bark!
+				// test(vec, "v", "v", "v"); // will bark!
 
 				// deterministically null-structs are not stringified
 				vec = null;
@@ -187,11 +186,11 @@ public class StructTest {
 			vec = new Vec3();
 			System.out.println(vec);
 
-			//if(Math.random() < 0.5)
-			//	vec = new Vec3();
-			//else
-			//	vec = null;
-			//test(vec);
+			// if(Math.random() < 0.5)
+			// vec = new Vec3();
+			// else
+			// vec = null;
+			// test(vec);
 		}
 
 		private static void test(Vec3 nullStruct) {
@@ -203,6 +202,7 @@ public class StructTest {
 		public static void test() {
 			new TestStructField().testInstance();
 			TestStructField.testStatic();
+			TestStructField.testStatic2();
 		}
 
 		public Vec3 vec1;
@@ -217,6 +217,7 @@ public class StructTest {
 		}
 
 		public static Vec3 vec2;
+		public static Vec3[] arr;
 
 		public static void testStatic() {
 			vec2 = new Vec3();
@@ -225,6 +226,14 @@ public class StructTest {
 			vec2 = that;
 			assert (vec2.x == 12.34f);
 			assert (that.x == 12.34f);
+
+			arr = new Vec3[13];
+		}
+
+		public static void testStatic2() {
+			vec2.x = 4;
+
+			arr[0].x = 5;
 		}
 	}
 
@@ -236,10 +245,10 @@ public class StructTest {
 			ByteBuffer bb = ByteBuffer.allocateDirect(count * sizeof + alignMargin);
 			StructMemory.alignBufferToWord(bb);
 			Vec3[] mapped = StructUtil.map(Vec3.class, bb);
-			//System.out.println(mapped.length);
-			//for(int i = 0; i < mapped.length; i++) {
-			//	System.out.println(mapped[i].toString());
-			//}
+			// System.out.println(mapped.length);
+			// for(int i = 0; i < mapped.length; i++) {
+			// System.out.println(mapped[i].toString());
+			// }
 			System.out.println("done:" + bb);
 		}
 	}
@@ -265,11 +274,11 @@ public class StructTest {
 
 	public static class TestOneInstanceNullRef {
 		public static void test() {
-			//Vec3 vec = new Vec3();
-			//vec.x = 5.6f;
-			//echo(vec.x);
-			//vec = null; FIXME: very hard to fix
-			//echo(vec.x);
+			// Vec3 vec = new Vec3();
+			// vec.x = 5.6f;
+			// echo(vec.x);
+			// vec = null; FIXME: very hard to fix
+			// echo(vec.x);
 		}
 	}
 
@@ -327,7 +336,7 @@ public class StructTest {
 			assert v.y == 0;
 			assert v.z == 0;
 			Vec3 ref = v.set(4567.8f, 4.5f, 3);
-			if(v != ref)
+			if (v != ref)
 				throw new IllegalStateException();
 			assert ref.x == 4567.8f;
 			assert ref.y == 4.5f;
@@ -356,7 +365,7 @@ public class StructTest {
 		public static void test() {
 			Vec3 vec = new Vec3();
 
-			if(Math.random() < 0.5)
+			if (Math.random() < 0.5)
 				return;
 			echo(vec.x);
 		}
@@ -364,7 +373,7 @@ public class StructTest {
 		public static void test2() {
 			Vec3 vec = new Vec3();
 
-			if(Math.random() < 0.5)
+			if (Math.random() < 0.5)
 				echo(vec.x);
 			return;
 		}
@@ -372,7 +381,7 @@ public class StructTest {
 		public static void test3() {
 			Vec3 vec = new Vec3();
 
-			if(Math.random() < 0.5)
+			if (Math.random() < 0.5)
 				echo(vec.x);
 			else
 				echo(vec.x);
@@ -382,7 +391,7 @@ public class StructTest {
 	public static class TestLoopFlow {
 		public static void test() {
 			Vec3 vec = new Vec3();
-			for(int i = 0; i < 3; i++) {
+			for (int i = 0; i < 3; i++) {
 				echo(vec.x);
 			}
 			echo(vec.x);
@@ -400,13 +409,12 @@ public class StructTest {
 			Vec3 vec = new Vec3();
 			do {
 				echo(vec.x);
-			}
-			while (Math.random() < 0.5);
+			} while (Math.random() < 0.5);
 			echo(vec.x);
 		}
 
 		public static void test4() {
-			for(int i = 0; i < 3; i++) {
+			for (int i = 0; i < 3; i++) {
 				echo(new Vec3().x);
 			}
 		}
@@ -420,8 +428,7 @@ public class StructTest {
 		public static void test6() {
 			do {
 				echo(new Vec3().x);
-			}
-			while (Math.random() < 0.5);
+			} while (Math.random() < 0.5);
 		}
 	}
 
@@ -457,8 +464,7 @@ public class StructTest {
 
 			try {
 				a.x = 5;
-			}
-			finally {
+			} finally {
 				a.y = 6;
 			}
 		}
@@ -470,42 +476,34 @@ public class StructTest {
 
 			try {
 				a.x = 13;
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 
-			}
-			finally {
+			} finally {
 				a.y = 14;
 			}
 
 			try {
 				a.x = 13;
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				System.out.println(t);
-			}
-			finally {
+			} finally {
 				a.y = 14;
 			}
 
 			try {
 				a.x = 13;
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				throw t;
-			}
-			finally {
+			} finally {
 				a.y = 14;
 			}
 
 			try {
 				a.x = 13;
-			}
-			catch (Throwable t) {
+			} catch (Throwable t) {
 				System.out.println(t);
 				throw new IllegalStateException("doh!");
-			}
-			finally {
+			} finally {
 				a.y = 14;
 			}
 		}
@@ -555,9 +553,9 @@ public class StructTest {
 			System.out.println(StructUtil.getPointer(vec2));
 			System.out.println(StructUtil.getPointer(vec3));
 
-			if(vec1 != vec2)
+			if (vec1 != vec2)
 				throw new IllegalStateException("vec1 != vec2");
-			if(vec1 == vec3)
+			if (vec1 == vec3)
 				throw new IllegalStateException("vec1 == vec3");
 
 			System.out.println(vec1.x);
@@ -585,17 +583,18 @@ public class StructTest {
 
 			vec = self(vec);
 			vec.x = 3;
-			if(vec.y != 13)
+			if (vec.y != 13)
 				throw new IllegalStateException();
 
 			vec = copy();
 			vec.x = 4;
-			if(vec.y != 14)
+			if (vec.y != 14)
 				throw new IllegalStateException();
 
 			vec = pass();
-			vec.x = 5; // must crash, as the struct is on the part of the stack that was popped
-			if(vec.y != 15)
+			vec.x = 5; // must crash, as the struct is on the part of the stack
+			           // that was popped
+			if (vec.y != 15)
 				throw new IllegalStateException();
 		}
 
@@ -653,7 +652,7 @@ public class StructTest {
 			Vec3[] arr3 = new Vec3[1024];
 			Vec3[] arr4 = new Vec3[1024];
 
-			for(int k = 0; k < 16; k++) {
+			for (int k = 0; k < 16; k++) {
 				System.out.println();
 				float p = 0;
 				sv.x = nv.x = rndm.nextFloat();
@@ -665,14 +664,14 @@ public class StructTest {
 
 				// ---
 
-				for(int i = 0; i < tA.length; i++) {
+				for (int i = 0; i < tA.length; i++) {
 					long t0 = System.nanoTime();
 					benchInstanceNew(arr2);
 					long t1 = System.nanoTime();
 					tA[i] = t1 - t0;
 				}
 
-				for(int i = 0; i < tB.length; i++) {
+				for (int i = 0; i < tB.length; i++) {
 					long t0 = System.nanoTime();
 					benchStructNew(arr3);
 					long t1 = System.nanoTime();
@@ -684,14 +683,14 @@ public class StructTest {
 
 				// ---
 
-				for(int i = 0; i < tA.length; i++) {
+				for (int i = 0; i < tA.length; i++) {
 					long t0 = System.nanoTime();
 					p += benchInstanceAccess(nv);
 					long t1 = System.nanoTime();
 					tA[i] = t1 - t0;
 				}
 
-				for(int i = 0; i < tB.length; i++) {
+				for (int i = 0; i < tB.length; i++) {
 					long t0 = System.nanoTime();
 					p += benchStructAccess(sv);
 					long t1 = System.nanoTime();
@@ -703,14 +702,14 @@ public class StructTest {
 
 				// ---
 
-				for(int i = 0; i < tA.length; i++) {
+				for (int i = 0; i < tA.length; i++) {
 					long t0 = System.nanoTime();
 					p += benchInstanceArray(arr2);
 					long t1 = System.nanoTime();
 					tA[i] = t1 - t0;
 				}
 
-				for(int i = 0; i < tB.length; i++) {
+				for (int i = 0; i < tB.length; i++) {
 					long t0 = System.nanoTime();
 					p += benchStructArray(arr4);
 					long t1 = System.nanoTime();
@@ -723,32 +722,32 @@ public class StructTest {
 		}
 
 		private static void benchInstanceNew(NormalVec3[] arr) {
-			for(int i = 0; i < 128; i++) {
+			for (int i = 0; i < 128; i++) {
 				benchInstanceNew2(arr);
 			}
 		}
 
 		private static void benchInstanceNew2(NormalVec3[] arr) {
-			for(int i = 0; i < arr.length; i++) {
+			for (int i = 0; i < arr.length; i++) {
 				arr[i] = new NormalVec3(1, 2, 3);
 			}
 		}
 
 		private static void benchStructNew(Vec3[] arr) {
-			for(int i = 0; i < 128; i++) {
+			for (int i = 0; i < 128; i++) {
 				benchStructNew2(arr);
 			}
 		}
 
 		private static void benchStructNew2(Vec3[] arr) {
-			for(int i = 0; i < arr.length; i++) {
+			for (int i = 0; i < arr.length; i++) {
 				arr[i] = new Vec3(1, 2, 3);
 			}
 		}
 
 		private static float benchInstanceAccess(NormalVec3 nv) {
 			float p = 0;
-			for(int i = 0; i < 1024 * 1024; i++) {
+			for (int i = 0; i < 1024 * 1024; i++) {
 				p += nv.x * nv.y + nv.z;
 				p *= nv.y * nv.z + nv.x;
 				p -= nv.z * nv.x + nv.y;
@@ -758,7 +757,7 @@ public class StructTest {
 
 		private static float benchStructAccess(Vec3 nv) {
 			float p = 0;
-			for(int i = 0; i < 1024 * 1024; i++) {
+			for (int i = 0; i < 1024 * 1024; i++) {
 				p += nv.x * nv.y + nv.z;
 				p *= nv.y * nv.z + nv.x;
 				p -= nv.z * nv.x + nv.y;
@@ -768,8 +767,8 @@ public class StructTest {
 
 		private static float benchInstanceArray(NormalVec3[] arr) {
 			float p = 0;
-			for(int k = 0; k < 64; k++) {
-				for(int i = 0, len = arr.length - 2; i < len; i++) {
+			for (int k = 0; k < 64; k++) {
+				for (int i = 0, len = arr.length - 2; i < len; i++) {
 					p += arr[i + 0].x * arr[i + 0].y + arr[i + 0].z;
 					p *= arr[i + 1].y * arr[i + 1].z + arr[i + 1].x;
 					p -= arr[i + 2].z * arr[i + 2].x + arr[i + 2].y;
@@ -780,8 +779,8 @@ public class StructTest {
 
 		private static float benchStructArray(Vec3[] arr) {
 			float p = 0;
-			for(int k = 0; k < 64; k++) {
-				for(int i = 0, len = arr.length - 2; i < len; i++) {
+			for (int k = 0; k < 64; k++) {
+				for (int i = 0, len = arr.length - 2; i < len; i++) {
 					p += arr[i + 0].x * arr[i + 0].y + arr[i + 0].z;
 					p *= arr[i + 1].y * arr[i + 1].z + arr[i + 1].x;
 					p -= arr[i + 2].z * arr[i + 2].x + arr[i + 2].y;
