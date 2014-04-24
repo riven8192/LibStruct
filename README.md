@@ -73,6 +73,78 @@ Vec3[] mapped = StructUtil.map(Vec3.class, bb);
 ```
 
 
+## Handling stack allocated structs (responsibly)
+```java
+public class Vec3
+{
+   ...
+   
+   public void mul(float factor) {
+      Vec3 tmp = new Vec3(factor, factor, factor);
+      this.mul(tmp);
+	  // when this method returns, the struct
+	  // referenced by 'tmp' goes out of scope!
+   }
+   
+   
+   
+   // normally we can't return a newly allocated struct,
+   // because by the time the callsite uses the returned
+   // struct, it will be out of scope. we can tell the
+   // compiler that any returned struct should be copied
+   // to the end of the stack of the callsite, like so:
+   
+   @CopyStruct // indicate providing a copy to the callsite
+   public Vec3 normalize() {
+      float len = (float)Math.sqrt(x*x + y*y + z*z);
+      return new Vec3(x / len, y / len, z / len);
+   }
+   
+   
+   
+   // let's say we want to return 'this', as to enable
+   // chaining operations on a single struct. it would 
+   // be undesired (and inefficient) to copy the struct
+   // every time we return it, as we know the reference
+   // to 'this' struct is still valid in the callsite:
+   
+   @TakeStruct // no copy is made!
+   public Vec3 normalizeSelf() {
+      float len = (float)Math.sqrt(x*x + y*y + z*z);
+	  x /= len;
+	  y /= len;
+	  z /= len;
+      return this;
+   }
+   
+   @TakeStruct // no copy :o(
+   public Vec3 plainWrong() {
+      return new Vec3(); // goes out of scope!
+   }
+}
+
+public static void callsite() {
+   Vec3 vec = new Vec3();
+   
+   // here we get a locally stack allocated struct, which
+   // is a copy of the struct allocated in the method.
+   Vec3 nor = vec.normalize();
+   
+   // here we get our reference to 'vec' back, and use it
+   // to chain method calls on a single struct
+   vec.normalizeSelf().add(1,2,3);
+   
+   // once a stack allocated struct that went out of scope
+   // is accessed, it can contain *any* data, be in use by
+   // another stack allocated struct, and accessing it will
+   // lead to undefined results!
+   Vec3 ohNo = vec.plainWrong();
+   float undefined = ohNo.z;
+   ohNo.x = 38.1f; // the horror!
+}
+```
+
+
 
 ## How to enable structs in your application
 Create a text file (e.g.: structdef.txt) and put it in your classpath.
