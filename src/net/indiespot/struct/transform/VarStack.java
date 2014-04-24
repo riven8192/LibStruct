@@ -50,13 +50,13 @@ public class VarStack {
 
 	public VarType popEQ(VarType type) {
 		if(type != peek())
-			throw new IllegalStateException("type=" + peek() + ", required=" + type);
+			throw new IllegalStateException("found=" + peek() + ", required=" + type);
 		return pop();
 	}
 
 	public VarType popEQ(EnumSet<VarType> types) {
 		if(!types.contains(peek()))
-			throw new IllegalStateException("type=" + peek() + ", required=" + types);
+			throw new IllegalStateException("found=" + peek() + ", required=" + types);
 		return pop();
 	}
 

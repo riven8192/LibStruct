@@ -1,15 +1,15 @@
 package test.net.indiespot.struct;
 
+import java.nio.ByteBuffer;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.IllegalStackAccessError;
+import net.indiespot.struct.runtime.StructMemory;
 
 public class StructTest {
 	public static void main(String[] args) {
-		System.out.println(Vec3.class.getName());
-
 		TestOneInstance.test();
 		TestOneInstanceNull.test();
 		TestOneInstanceNullRef.test();
@@ -42,7 +42,24 @@ public class StructTest {
 			//expected.printStackTrace();
 		}
 
-		TestPerformance.test();
+		//TestPerformance.test();
+		//TestMapping.test();
+		
+		TheAgentD.main(args);
+		System.out.println("done2");
+	}
+
+	public static class TestMapping {
+		public static void test() {
+			ByteBuffer bb = ByteBuffer.allocateDirect(((10 * 3) << 2) + 3);
+			StructMemory.alignBufferToWord(bb);
+			Vec3[] mapped = StructUtil.map(Vec3.class, bb);
+			//System.out.println(mapped.length);
+			//for(int i = 0; i < mapped.length; i++) {
+			//	System.out.println(mapped[i].toString());
+			//}
+			System.out.println("done:"+bb);
+		}
 	}
 
 	public static class TestOneInstance {
@@ -318,7 +335,7 @@ public class StructTest {
 			Object obj = new Object();
 
 			System.out.println("addr=" + StructUtil.getPointer(vec));
-			//System.out.println("addr=" + StructUtil.getPointer(obj));
+			System.out.println("addr=" + StructUtil.getPointer(obj));
 		}
 	}
 
@@ -450,10 +467,11 @@ public class StructTest {
 			NormalVec3 nv = new NormalVec3();
 			Vec3 sv = new Vec3();
 
-			Vec3[] arr;
 			NormalVec3[] arr2 = new NormalVec3[1024];
+			Vec3[] arr3 = new Vec3[1024];
+			Vec3[] arr4 = new Vec3[1024];
 
-			for(int k = 0; k < 8; k++) {
+			for(int k = 0; k < 1024; k++) {
 				System.out.println();
 				float p = 0;
 				sv.x = nv.x = rndm.nextFloat();
@@ -472,14 +490,12 @@ public class StructTest {
 					tA[i] = t1 - t0;
 				}
 
-				arr = new Vec3[1024];
 				for(int i = 0; i < tB.length; i++) {
 					long t0 = System.nanoTime();
-					benchStructNew(arr);
+					benchStructNew(arr3);
 					long t1 = System.nanoTime();
 					tB[i] = t1 - t0;
 				}
-				arr = null;
 
 				System.out.println("instance creation:       " + tA[tA.length / 2] / 1000 + "us [" + p + "]");
 				System.out.println("struct creation:         " + tB[tB.length / 2] / 1000 + "us [" + p + "]");
@@ -512,14 +528,12 @@ public class StructTest {
 					tA[i] = t1 - t0;
 				}
 
-				arr = new Vec3[1024];
 				for(int i = 0; i < tB.length; i++) {
 					long t0 = System.nanoTime();
-					p += benchStructArray(arr);
+					p += benchStructArray(arr4);
 					long t1 = System.nanoTime();
 					tB[i] = t1 - t0;
 				}
-				arr = null;
 
 				System.out.println("instance array access:   " + tA[tA.length / 2] / 1000 + "us [" + p + "]");
 				System.out.println("struct array access:     " + tB[tB.length / 2] / 1000 + "us [" + p + "]");

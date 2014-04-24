@@ -332,8 +332,13 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.push(VarType.INT);
 			break;
 
-		case SWAP: // no-op
+		case SWAP: {
+			VarType t1 = stack.pop();
+			VarType t2 = stack.pop();
+			stack.push(t1);
+			stack.push(t2);
 			break;
+		}
 
 		case FNEG:
 		case LNEG:
@@ -496,7 +501,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ALOAD: {
-			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY));
+			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE));
 			if(got == VarType.STRUCT) {
 				opcode = ILOAD;
 				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
@@ -589,7 +594,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-		System.out.println("\t\t" + opcodeToString(opcode));
+		System.out.println("\t\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 
 		int descType = descToType(desc);
 		switch (opcode) {
@@ -626,7 +631,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		switch (opcode) {
 		case INVOKESPECIAL:
-		case INVOKEVIRTUAL: {
+		case INVOKEVIRTUAL:
+		case INVOKEINTERFACE: {
 			String[] arr = splitDescArray(params);
 			for(int i = arr.length - 1; i >= 0; i--) {
 				popDescType(stack, descToType(arr[i]));
@@ -642,11 +648,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				popDescType(stack, descToType(arr[i]));
 			}
 			pushDescType(stack, descToType(ret));
-			break;
-		}
-
-		case INVOKEINTERFACE: {
-			// TODO
 			break;
 		}
 
@@ -783,7 +784,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitLdcInsn(Object cst) {
-		System.out.println("\t\tLDC");
+		System.out.println("\t\tLDC " + cst);
 
 		if(cst instanceof Integer) {
 			stack.push(VarType.INT);
@@ -803,11 +804,17 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.push(VarType.REFERENCE);
 		}
 		else if(cst instanceof Type) {
-			stack.push(VarType.REFERENCE);
+			if(((Type) cst).getClassName().equals(StructBuild.plainStructFlag)) {
+				stack.push(VarType.STRUCT_TYPE);
+				cst = Integer.valueOf(0);
+			}
+			else {
+				stack.push(VarType.REFERENCE);
+			}
 		}
-		else if(cst instanceof Object[]) { // FIXME
-			stack.push(VarType.REFERENCE);
-		}
+		//else if(cst instanceof Object[]) { // FIXME
+		//	stack.push(VarType.REFERENCE);
+		//}
 		else {
 			throw new IllegalStateException("cst=" + cst.getClass());
 		}

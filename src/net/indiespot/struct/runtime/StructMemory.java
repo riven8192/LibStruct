@@ -4,19 +4,24 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import test.net.indiespot.struct.StructUtil;
+
 public class StructMemory {
+	public static final boolean CHECK_ALLOC_OVERFLOW = true;
+	public static final boolean CHECK_MEMORY_ACCESS_REGION = true;
+	public static final boolean CHECK_POINTER_ALIGNMENT = true;
+
 	private static final boolean manually_fill_and_copy = true;
-	private static final boolean check_read_write = false;
 	private static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
 	private static final StructAllocationStack threadLocalStack;
 	static {
 		ByteBuffer bb = ByteBuffer.allocateDirect(1024 * 1024);
 		immortable_buffers.add(bb);
 
-		long base = StructUnsafe.getBufferBaseAddress(bb);
-		int handleOffset = pointer2handle(base);
+		long addr = StructMemory.alignBufferToWord(bb);
+		int handleOffset = pointer2handle(addr);
 
-		threadLocalStack = new StructAllocationStack(handleOffset, (4 * 3) * (int) (1024 * 2.5));
+		threadLocalStack = new StructAllocationStack(handleOffset, bb.remaining());
 	}
 
 	public static int allocate(int sizeof) {
@@ -58,6 +63,27 @@ public class StructMemory {
 		for(int i = 0; i < arr.length; i++)
 			arr[i] = handle + i;
 		return arr;
+	}
+
+	public static int[] mapArray(ByteBuffer bb, int sizeof) {
+		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
+		int length = bb.remaining() / sizeof;
+		int handle = pointer2handle(addr);
+		fillMemoryByWord(handle, sizeof * length, 0x00000000);
+		int[] arr = new int[length];
+		for(int i = 0; i < arr.length; i++)
+			arr[i] = handle + i;
+		return arr;
+	}
+
+	public static long alignBufferToWord(ByteBuffer bb) {
+		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
+		int off = (int) (addr & 0x3);
+		if(off != 0) {
+			bb.position(bb.position() + (4 - off));
+			addr += (4 - off);
+		}
+		return addr;
 	}
 
 	private static final void fillMemoryByWord(int handle, int count, int value) {
@@ -102,8 +128,9 @@ public class StructMemory {
 	}
 
 	public static int pointer2handle(long pointer) {
-		if(pointer < 0L || (pointer & 3) != 0)
-			throw new IllegalStateException();
+		if(CHECK_POINTER_ALIGNMENT)
+			if(pointer < 0L || (pointer & 3) != 0)
+				throw new IllegalStateException("pointer must be 32-bit aligned");
 		long handle = pointer >> 2;
 		if(handle > 0xFFFF_FFFFL)
 			throw new IllegalStateException();
@@ -111,7 +138,7 @@ public class StructMemory {
 	}
 
 	public static final void write(int handle, float value, int fieldOffset) {
-		if(check_read_write) {
+		if(CHECK_MEMORY_ACCESS_REGION) {
 			if(threadLocalStack.isOnBlock(handle) && !threadLocalStack.isOnStack(handle)) {
 				throw new IllegalStackAccessError();
 			}
@@ -120,7 +147,7 @@ public class StructMemory {
 	}
 
 	public static final float read(int handle, int fieldOffset) {
-		if(check_read_write) {
+		if(CHECK_MEMORY_ACCESS_REGION) {
 			if(threadLocalStack.isOnBlock(handle) && !threadLocalStack.isOnStack(handle)) {
 				throw new IllegalStackAccessError();
 			}

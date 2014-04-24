@@ -10,8 +10,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -32,15 +34,15 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 import test.net.indiespot.struct.StructUtil;
 
 public class StructBuild {
 
-	//private static final String printClass = "test/net/indiespot/struct/StructTest$TestOneInstance";
-	private static final String printClass = "test/net/indiespot/struct/StructTest$TestOneInstanceInstanceof";//"test/net/indiespot/struct/StructTest";//"test/net/indiespot/struct/Vec3";
-	public static final String plainStructFlag = StructFlag.class.getName().replace('.', '/');
+	private static final String printClass = "test/net/indiespot/struct/StructTest$TestMapping";
+	public static final String plainStructFlag = "$truct";//"net/indiespot/struct/transform/StructFlag";
 	public static final String wrappedStructFlag = "L" + plainStructFlag + ";";
 
 	public static void main(String[] args) throws Exception {
@@ -56,15 +58,16 @@ public class StructBuild {
 			jar(fqcn2bytecode, out);
 		}
 
-		String[] cmds = new String[6];
-		cmds[0] = System.getProperty("java.home") + "/bin/java.exe";
-		cmds[1] = "-showversion";
-		cmds[2] = "-ea";
-		cmds[3] = "-cp";
-		cmds[4] = "./lib/asm-4.2/asm-all-4.2.jar;./lib/output.jar;./bin";
-		cmds[5] = "test.net.indiespot.struct.StructTest";
+		List<String> cmds = new ArrayList<>();
+		cmds.add(System.getProperty("java.home") + "/bin/java.exe");
+		cmds.add("-showversion");
+		//cmds.add("-XX:-DoEscapeAnalysis");
+		cmds.add("-ea");
+		cmds.add("-cp");
+		cmds.add("./lib/asm-4.2/asm-all-4.2.jar;./lib/output.jar;./bin");
+		cmds.add("test.net.indiespot.struct.StructTest");
 
-		Process proc = Runtime.getRuntime().exec(cmds);
+		Process proc = Runtime.getRuntime().exec(cmds.toArray(new String[cmds.size()]));
 		final InputStream stdout = proc.getInputStream();
 		final InputStream stderr = proc.getErrorStream();
 
@@ -488,6 +491,9 @@ public class StructBuild {
 								//super.visitMethodInsn(Opcodes.INVOKESTATIC, jvmClassName(StructMemory.class), "execCheckcastInsn", "()V");
 								return;
 							}
+							if(flow.stack.peek() == VarType.STRUCT_ARRAY) {
+								return;
+							}
 						}
 
 						super.visitTypeInsn(opcode, type);
@@ -556,18 +562,35 @@ public class StructBuild {
 						}
 
 						if(owner.equals(StructBuild.jvmClassName(StructUtil.class))) {
-							if(name.equals("getPointer") && desc.equals("(" + wrappedStructFlag + ")J")) {
+							if(name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
 								if(flow.stack.peek() == VarType.STRUCT) {
 									owner = StructBuild.jvmClassName(StructMemory.class);
 									name = "handle2pointer";
 									desc = "(" + wrappedStructFlag + ")J";
 								}
 							}
-							else if(name.equals("isReachable") && desc.equals("(" + wrappedStructFlag + ")Z")) {
+							else if(name.equals("isReachable") && desc.equals("(Ljava/lang/Object;)Z")) {
 								if(flow.stack.peek() == VarType.STRUCT) {
 									owner = StructBuild.jvmClassName(StructMemory.class);
 									name = "isValid";
 									desc = "(" + wrappedStructFlag + ")Z";
+								}
+							}
+							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;)[Ljava/lang/Object;")) {
+								if(flow.stack.peek() == VarType.REFERENCE) {
+									if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+										// ..., STRUCT_TYPE, REFERENCE
+										flow.visitInsn(SWAP);
+										// ..., REFERENCE, STRUCT_TYPE
+										flow.visitInsn(POP);
+										// ..., REFERENCE
+										flow.visitIntInsn(BIPUSH, struct2info.get(lastLdcStruct).sizeof);
+										lastLdcStruct = null;
+										// ..., REFERENCE, SIZEOF
+										owner = StructBuild.jvmClassName(StructMemory.class);
+										name = "mapArray";
+										desc = "(Ljava/nio/ByteBuffer;I)[" + wrappedStructFlag;
+									}
 								}
 							}
 						}
@@ -609,6 +632,20 @@ public class StructBuild {
 						}
 
 						super.visitInsn(opcode);
+					}
+
+					private String lastLdcStruct;
+
+					@Override
+					public void visitLdcInsn(Object cst) {
+						if(cst instanceof Type) {
+							if(struct2info.containsKey(((Type) cst).getInternalName())) {
+								lastLdcStruct = ((Type) cst).getInternalName();
+								cst = Type.getType(wrappedStructFlag);
+							}
+						}
+
+						super.visitLdcInsn(cst);
 					}
 				};
 			}

@@ -12,12 +12,13 @@ public class StructAllocationBlock {
 	}
 
 	public int allocate(int sizeof) {
-		//if(sizeof <= 0)
-		//	throw new IllegalArgumentException();
+		if(sizeof <= 0)
+			throw new IllegalArgumentException();
 
 		int wordSizeof = bytesToWords(sizeof);
-		//if(wordsAllocated + wordSizeof > this.wordSizeof)
-		//	throw new StructAllocationBlockOverflowError();
+		if(StructMemory.CHECK_ALLOC_OVERFLOW)
+			if(wordsAllocated + wordSizeof > this.wordSizeof)
+				throw new StructAllocationBlockOverflowError();
 
 		int handleIndex = wordsAllocated;
 		wordsAllocated += wordSizeof;
@@ -30,8 +31,9 @@ public class StructAllocationBlock {
 	}
 
 	private static int bytesToWords(int sizeof) {
-		//if((sizeof & 3) != 0)
-		//	throw new RuntimeException();
+		if(StructMemory.CHECK_POINTER_ALIGNMENT)
+			if((sizeof & 3) != 0)
+				throw new RuntimeException();
 		return sizeof >> 2;
 	}
 }

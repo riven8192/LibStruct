@@ -3,16 +3,28 @@ package test.net.indiespot.struct;
 public class NormalVec3 {
 	public float x, y, z;
 
-	public void add(NormalVec3 that) {
+	public NormalVec3() {
+
+	}
+
+	public NormalVec3(float x, float y, float z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+
+	public NormalVec3 add(NormalVec3 that) {
 		this.x += that.x;
 		this.y += that.y;
 		this.z += that.z;
+		return this;
 	}
 
-	public void mul(NormalVec3 that) {
+	public NormalVec3 mul(NormalVec3 that) {
 		this.x *= that.x;
 		this.y *= that.y;
 		this.z *= that.z;
+		return this;
 	}
 
 	public static NormalVec3 stackAlloc() {
@@ -25,6 +37,6 @@ public class NormalVec3 {
 
 	@Override
 	public String toString() {
-		return "Vec3[" + x + ", " + y + ", " + z + "]";
+		return "NormalVec3[" + x + ", " + y + ", " + z + "]";
 	}
 }
