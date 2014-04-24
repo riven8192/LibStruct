@@ -11,6 +11,20 @@ public class Vec3 {
 	@StructField(offset = 4) public float y;
 	@StructField(offset = 8) public float z;
 
+	public Vec3() {
+
+	}
+
+	public Vec3(float x, float y, float z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+	}
+
+	public Vec3(float xyz) {
+		this(xyz, xyz, xyz);
+	}
+
 	public void add(Vec3 that) {
 		this.x += that.x;
 		this.y += that.y;
@@ -42,6 +56,6 @@ public class Vec3 {
 
 	@Override
 	public String toString() {
-		return "Vec3";//"Vec3[" + x + ", " + y + ", " + z + "]";
+		return "Vec3[" + x + ", " + y + ", " + z + "]";
 	}
 }

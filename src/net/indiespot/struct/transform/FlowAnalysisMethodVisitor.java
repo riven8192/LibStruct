@@ -63,6 +63,15 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		super.visitFrame(type, nLocal, local, nStack, stack);
 	}
 
+	private List<Label> catchHandlers = new ArrayList<>();
+
+	@Override
+	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
+		super.visitTryCatchBlock(start, end, handler, type);
+
+		catchHandlers.add(handler);
+	}
+
 	@Override
 	public void visitInsn(int opcode) {
 		System.out.println("\t\t" + opcodeToString(opcode));
@@ -403,6 +412,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ATHROW:
+			stack.popEQ(VarType.REF);
 			break;
 
 		default:
@@ -684,6 +694,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			local = localAtLabel[index];
 		}
 
+		for(Label catchHandler : catchHandlers) {
+			if(catchHandler == label) {
+				stack.push(VarType.REF);
+			}
+		}
+
 		super.visitLabel(label);
 	}
 
@@ -743,11 +759,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	@Override
 	public void visitMultiANewArrayInsn(String desc, int dims) {
 		super.visitMultiANewArrayInsn(desc, dims);
-	}
-
-	@Override
-	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
-		super.visitTryCatchBlock(start, end, handler, type);
 	}
 
 	@Override

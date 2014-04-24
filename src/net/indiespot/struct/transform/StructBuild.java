@@ -11,8 +11,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarOutputStream;
 
@@ -36,6 +38,9 @@ import org.objectweb.asm.util.TraceClassVisitor;
 import test.net.indiespot.struct.StructUtil;
 
 public class StructBuild {
+
+	private static final String printClass = "test/net/indiespot/struct/StructTest$TestTryCatchFinally";
+
 	public static void main(String[] args) throws Exception {
 		File bin = new File("./bin/");
 		System.out.println(bin.getAbsolutePath());
@@ -50,7 +55,7 @@ public class StructBuild {
 		}
 
 		String[] cmds = new String[4];
-		cmds[0] = "C:\\Program Files\\Java\\jdk1.7.0_45\\bin\\java.exe";
+		cmds[0] = System.getProperty("java.home") + "/bin/java.exe";
 		cmds[1] = "-cp";
 		cmds[2] = "./lib/asm-4.2/asm-all-4.2.jar;./lib/output.jar;./bin";
 		cmds[3] = "test.net.indiespot.struct.StructTest";
@@ -114,7 +119,7 @@ public class StructBuild {
 					baos.write(tmp, 0, got);
 				}
 
-				registerClass(baos.toByteArray());
+				gatherClassInfo(baos.toByteArray());
 			}
 		}
 	}
@@ -135,17 +140,29 @@ public class StructBuild {
 		COPY, PASS
 	}
 
+	private static final String RENAMED_CONSTRUCTOR_NAME = "_<init>_";
 	private static Map<String, byte[]> fqcn2bytecode = new HashMap<>();
 	private static Map<String, StructInfo> struct2info = new HashMap<>();
 	private static Map<String, Map<String, ReturnValueStrategy>> fqcn2method2strategy = new HashMap<>();
+	private static Map<String, Set<String>> fqcn2rewriteMethods = new HashMap<>();
 
 	public static void registerClass(byte[] bytecode) {
 		gatherClassInfo(bytecode);
 	}
 
 	public static Map<String, byte[]> rewriteClasses() {
+		for(Entry<String, byte[]> entry : fqcn2bytecode.entrySet()) {
+			String className = entry.getKey();
+			byte[] bytecode = entry.getValue();
+			flagClassMethods(className, bytecode);
+		}
 
-		final String printClass = "test/net/indiespot/struct/StructTest$TestSetter";
+		for(Entry<String, Set<String>> entry : fqcn2rewriteMethods.entrySet()) {
+			String fqcn = entry.getKey();
+			for(String methodName : entry.getValue()) {
+				System.out.println("REWRITE: " + fqcn + "." + methodName);
+			}
+		}
 
 		Map<String, byte[]> output = new HashMap<>();
 		for(Entry<String, byte[]> entry : fqcn2bytecode.entrySet()) {
@@ -258,6 +275,61 @@ public class StructBuild {
 		new ClassReader(bytecode).accept(visitor, 0);
 	}
 
+	private static void flagClassMethods(final String fqcn, byte[] bytecode) {
+
+		ClassWriter writer = new ClassWriter(0);
+		ClassVisitor visitor = new ClassVisitor(Opcodes.ASM4, writer) {
+
+			@Override
+			public MethodVisitor visitMethod(int access, final String methodName, final String methodDesc, String signature, String[] exceptions) {
+				return new MethodVisitor(Opcodes.ASM4, super.visitMethod(access, methodName, methodDesc, signature, exceptions)) {
+					{
+						for(String struct : struct2info.keySet()) {
+							if(methodDesc.contains("L" + struct + ";")) {
+								this.flagRewriteMethod();
+							}
+						}
+					}
+
+					@Override
+					public void visitTypeInsn(int opcode, String type) {
+						if(opcode == NEW) {
+							if(struct2info.containsKey(type)) {
+								this.flagRewriteMethod();
+							}
+						}
+					}
+
+					@Override
+					public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+						if(struct2info.containsKey(owner)) {
+							this.flagRewriteMethod();
+						}
+
+						super.visitFieldInsn(opcode, owner, name, desc);
+					}
+
+					@Override
+					public void visitMethodInsn(int opcode, String owner, String name, String desc) {
+						if(struct2info.containsKey(owner)) {
+							this.flagRewriteMethod();
+						}
+
+						super.visitMethodInsn(opcode, owner, name, desc);
+					}
+
+					private void flagRewriteMethod() {
+						Set<String> rewriteMethods = fqcn2rewriteMethods.get(fqcn);
+						if(rewriteMethods == null)
+							fqcn2rewriteMethods.put(fqcn, rewriteMethods = new HashSet<>());
+						rewriteMethods.add(methodName + methodDesc);
+					}
+				};
+			}
+		};
+		new ClassReader(bytecode).accept(visitor, 0);
+	}
+
 	private static byte[] rewriteClass(final String fqcn, byte[] bytecode) {
 		final ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
 
@@ -308,9 +380,9 @@ public class StructBuild {
 			}
 
 			@Override
-			public MethodVisitor visitMethod(int access, final String methodName, String methodDesc, String signature, String[] exceptions) {
+			public MethodVisitor visitMethod(int access, String methodName, String methodDesc, String signature, String[] exceptions) {
 				final String origMethodDesc = methodDesc;
-				System.out.println("\tmethod: " + methodName + " " + methodDesc);
+				System.out.println("\tmethod1: " + methodName + " " + methodDesc);
 
 				String returnsStructType = null;
 				for(String struct : struct2info.keySet()) {
@@ -322,7 +394,7 @@ public class StructBuild {
 
 				if(struct2info.containsKey(fqcn)) {
 					if(methodName.equals("<init>"))
-						return null;
+						methodName = RENAMED_CONSTRUCTOR_NAME; 
 
 					if((access & ACC_STATIC) == 0) {
 						// make instance methods static
@@ -332,9 +404,19 @@ public class StructBuild {
 					}
 				}
 
-				System.out.println("\tmethod: " + methodName + " " + methodDesc);
+				System.out.println("\tmethod2: " + methodName + " " + methodDesc);
 
 				final MethodVisitor mv = super.visitMethod(access, methodName, methodDesc, signature, exceptions);
+
+				if(false) {
+					// do we need to rewrite this method?
+					Set<String> rewriteMethods = fqcn2rewriteMethods.get(fqcn);
+					if(rewriteMethods == null || !rewriteMethods.contains(methodName + methodDesc))
+						return mv; // nope!
+				}
+
+				final String _methodName = methodName;
+
 				final FlowAnalysisMethodVisitor flow = new FlowAnalysisMethodVisitor(mv, access, methodName, methodDesc, signature, exceptions);
 				return new MethodVisitor(Opcodes.ASM4, flow) {
 
@@ -343,12 +425,12 @@ public class StructBuild {
 						if(_returnsStructType != null) {
 							String msg = "";
 							msg += "must define how struct return values are handled: ";
-							msg += "\n\t\t" + fqcn + "." + methodName + origMethodDesc;
+							msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
 
 							Map<String, ReturnValueStrategy> method2strategy = fqcn2method2strategy.get(fqcn);
 							if(method2strategy == null)
 								throw new IllegalStateException(msg);
-							if(!method2strategy.containsKey(methodName + origMethodDesc))
+							if(!method2strategy.containsKey(_methodName + origMethodDesc))
 								throw new IllegalStateException(msg);
 						}
 
@@ -377,7 +459,6 @@ public class StructBuild {
 
 					@Override
 					public void visitTypeInsn(int opcode, String type) {
-
 						if(opcode == NEW) {
 							if(struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
@@ -440,11 +521,22 @@ public class StructBuild {
 							desc = desc.replace("L" + structType + ";", "I");
 						}
 
+						if(struct2info.containsKey(fqcn) && _methodName.equals(RENAMED_CONSTRUCTOR_NAME)) {
+							// remove Object.super() from any Struct constructor
+							if(opcode == INVOKESPECIAL && name.equals("<init>") && desc.equals("()V")) {
+								super.visitInsn(POP);
+								return;
+							}
+						}
+
 						if(struct2info.containsKey(owner)) {
 							if(opcode == INVOKESPECIAL) {
 								if(name.equals("<init>")) {
-									super.visitInsn(POP); // TODO
-									return;
+									name = RENAMED_CONSTRUCTOR_NAME;
+
+									// add 'this' as first parameter
+									opcode = INVOKESTATIC;
+									desc = "(I" + desc.substring(1);
 								}
 							}
 							else if(opcode == INVOKEVIRTUAL) {

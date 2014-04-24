@@ -2,6 +2,7 @@ package test.net.indiespot.struct;
 
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.TakeStruct;
+import net.indiespot.struct.runtime.IllegalStackAccessError;
 
 public class StructTest {
 	public static void main(String[] args) {
@@ -22,10 +23,106 @@ public class StructTest {
 			TestAddress.test();
 			TestInstanceMethod.test();
 			TestStructReturnType.test();
-			TestStack.test();
+			try {
+				TestStack.test();
+				throw new IllegalStateException();
+			}
+			catch (IllegalStackAccessError expected) {
+				// ok!
+				//expected.printStackTrace();
+			}
+			TestSetter.test();
+			TestTryFinally.test();
+			TestTryCatchFinally.test();
 		}
 
-		TestSetter.test();
+		TestConstructor.test();
+	}
+
+	public static class TestConstructor {
+		public static void test() {
+			Vec3 v;
+
+			v = new Vec3();
+			assert v.x == 0.0f;
+			assert v.y == 0.0f;
+			assert v.z == 0.0f;
+
+			v = new Vec3(1, 2, 3);
+			assert v.x == 1;
+			assert v.y == 2;
+			assert v.z == 3;
+
+			v = new Vec3(1.2f, 3.4f, 5.6f);
+			assert v.x == 1.2f;
+			assert v.y == 3.4f;
+			assert v.z == 5.6f;
+
+			v = new Vec3(1337f);
+			assert v.x == 1337f;
+			assert v.y == 1337f;
+			assert v.z == 1337f;
+		}
+	}
+
+	public static class TestTryFinally {
+		public static void test() {
+			Vec3 a = new Vec3();
+
+			try {
+				a.x = 5;
+			}
+			finally {
+				a.y = 6;
+			}
+		}
+	}
+
+	public static class TestTryCatchFinally {
+		public static void test() {
+			Vec3 a = new Vec3();
+
+			try {
+				a.x = 13;
+			}
+			catch (Throwable t) {
+				
+			}
+			finally {
+				a.y = 14;
+			}
+			
+			try {
+				a.x = 13;
+			}
+			catch (Throwable t) {
+				System.out.println(t);
+			}
+			finally {
+				a.y = 14;
+			}
+			
+			try {
+				a.x = 13;
+			}
+			catch (Throwable t) {
+				throw t;
+			}
+			finally {
+				a.y = 14;
+			}
+			
+			try {
+				a.x = 13;
+			}
+			catch (Throwable t) {
+				System.out.println(t);
+				throw new IllegalStateException("doh!");
+			}
+			finally {
+				a.y = 14;
+			}
+		}
 	}
 
 	public static class TestOneInstance {
