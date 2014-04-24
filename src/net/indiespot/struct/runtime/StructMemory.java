@@ -12,72 +12,72 @@ public class StructMemory {
 	private static final boolean manually_fill_and_copy = true;
 	static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
 
-	public static int allocate(int stride) {
-		return allocate(stride, StructThreadLocalStack.get());
+	public static int allocate(int sizeof) {
+		return allocate(sizeof, StructThreadLocalStack.get());
 	}
 
-	public static int[] allocateArray(int length, int stride) {
-		return allocateArray(length, stride, StructThreadLocalStack.get());
+	public static int[] allocateArray(int length, int sizeof) {
+		return allocateArray(length, sizeof, StructThreadLocalStack.get());
 	}
 
 	// ---
 
-	public static int allocate(int stride, StructAllocationStack stack) {
-		int handle = stack.allocate(stride);
+	public static int allocate(int sizeof, StructAllocationStack stack) {
+		int handle = stack.allocate(sizeof);
 
 		if(manually_fill_and_copy) {
-			fillMemoryByWord(handle, sizeof2words(stride), 0x00000000);
+			fillMemoryByWord(handle, sizeof2words(sizeof), 0x00000000);
 		}
 		else {
 			StructUnsafe.UNSAFE.setMemory(//
 					handle2pointer(handle),//
-					stride,//
+					sizeof,//
 					(byte) 0x00);
 		}
 
 		return handle;
 	}
 
-	public static int allocateSkipZeroFill(int stride, StructAllocationStack stack) {
-		return stack.allocate(stride);
+	public static int allocateSkipZeroFill(int sizeof, StructAllocationStack stack) {
+		return stack.allocate(sizeof);
 	}
 
-	public static int allocateCopy(int srcHandle, int stride) {
-		int dstHandle = StructThreadLocalStack.get().allocate(stride);
+	public static int allocateCopy(int srcHandle, int sizeof) {
+		int dstHandle = StructThreadLocalStack.get().allocate(sizeof);
 
 		if(manually_fill_and_copy) {
-			copyMemoryByWord(srcHandle, dstHandle, sizeof2words(stride));
+			copyMemoryByWord(srcHandle, dstHandle, sizeof2words(sizeof));
 		}
 		else {
 			StructUnsafe.UNSAFE.copyMemory(//
 					handle2pointer(srcHandle),//
 					handle2pointer(dstHandle),//
-					stride);
+					sizeof);
 		}
 
 		return dstHandle;
 	}
 
-	public static int[] allocateArray(int length, int stride, StructAllocationStack stack) {
-		int strideWords = sizeof2words(stride);
-		int handle = stack.allocate(stride * length);
-		fillMemoryByWord(handle, strideWords * length, 0x00000000);
+	public static int[] allocateArray(int length, int sizeof, StructAllocationStack stack) {
+		int sizeofWords = sizeof2words(sizeof);
+		int handle = stack.allocate(sizeof * length);
+		fillMemoryByWord(handle, sizeofWords * length, 0x00000000);
 		int[] arr = new int[length];
 		for(int i = 0; i < arr.length; i++)
-			arr[i] = handle + i * strideWords;
+			arr[i] = handle + i * sizeofWords;
 		return arr;
 	}
 
-	public static int[] mapArray(ByteBuffer bb, int stride) {
-		int strideWords = sizeof2words(stride);
+	public static int[] mapArray(ByteBuffer bb, int sizeof) {
+		int sizeofWords = sizeof2words(sizeof);
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
-		int count = bb.remaining() / stride;
+		int count = bb.remaining() / sizeof;
 		if(count == 0)
 			throw new IllegalStateException("no usable space in buffer");
 		int handle = pointer2handle(addr);
 		int[] arr = new int[count];
 		for(int i = 0; i < arr.length; i++)
-			arr[i] = handle + i * strideWords;
+			arr[i] = handle + i * sizeofWords;
 		return arr;
 	}
 

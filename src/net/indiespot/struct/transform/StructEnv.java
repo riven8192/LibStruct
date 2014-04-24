@@ -43,6 +43,7 @@ public class StructEnv {
 	private static volatile boolean is_rewriting = false;
 
 	public static void addStruct(StructInfo info) {
+		info.validate();
 		if(is_rewriting)
 			throw new IllegalStateException("cannot add struct definition when classes have been rewritten already");
 		struct2info.put(info.fqcn, info);
@@ -551,7 +552,7 @@ public class StructEnv {
 										// ..., REFERENCE
 										flow.visitIntInsn(BIPUSH, struct2info.get(lastLdcStruct).sizeof);
 										lastLdcStruct = null;
-										// ..., REFERENCE, STRIDE
+										// ..., REFERENCE, SIZEOF
 										owner = StructEnv.jvmClassName(StructMemory.class);
 										name = "mapArray";
 										desc = "(Ljava/nio/ByteBuffer;I)[" + wrapped_struct_flag;

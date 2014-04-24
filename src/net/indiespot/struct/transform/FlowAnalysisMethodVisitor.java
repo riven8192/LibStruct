@@ -853,11 +853,18 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	private static class TryCatchBlock {
 		public final Label start, end, handler;
+		public final String type;
 
-		public TryCatchBlock(Label start, Label end, Label handler) {
+		public TryCatchBlock(Label start, Label end, Label handler, String type) {
 			this.start = start;
 			this.end = end;
 			this.handler = handler;
+			this.type = type;
+		}
+
+		@Override
+		public String toString() {
+			return "[" + start + " - " + end + "] -> " + handler + "," + type;
 		}
 	}
 
@@ -865,12 +872,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
-		super.visitTryCatchBlock(start, end, handler, type);
-
+		TryCatchBlock tryCatchBlock = new TryCatchBlock(start, end, handler, type);
 		if(StructEnv.print_log)
-			System.out.println("\t\t_TRYCATCH [" + start + " - " + end + "] -> " + handler + "," + type);
+			System.out.println("\t\t_TRYCATCH " + tryCatchBlock);
+		tryCatchBlocks.add(tryCatchBlock);
 
-		tryCatchBlocks.add(new TryCatchBlock(start, end, handler));
+		super.visitTryCatchBlock(start, end, handler, type);
 	}
 
 	private boolean saveOrRestoreStateAtLabel(Label label) {
@@ -900,7 +907,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitLabel(Label label) {
-
 		if(StructEnv.print_log)
 			System.out.println("\t\t_LABEL <= " + label);
 
@@ -910,7 +916,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			if(tryCatchBlock.handler == label) {
 				if(stack == null) {
 					if(!this.saveOrRestoreStateAtLabel(tryCatchBlock.start)) {
-						throw new IllegalStateException();
+						throw new IllegalStateException("failed to find state at [start] of TryCatchBlock: " + tryCatchBlock);
 					}
 				}
 				stack.push(VarType.REFERENCE);
@@ -1121,7 +1127,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		else if(descType == A_REFERENCE) {
 			local.set(slot++, VarType.REFERENCE);
 		}
-
 		else {
 			throw new IllegalStateException();
 		}

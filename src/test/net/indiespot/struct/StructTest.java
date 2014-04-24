@@ -4,6 +4,8 @@ import java.nio.ByteBuffer;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
+import net.indiespot.struct.cp.StructField;
+import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.IllegalStackAccessError;
 import net.indiespot.struct.runtime.StructMemory;
@@ -860,10 +862,11 @@ public class StructTest {
 		System.out.println(v);
 	}
 
+	@StructType(sizeof = 12)
 	public static class Vec3 {
-		public float x;
-		public float y;
-		public float z;
+		@StructField(offset = 0) public float x;
+		@StructField(offset = 4) public float y;
+		@StructField(offset = 8) public float z;
 		public static int aaaaaaah;
 
 		public Vec3() {
