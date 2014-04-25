@@ -67,7 +67,7 @@ array[5].x += 9.9f; // segfault much?
 
 ## Mapping an array of structs to a ByteBuffer
 ```java
-// mapping structs to a native ByteBuffer
+// mapping structs to a native ByteBuffer, never goes out of scope
 ByteBuffer bb = ByteBuffer.allocateDirect(12*100).order(ByteOrder.nativeOrder());
 Vec3[] mapped = StructUtil.map(Vec3.class, bb);
 ```
@@ -121,6 +121,19 @@ public class Vec3
    public Vec3 plainWrong() {
       return new Vec3(); // goes out of scope!
    }
+   
+   
+   
+   // GOTCHA!
+   public static final Vec3 ZERO = new Vec3(0,0,0);
+   
+   // this code is compiled (by javac) as:   
+   public static final Vec3 ZERO;
+   static // this is actually a normal method, which terminates
+          //and reclaims/reuses its stack for new allocations
+   {
+      ZERO = new Vec3(0,0,0); // stack allocated struct immediately goes out of scope!
+   }
 }
 
 public static void callsite() {
@@ -167,14 +180,14 @@ Launch the JVM with the provided Java Agent attached, and pass it the name of th
 ```
 The agent will scan your classpath for the bytecode of these classes - in this
 case for "test/net/indiespot/struct/Vec3.class" (note that it doesn't actually
-load the class). Once it found all structs, it will start (lazily) rewriting
-all classes that any classloader attempts to load and resolve.
+load the class). Once it found all structs, it will start your application and
+will (lazily) rewrite all classes that any classloader attempts to load and resolve.
 
 
 ## Note about the immaturity of the library
 It's currently a hobby project where the reliability is measured by the ability to execute the limited amount of
 unit tests in the class test.net.indiespot.struct.StructTest. Please use this library for hobby projects only, until
-we can make more guarantees about functioning correctly. The main culprit of issues is the (currently) simplistic
+we can make more guarantees about it functioning correctly. The main culprit of issues is the (currently) simplistic
 control-flow analysis, as we need to know the types on the stack and localvars at any instruction in any method,
 regardless of how we ended up at that instruction.
 
