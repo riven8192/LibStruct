@@ -18,7 +18,7 @@ public class VarLocal {
 		while (index >= local.length) {
 			local = Arrays.copyOf(local, local.length * 2);
 		}
-		if(StructEnv.print_log)
+		if(StructEnv.PRINT_LOG)
 			System.out.println("\t\t\tlocal.set(" + index + ", " + var.name() + ")");
 		local[index] = var;
 	}

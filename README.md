@@ -155,10 +155,10 @@ public static void callsite() {
 ## How to enable structs in your application
 Create a text file (e.g.: structdef.txt) and put it in your classpath.
 ```
-test/net/indiespot/struct/Vec3
-your/project/math/Vec2
-your/project/math/Vec3
-your/project/math/Vec4
+test.net.indiespot.struct.Vec3
+your.project.math.Vec2
+your.project.math.Vec3
+your.project.math.Vec4
 ```
 
 Launch the JVM with the provided Java Agent attached, and pass it the name of the file listing your struct types:
@@ -169,3 +169,15 @@ The agent will scan your classpath for the bytecode of these classes - in this
 case for "test/net/indiespot/struct/Vec3.class" (note that it doesn't actually
 load the class). Once it found all structs, it will start (lazily) rewriting
 all classes that any classloader attempts to load and resolve.
+
+
+## Note about the immaturity of the library
+It's currently a hobby project where the reliability is measured by the ability to execute the limited amount of
+unit tests in the class test.net.indiespot.struct.StructTest. Please use this library for hobby projects only, until
+we can make more guarantees about functioning correctly. The main culprit of issues is the (currently) simplistic
+control-flow analysis, as we need to know the types on the stack and localvars at any instruction in any method,
+regardless of how we ended up at that instruction.
+
+If you happen to find a bug that either causes a failure to rewrite a class, or a failure to produce valid bytecode,
+or a failure to produce correct bytecode, please set StructEnv.PRINT_LOG to true and rerun the application, and post
+the output in your bug report.

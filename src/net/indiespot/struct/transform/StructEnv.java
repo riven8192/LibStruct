@@ -29,7 +29,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
-	public static final boolean print_log = false;
+	public static final boolean PRINT_LOG = false;
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
 	public static final String array_wrapped_struct_flag = "[L" + plain_struct_flag + ";";
@@ -69,7 +69,7 @@ public class StructEnv {
 
 		private void analyze(final String fqcn, byte[] bytecode) {
 
-			if(print_log)
+			if(PRINT_LOG)
 				System.out.println("analyzing class: " + fqcn);
 
 			ClassWriter writer = new ClassWriter(0);
@@ -99,7 +99,7 @@ public class StructEnv {
 
 				private void flagRewriteField(String name, String desc) {
 					if(fieldsWithStructType.add(name + desc))
-						if(print_log)
+						if(PRINT_LOG)
 							System.out.println("\tflagging field: " + name + "" + desc);
 				}
 
@@ -107,7 +107,7 @@ public class StructEnv {
 				public MethodVisitor visitMethod(int access, final String methodName, final String methodDesc, String signature, String[] exceptions) {
 					return new MethodVisitor(Opcodes.ASM4, super.visitMethod(access, methodName, methodDesc, signature, exceptions)) {
 						{
-							if(print_log)
+							if(PRINT_LOG)
 								System.out.println("\tchecking method for rewrite: " + methodName + "" + methodDesc);
 
 							if(plain_struct_types.contains(fqcn)) {
@@ -184,7 +184,7 @@ public class StructEnv {
 
 						private void flagRewriteMethod(boolean forStructCreation) {
 							if(methodsWithStructAccess.add(methodName + methodDesc))
-								if(print_log)
+								if(PRINT_LOG)
 									System.out.println("\t\tflagged for rewrite");
 
 							if(forStructCreation) {
@@ -254,12 +254,12 @@ public class StructEnv {
 
 			@Override
 			public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-				if(print_log)
+				if(PRINT_LOG)
 					System.out.println("\tfield1: " + name + " " + desc);
 
 				if(struct2info.containsKey(fqcn)) {
 					if((access & ACC_STATIC) == 0) {
-						if(print_log)
+						if(PRINT_LOG)
 							System.out.println("\tremoved struct field");
 						return null; // remove instance fields
 					}
@@ -269,7 +269,7 @@ public class StructEnv {
 					desc = wrapped_struct_flag;
 				if(array_wrapped_struct_types.contains(desc))
 					desc = array_wrapped_struct_flag;
-				if(print_log)
+				if(PRINT_LOG)
 					System.out.println("\tfield2: " + name + " " + desc);
 				String finalFieldDesc = desc.replace(wrapped_struct_flag, "I");
 				return super.visitField(access, name, finalFieldDesc, signature, value);
@@ -280,7 +280,7 @@ public class StructEnv {
 				final String origMethodName = methodName;
 				final String origMethodDesc = methodDesc;
 
-				if(print_log)
+				if(PRINT_LOG)
 					System.out.println("\tmethod1: " + methodName + " " + methodDesc);
 
 				String returnsStructType = null;
@@ -303,7 +303,7 @@ public class StructEnv {
 					}
 				}
 
-				if(print_log)
+				if(PRINT_LOG)
 					System.out.println("\tmethod2: " + methodName + " " + methodDesc);
 
 				String finalMethodName = methodName.replace(wrapped_struct_flag, "I");
@@ -313,7 +313,7 @@ public class StructEnv {
 				if(struct_rewrite_early_out) {
 					// do we need to rewrite this method?
 					boolean hasStructAccess = info.methodsWithStructAccess.contains(origMethodName + origMethodDesc);
-					if(print_log)
+					if(PRINT_LOG)
 						System.out.println("\t\tearly out for rewrite? [" + !hasStructAccess + "]");
 					if(!hasStructAccess)
 						return mv; // nope!
@@ -330,12 +330,12 @@ public class StructEnv {
 					public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 						if(desc.equals("L" + jvmClassName(CopyStruct.class) + ";")) {
 							strategy = ReturnValueStrategy.COPY;
-							if(print_log)
+							if(PRINT_LOG)
 								System.out.println("\t\t\twith struct return value, with Copy strategy");
 						}
 						else if(desc.equals("L" + jvmClassName(TakeStruct.class) + ";")) {
 							strategy = ReturnValueStrategy.PASS;
-							if(print_log)
+							if(PRINT_LOG)
 								System.out.println("\t\t\twith struct return value, with Pass strategy");
 						}
 						return super.visitAnnotation(desc, visible);
@@ -382,7 +382,7 @@ public class StructEnv {
 							if(strategy == null)
 								throw new IllegalStateException();
 
-							if(print_log)
+							if(PRINT_LOG)
 								System.out.println("\t\t\treturn value strategy: " + strategy);
 
 							if(strategy == ReturnValueStrategy.PASS) {

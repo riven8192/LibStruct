@@ -79,7 +79,7 @@ public class StructAgent {
 			if(parts.length < 1)
 				throw new IllegalStateException("Usage (each line): [FQCN]");
 
-			String fqcn = parts[0];
+			String fqcn = parts[0].replace('.', '/');
 
 			StructInfo info = fqcn2info.get(fqcn);
 

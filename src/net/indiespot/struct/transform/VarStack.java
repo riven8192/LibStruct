@@ -24,7 +24,7 @@ public class VarStack {
 			return stack[index++] = var;
 		}
 		finally {
-			if(StructEnv.print_log)
+			if(StructEnv.PRINT_LOG)
 				System.out.println("\t\t\tstack.push(" + var + ") -> " + this);
 		}
 	}
@@ -34,7 +34,7 @@ public class VarStack {
 			return stack[--index];
 		}
 		finally {
-			if(StructEnv.print_log)
+			if(StructEnv.PRINT_LOG)
 				System.out.println("\t\t\tstack.pop(" + stack[index] + ") -> " + this);
 		}
 	}
@@ -48,7 +48,7 @@ public class VarStack {
 			return stack[index - 1 - off];
 		}
 		finally {
-			if(StructEnv.print_log)
+			if(StructEnv.PRINT_LOG)
 				System.out.println("\t\t\tstack.peek(" + stack[index - 1 - off] + ") -> " + this);
 		}
 	}
@@ -58,7 +58,7 @@ public class VarStack {
 			stack[index - 1 - off] = type;
 		}
 		finally {
-			if(StructEnv.print_log)
+			if(StructEnv.PRINT_LOG)
 				System.out.println("\t\t\tstack.set(" + stack[index - 1 - off] + ", " + type + ")");
 		}
 	}
