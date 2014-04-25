@@ -1,7 +1,7 @@
 LibStruct
 =========
 
-# Stack allocated and mapped structs for Java
+## Stack allocated and mapped structs for Java
 
 
 ## Defining a struct (Vec3)
@@ -20,7 +20,7 @@ public class Vec3
       this.z = z;
    }
    
-   public void add(Vec3 that) {
+   public void add(Vec3 that) { // structs are *passed by reference*, no copy is made
       this.x += that.x;
 	  this.y += that.y;
 	  this.z += that.z;
@@ -97,7 +97,7 @@ public class Vec3
    @CopyStruct // indicate providing a copy to the callsite
    public Vec3 normalize() {
       float len = (float)Math.sqrt(x*x + y*y + z*z);
-      return new Vec3(x / len, y / len, z / len);
+      return new Vec3(x / len, y / len, z / len); // struct is copied
    }
    
    
@@ -108,13 +108,13 @@ public class Vec3
    // every time we return it, as we know the reference
    // to 'this' struct is still valid in the callsite:
    
-   @TakeStruct // no copy is made!
+   @TakeStruct
    public Vec3 normalizeSelf() {
       float len = (float)Math.sqrt(x*x + y*y + z*z);
 	  x /= len;
 	  y /= len;
 	  z /= len;
-      return this;
+      return this; // no copy is made, due to the @TakeStruct annotation
    }
    
    @TakeStruct // no copy :o(
@@ -130,7 +130,7 @@ public class Vec3
    // this code is compiled (by javac) as:   
    public static final Vec3 ZERO;
    static // this is actually a normal method, which terminates
-          //and reclaims/reuses its stack for new allocations
+          // and reclaims/reuses its stack for new allocations
    {
       ZERO = new Vec3(0,0,0); // stack allocated struct immediately goes out of scope!
    }
