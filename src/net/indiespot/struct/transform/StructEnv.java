@@ -10,6 +10,7 @@ import java.util.Set;
 
 import net.indiespot.struct.StructInfo;
 import net.indiespot.struct.cp.CopyStruct;
+import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructMemory;
@@ -28,7 +29,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
-	public static final boolean print_log = false;
+	public static final boolean print_log = true;
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
 	public static final String array_wrapped_struct_flag = "[L" + plain_struct_flag + ";";
@@ -62,10 +63,27 @@ public class StructEnv {
 		final Set<String> methodsWithStructCreation = new HashSet<>();
 		final Map<String, Integer> methodNameDesc2locals = new HashMap<>();
 
+		public boolean needsRewrite() {
+			return !fieldsWithStructType.isEmpty() || !methodsWithStructAccess.isEmpty() || !methodsWithStructCreation.isEmpty();
+		}
+
 		private void analyze(final String fqcn, byte[] bytecode) {
+
+			if(print_log)
+				System.out.println("analyzing class: " + fqcn);
 
 			ClassWriter writer = new ClassWriter(0);
 			ClassVisitor visitor = new ClassVisitor(Opcodes.ASM4, writer) {
+
+				@Override
+				public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+					if(desc.equals("L" + StructEnv.jvmClassName(StructType.class) + ";")) {
+						if(!plain_struct_types.contains(fqcn)) {
+							throw new IllegalStateException("encountered undefined struct: " + fqcn);
+						}
+					}
+					return super.visitAnnotation(desc, visible);
+				}
 
 				@Override
 				public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
@@ -82,7 +100,7 @@ public class StructEnv {
 				private void flagRewriteField(String name, String desc) {
 					if(fieldsWithStructType.add(name + desc))
 						if(print_log)
-							System.out.println("flagging for rewrite: " + fqcn + "." + name + "" + desc);
+							System.out.println("\tflagging field: " + name + "" + desc);
 				}
 
 				@Override
@@ -90,7 +108,7 @@ public class StructEnv {
 					return new MethodVisitor(Opcodes.ASM4, super.visitMethod(access, methodName, methodDesc, signature, exceptions)) {
 						{
 							if(print_log)
-								System.out.println("checking for rewrite: " + fqcn + "." + methodName + "" + methodDesc);
+								System.out.println("\tchecking method for rewrite: " + methodName + "" + methodDesc);
 
 							if(plain_struct_types.contains(fqcn)) {
 								this.flagRewriteMethod(false);
@@ -124,8 +142,6 @@ public class StructEnv {
 
 						@Override
 						public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-							if(print_log)
-								System.out.println("\t" + owner + "." + name + " " + desc);
 							if(plain_struct_types.contains(owner)) {
 								this.flagRewriteMethod(false);
 							}
@@ -167,11 +183,9 @@ public class StructEnv {
 						}
 
 						private void flagRewriteMethod(boolean forStructCreation) {
-							if(true) {
-								if(methodsWithStructAccess.add(methodName + methodDesc))
-									if(print_log)
-										System.out.println("flagging for rewrite: " + fqcn + "." + methodName + "" + methodDesc);
-							}
+							if(methodsWithStructAccess.add(methodName + methodDesc))
+								if(print_log)
+									System.out.println("\t\tflagged for rewrite");
 
 							if(forStructCreation) {
 								methodsWithStructCreation.add(methodName + methodDesc);
@@ -195,8 +209,16 @@ public class StructEnv {
 
 		final ClassInfo info = new ClassInfo();
 		info.analyze(fqcn, bytecode);
+		if(!info.needsRewrite())
+			return null;
 
-		final ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
+		final ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS) {
+			protected String getCommonSuperClass(String type1, String type2) {
+				String type3 = super.getCommonSuperClass(type1, type2);
+				System.out.println("StructEnv.rewriteClass ClassWriter.getCommonSuperClass(" + type1 + ", " + type2 + ") -> " + type3);
+				return type3;
+			}
+		};
 
 		ClassVisitor visitor = new ClassVisitor(Opcodes.ASM4, writer) {
 
@@ -292,7 +314,7 @@ public class StructEnv {
 					// do we need to rewrite this method?
 					boolean hasStructAccess = info.methodsWithStructAccess.contains(origMethodName + origMethodDesc);
 					if(print_log)
-						System.out.println("early out for rewrite? [hasStructAccess=" + hasStructAccess + "] " + fqcn + "." + origMethodName + origMethodDesc);
+						System.out.println("\t\tearly out for rewrite? [" + !hasStructAccess + "]");
 					if(!hasStructAccess)
 						return mv; // nope!
 				}
