@@ -53,6 +53,16 @@ public class VarStack {
 		}
 	}
 
+	public void set(int off, VarType type) {
+		try {
+			stack[index - 1 - off] = type;
+		}
+		finally {
+			if(StructEnv.print_log)
+				System.out.println("\t\t\tstack.set(" + stack[index - 1 - off] + ", " + type + ")");
+		}
+	}
+
 	public VarStack copy() {
 		VarStack copy = new VarStack(this.stack.length);
 		copy.index = this.index;

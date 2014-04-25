@@ -68,6 +68,7 @@ public class StructTest {
 			test1();
 			test2();
 			test3();
+			test4();
 		}
 
 		public static void test0() {
@@ -91,6 +92,15 @@ public class StructTest {
 
 		public static void test3() {
 			assert StructUtil.getPointer(new Vec3()) > 0L;
+		}
+
+		public static void test4() {
+			Class<?> typ1 = String.class;
+			Class<?> typ2 = Vec3.class;
+			
+			System.out.println(typ1);
+			//System.out.println("x="+typ2);
+			//System.exit(-1);
 		}
 	}
 

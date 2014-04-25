@@ -29,7 +29,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
-	public static final boolean print_log = true;
+	public static final boolean print_log = false;
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
 	public static final String array_wrapped_struct_flag = "[L" + plain_struct_flag + ";";
@@ -427,10 +427,6 @@ public class StructEnv {
 						if(opcode == NEW) {
 							if(struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
-								// super.visitMethodInsn(Opcodes.INVOKESTATIC,
-								// StructBuild.jvmClassName(StructMemory.class),
-								// "allocate", "(I)" + wrapped_struct_flag);
-
 								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
 								if(struct2info.get(type).skipZeroFill)
 									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateSkipZeroFill", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag);
@@ -567,17 +563,18 @@ public class StructEnv {
 							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;)[Ljava/lang/Object;")) {
 								if(flow.stack.peek() == VarType.REFERENCE) {
 									if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
-										// ..., STRUCT_TYPE, REFERENCE
-										flow.visitInsn(SWAP);
-										// ..., REFERENCE, STRUCT_TYPE
-										flow.visitInsn(POP);
+										flow.stack.set(1, VarType.INT);
+										// ..., STRUCT_TYPE (sizeof), REFERENCE
+										//flow.visitInsn(SWAP);
+										// ..., REFERENCE, STRUCT_TYPE (sizeof)
+										//flow.visitInsn(POP);
 										// ..., REFERENCE
-										flow.visitIntInsn(BIPUSH, struct2info.get(lastLdcStruct).sizeof);
-										lastLdcStruct = null;
+										//flow.visitIntInsn(BIPUSH, struct2info.get(lastLdcStruct).sizeof);
+										//lastLdcStruct = null;
 										// ..., REFERENCE, SIZEOF
 										owner = StructEnv.jvmClassName(StructMemory.class);
-										name = "mapArray";
-										desc = "(Ljava/nio/ByteBuffer;I)[" + wrapped_struct_flag;
+										name = "mapBuffer";
+										desc = "(ILjava/nio/ByteBuffer;)[" + wrapped_struct_flag;
 									}
 								}
 								else {
@@ -589,14 +586,16 @@ public class StructEnv {
 						super.visitMethodInsn(opcode, owner, name, desc);
 					}
 
-					private String lastLdcStruct;
+					//private String lastLdcStruct;
 
 					@Override
 					public void visitLdcInsn(Object cst) {
 						if(cst instanceof Type) {
 							if(plain_struct_types.contains(((Type) cst).getInternalName())) {
-								lastLdcStruct = ((Type) cst).getInternalName();
-								cst = Type.getType(wrapped_struct_flag);
+								flow.visitIntInsn(Opcodes.BIPUSH, struct2info.get(((Type) cst).getInternalName()).sizeof);
+								flow.stack.popEQ(VarType.INT);
+								flow.stack.push(VarType.STRUCT_TYPE);
+								return;
 							}
 						}
 

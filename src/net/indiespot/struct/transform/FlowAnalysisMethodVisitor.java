@@ -504,8 +504,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ALOAD: {
-			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL));
-			if(got == VarType.STRUCT) {
+			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.STRUCT_TYPE, VarType.NULL));
+			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE) {
 				opcode = ILOAD;
 				if(StructEnv.print_log)
 					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
@@ -535,8 +535,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ASTORE: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
-			if(got == VarType.STRUCT) {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL));
+			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE) {
 				opcode = ISTORE;
 				if(StructEnv.print_log)
 					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
@@ -949,14 +949,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			stack.push(VarType.REFERENCE);
 		}
 		else if(cst instanceof Type) {
-			if(((Type) cst).getClassName().equals(StructEnv.plain_struct_flag)) {
-				// LDC Vec3.class -> LDC 0
-				stack.push(VarType.STRUCT_TYPE);
-				cst = Integer.valueOf(0);
-			}
-			else {
-				stack.push(VarType.REFERENCE);
-			}
+			stack.push(VarType.REFERENCE);
 		}
 		// else if(cst instanceof Object[]) { // FIXME
 		// stack.push(VarType.REFERENCE);

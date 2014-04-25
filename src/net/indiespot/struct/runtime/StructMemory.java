@@ -68,7 +68,7 @@ public class StructMemory {
 		return arr;
 	}
 
-	public static int[] mapArray(ByteBuffer bb, int sizeof) {
+	public static int[] mapBuffer(int sizeof, ByteBuffer bb) {
 		int sizeofWords = sizeof2words(sizeof);
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int count = bb.remaining() / sizeof;
