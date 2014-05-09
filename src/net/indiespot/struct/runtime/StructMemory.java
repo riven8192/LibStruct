@@ -13,11 +13,11 @@ public class StructMemory {
 	static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
 
 	public static int allocate(int sizeof) {
-		return allocate(sizeof, StructThreadLocalStack.get());
+		return allocate(sizeof, StructThreadLocalStack.getStack());
 	}
 
 	public static int[] allocateArray(int length, int sizeof) {
-		return allocateArray(length, sizeof, StructThreadLocalStack.get());
+		return allocateArray(length, sizeof, StructThreadLocalStack.getStack());
 	}
 
 	// ---
@@ -43,7 +43,7 @@ public class StructMemory {
 	}
 
 	public static int allocateCopy(int srcHandle, int sizeof) {
-		int dstHandle = StructThreadLocalStack.get().allocate(sizeof);
+		int dstHandle = StructThreadLocalStack.getStack().allocate(sizeof);
 
 		if(manually_fill_and_copy) {
 			copyMemoryByWord(srcHandle, dstHandle, sizeof2words(sizeof));
@@ -114,7 +114,7 @@ public class StructMemory {
 	}
 
 	public static boolean isValid(int handle) {
-		return StructThreadLocalStack.get().isOnStack(handle);
+		return StructThreadLocalStack.getStack().isOnStack(handle);
 	}
 
 	public static void execCheckcastInsn() {
@@ -141,7 +141,7 @@ public class StructMemory {
 
 	private static void checkHandle(int handle) {
 		if(CHECK_MEMORY_ACCESS_REGION) {
-			StructAllocationStack stack = StructThreadLocalStack.get();
+			StructAllocationStack stack = StructThreadLocalStack.getStack();
 			if(stack.isOnBlock(handle) && !stack.isOnStack(handle)) {
 				throw new IllegalStackAccessError();
 			}

@@ -16,14 +16,17 @@ public class StructAllocationBlock {
 			if(sizeof <= 0)
 				throw new IllegalArgumentException();
 
-		int wordSizeof = bytesToWords(sizeof);
 		if(StructMemory.CHECK_ALLOC_OVERFLOW)
-			if(wordsAllocated + wordSizeof > this.wordSizeof)
+			if(!this.canAllocate(sizeof))
 				throw new StructAllocationBlockOverflowError();
 
 		int handleIndex = wordsAllocated;
-		wordsAllocated += wordSizeof;
+		wordsAllocated += bytesToWords(sizeof);
 		return handleOffset + handleIndex;
+	}
+
+	public boolean canAllocate(int sizeof) {
+		return (sizeof > 0) && (wordsAllocated + bytesToWords(sizeof) <= this.wordSizeof);
 	}
 
 	public boolean isOnBlock(int handle) {
