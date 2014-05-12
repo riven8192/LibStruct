@@ -221,6 +221,9 @@ public class StructEnv {
 			}
 		};
 
+		final String[] currentMethodName = new String[1];
+		final String[] currentMethodDesc = new String[1];
+
 		ClassVisitor visitor = new ClassVisitor(Opcodes.ASM4, writer) {
 
 			@Override
@@ -278,6 +281,9 @@ public class StructEnv {
 
 			@Override
 			public MethodVisitor visitMethod(int access, String methodName, String methodDesc, String signature, String[] exceptions) {
+				currentMethodName[0] = methodName;
+				currentMethodDesc[0] = methodDesc;
+
 				final String origMethodName = methodName;
 				final String origMethodDesc = methodDesc;
 
@@ -699,7 +705,17 @@ public class StructEnv {
 			}
 		};
 
-		new ClassReader(bytecode).accept(visitor, 0);
+		try {
+			new ClassReader(bytecode).accept(visitor, 0);
+		}
+		catch (Throwable cause) {
+			String msg = "LibStruct failed to rewrite class:\n";
+			msg += "\tFQCN: " + fqcn + "\n";
+			msg += "\tLast entered method: \n";
+			msg += "\t\tname: " + currentMethodName[0] + "\n";
+			msg += "\t\tdesc: " + currentMethodDesc[0] + "\n";
+			throw new IllegalStateException(msg, cause);
+		}
 
 		return writer.toByteArray();
 	}
