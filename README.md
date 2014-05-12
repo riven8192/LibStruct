@@ -124,7 +124,11 @@ public class Vec3
    
    
    
-   // GOTCHA!
+   // How to assign new structs to fields:
+   public static final Vec3 ZERO = StructUtil.malloc(Vec3.class);
+   
+   
+   // How NOT to assign new structs to fields:
    public static final Vec3 ZERO = new Vec3(0,0,0);
    
    // this code is compiled (by javac) as:   
@@ -134,6 +138,8 @@ public class Vec3
    {
       ZERO = new Vec3(0,0,0); // stack allocated struct immediately goes out of scope!
    }
+   
+
 }
 
 public static void callsite() {
