@@ -15,7 +15,7 @@ public class StructTest {
 	public static void main(String[] args) {
 		TestStructEnv.test();
 
-		if(!true) {
+		if(true) {
 			TestSizeof.test();
 			TestNull.test();
 			TestOneInstance.test();
