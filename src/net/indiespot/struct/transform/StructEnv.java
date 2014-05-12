@@ -714,6 +714,8 @@ public class StructEnv {
 			msg += "\tLast entered method: \n";
 			msg += "\t\tname: " + currentMethodName[0] + "\n";
 			msg += "\t\tdesc: " + currentMethodDesc[0] + "\n";
+			if(!StructEnv.PRINT_LOG)
+			msg += "\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
 			throw new IllegalStateException(msg, cause);
 		}
 
