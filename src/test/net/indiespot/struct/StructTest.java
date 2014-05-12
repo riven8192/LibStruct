@@ -1,13 +1,18 @@
 package test.net.indiespot.struct;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.IllegalStackAccessError;
+import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.StructUtil;
 
@@ -53,17 +58,165 @@ public class StructTest {
 			}
 
 			TestStructField.test();
+			TestStructWithStructField.test();
 			TestStructAsObjectParam.test();
+			TestMalloc.test();
 		}
 
 		// ParticleTestStruct.main(args);
-		//TestMultiThreadedAllocation.test();
-		//TestPerformance.test();
-		//TheAgentD.main(args);
+		// TestMultiThreadedAllocation.test();
+		// TestPerformance.test();
+		// TheAgentD.main(args);
 
-		TestStructWithStructField.test();
+		TestMalloc.testMultiThreaded();
 
 		System.out.println("done2");
+	}
+
+	public static class TestMalloc {
+		public static void test() {
+			for(int i = 0; i < 4; i++) {
+				Vec3 vec1 = StructUtil.malloc(Vec3.class);
+				System.out.println(vec1);
+
+				Vec3 vec2 = StructUtil.malloc(Vec3.class);
+				System.out.println(vec2);
+
+				StructUtil.free(vec1);
+				StructUtil.free(vec2);
+			}
+		}
+
+		private static class Vec3Queue {
+			private Vec3[] queue;
+			private int size;
+
+			{
+				ByteBuffer bb = ByteBuffer.allocateDirect(12 * 1000);
+				queue = StructUtil.map(Vec3.class, bb);
+			}
+
+			public synchronized void push(Vec3 vec) {
+				while (size == queue.length) {
+					try {
+						this.wait();
+					}
+					catch (InterruptedException e) {
+						// ignore
+					}
+				}
+				queue[size++] = vec;
+				this.notify();
+				//System.out.println("pushed");
+			}
+
+			@TakeStruct
+			public synchronized Vec3 pop() {
+				while (size == 0) {
+					try {
+						this.wait();
+					}
+					catch (InterruptedException e) {
+						// ignore
+					}
+				}
+				Vec3 vec = queue[--size];
+				this.notify();
+				//System.out.println("popped");
+				return vec;
+			}
+
+			@TakeStruct
+			public synchronized Vec3 poll(long timeout) {
+				final long started = System.currentTimeMillis();
+				while (size == 0) {
+					try {
+						this.wait(timeout);
+					}
+					catch (InterruptedException e) {
+						// ignore
+					}
+
+					if(size == 0) {
+						if(System.currentTimeMillis() - started > timeout) {
+							return StructUtil.asNull(Vec3.class);
+						}
+					}
+				}
+				Vec3 vec = queue[--size];
+				this.notify();
+				//System.out.println("polled: " + vec);
+				return vec;
+			}
+		}
+
+		public static void testMultiThreaded() {
+			Vec3Queue queue = new Vec3Queue();
+
+			final int itemCount = 25_000;
+			for(int i = 0; i < 3; i++)
+				createProducer(queue, itemCount);
+
+			final long pollTimeout = 2_000;
+			for(int i = 0; i < 32; i++)
+				createConsumer(queue, pollTimeout);
+
+			StructGC.discardThreadLocal();
+
+			StructGC.addListener(new StructGC.GcInfo() {
+				@Override
+				public void onGC(int gcHeaps, int emptyHeaps, int freedHandles, int[] remainingHandles, long tookNanos) {
+					System.out.println("StructGC: heaps:" + gcHeaps + "/" + (gcHeaps + emptyHeaps) + ", freed:" + freedHandles + ", remaining:" + Arrays.toString(remainingHandles) + ", took:" + (tookNanos / 1_000) + "us");
+				}
+			});
+
+			do {
+				try {
+					Thread.sleep(1000);
+				}
+				catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+			while (StructGC.countGarbage() > 0);
+		}
+
+		private static void createProducer(final Vec3Queue queue, final int items) {
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					for(int i = 0; i < items; i++) {
+						queue.push(StructUtil.malloc(Vec3.class));
+
+						if(i % 1000 == 0) {
+							try {
+								Thread.sleep(100);
+							}
+							catch (InterruptedException e) {
+								// ignore
+							}
+						}
+					}
+
+					StructGC.discardThreadLocal();
+				}
+			}).start();
+		}
+
+		private static void createConsumer(final Vec3Queue queue, final long pollTimeout) {
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					while (true) {
+						Vec3 item = queue.poll(pollTimeout);
+						if(item == null)
+							break;
+
+						StructUtil.free(item);
+					}
+				}
+			}).start();
+		}
 	}
 
 	public static class TestSizeof {
