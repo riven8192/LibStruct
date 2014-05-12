@@ -13,6 +13,7 @@ import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.StructAllocationStack;
+import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.StructThreadLocalStack;
 import net.indiespot.struct.runtime.StructUtil;
@@ -548,16 +549,54 @@ public class StructEnv {
 						}
 
 						if(owner.equals(StructEnv.jvmClassName(StructUtil.class))) {
-							if(name.equals("sizeof") && desc.equals("(Ljava/lang/Class;)I")) {
+							if(name.equals("asNull") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
+								if(flow.stack.peek() == VarType.STRUCT_TYPE) {
+									flow.stack.set(0, VarType.INT);
+									// ..., sizeof
+									super.visitInsn(Opcodes.POP);
+									// ...
+									super.visitInsn(Opcodes.ICONST_0);
+									// ..., 'null'
+									flow.stack.set(0, VarType.STRUCT);
+									return;
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							}
+							else if(name.equals("sizeof") && desc.equals("(Ljava/lang/Class;)I")) {
 								if(flow.stack.peek() == VarType.STRUCT_TYPE) {
 									flow.stack.set(0, VarType.INT);
 									// ...,sizeof
 									return;
 								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							}
+							else if(name.equals("malloc") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
+								if(flow.stack.peek() == VarType.STRUCT_TYPE) {
+									flow.stack.set(0, VarType.INT);
+									// ...,sizeof
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "malloc";
+									desc = "(I)" + wrapped_struct_flag;
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							}
+							else if(name.equals("free") && desc.equals("(Ljava/lang/Object;)V")) {
+								if(flow.stack.peek() == VarType.NULL) {
+									// ..., NULL
+									super.visitInsn(Opcodes.POP); // right thing to do?
+									// ...
+									return;
+								}
 								else if(flow.stack.peek() == VarType.STRUCT) {
-									owner = StructEnv.jvmClassName(StructMemory.class);
-									name = "handle2pointer";
-									desc = "(" + wrapped_struct_flag + ")J";
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "freeHandle";
+									desc = "(" + wrapped_struct_flag + ")V";
 								}
 								else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());

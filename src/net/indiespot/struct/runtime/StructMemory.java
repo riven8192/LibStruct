@@ -1,8 +1,6 @@
 package net.indiespot.struct.runtime;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 public class StructMemory {
 	public static final boolean CHECK_ALLOC_OVERFLOW = !true;
@@ -10,7 +8,6 @@ public class StructMemory {
 	public static final boolean CHECK_POINTER_ALIGNMENT = !true;
 
 	private static final boolean manually_fill_and_copy = true;
-	static final List<ByteBuffer> immortable_buffers = new ArrayList<>();
 
 	public static int allocate(int sizeof) {
 		return allocate(sizeof, StructThreadLocalStack.getStack());
@@ -237,12 +234,12 @@ public class StructMemory {
 
 	// long
 
-	public static final void lput(int handle, long value, int fieldOffset) {
+	public static final void jput(int handle, long value, int fieldOffset) {
 		checkHandle(handle);
 		StructUnsafe.UNSAFE.putLong(handle2pointer(handle) + fieldOffset, value);
 	}
 
-	public static final long lget(int handle, int fieldOffset) {
+	public static final long jget(int handle, int fieldOffset) {
 		checkHandle(handle);
 		return StructUnsafe.UNSAFE.getLong(handle2pointer(handle) + fieldOffset);
 	}
