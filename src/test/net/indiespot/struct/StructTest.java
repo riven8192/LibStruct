@@ -15,7 +15,8 @@ public class StructTest {
 	public static void main(String[] args) {
 		TestStructEnv.test();
 
-		if(true) {
+		if(!true) {
+			TestSizeof.test();
 			TestNull.test();
 			TestOneInstance.test();
 			TestOneInstanceNull.test();
@@ -38,6 +39,7 @@ public class StructTest {
 
 			TestArray.test();
 			TestMapping.test();
+			TestInterleavedMapping.test();
 
 			TestInstanceMethod.test();
 			TestStructReturnType.test();
@@ -56,10 +58,38 @@ public class StructTest {
 
 		// ParticleTestStruct.main(args);
 		//TestMultiThreadedAllocation.test();
-		TestPerformance.test();
-		TheAgentD.main(args);
+		//TestPerformance.test();
+		//TheAgentD.main(args);
+
+		TestStructWithStructField.test();
 
 		System.out.println("done2");
+	}
+
+	public static class TestSizeof {
+		public static void test() {
+			int sizeofVec3 = StructUtil.sizeof(Vec3.class);
+			int sizeofShip = StructUtil.sizeof(Ship.class);
+
+			assert (sizeofVec3 == 12);
+			assert (sizeofShip == 8);
+		}
+	}
+
+	public static class TestStructWithStructField {
+		public static void test() {
+			Ship ship = new Ship();
+			assert (ship.id == 100001);
+			ship.id++;
+			assert (ship.id == 100002);
+			assert (ship.pos == null);
+
+			ship.pos = new Vec3();
+			System.out.println(ship.pos);
+			assert (ship.pos != null);
+			System.out.println(ship.pos);
+			System.out.println(ship.pos.toString());
+		}
 	}
 
 	public static class TestStructEnv {
@@ -97,7 +127,7 @@ public class StructTest {
 		public static void test4() {
 			Class<?> typ1 = String.class;
 			Class<?> typ2 = Vec3.class;
-			
+
 			System.out.println(typ1);
 			//System.out.println("x="+typ2);
 			//System.exit(-1);
@@ -299,6 +329,47 @@ public class StructTest {
 			System.out.println(mapped.length);
 			for(int i = 0; i < mapped.length; i++) {
 				System.out.println(mapped[i].toString());
+			}
+			System.out.println("done:" + bb);
+		}
+	}
+
+	public static class TestInterleavedMapping {
+		public static void test() {
+			int alignMargin = 4 - 1;
+			int sizeof = 3 << 2;
+			int count = 10;
+			ByteBuffer bb = ByteBuffer.allocateDirect(count * sizeof + alignMargin);
+			StructMemory.alignBufferToWord(bb);
+			Vec3[] mapped1 = StructUtil.map(Vec3.class, bb, 24, 0);
+			Vec3[] mapped2 = StructUtil.map(Vec3.class, bb, 24, 12);
+			{
+				long p1 = StructUtil.getPointer(mapped1[0]);
+				long p2 = StructUtil.getPointer(mapped1[1]);
+				if(p2 - p1 != 24)
+					throw new IllegalStateException();
+			}
+			{
+				long p1 = StructUtil.getPointer(mapped2[0]);
+				long p2 = StructUtil.getPointer(mapped2[1]);
+				if(p2 - p1 != 24)
+					throw new IllegalStateException();
+			}
+			{
+				long p1 = StructUtil.getPointer(mapped1[0]);
+				long p2 = StructUtil.getPointer(mapped2[0]);
+				if(p2 - p1 != 12)
+					throw new IllegalStateException();
+			}
+
+			System.out.println(mapped1.length);
+			for(int i = 0; i < mapped1.length; i++) {
+				System.out.println(mapped1[i]);
+			}
+			System.out.println();
+			System.out.println(mapped2.length);
+			for(int i = 0; i < mapped2.length; i++) {
+				System.out.println(mapped2[i]);
 			}
 			System.out.println("done:" + bb);
 		}
@@ -929,6 +1000,22 @@ public class StructTest {
 		@Override
 		public String toString() {
 			return "Vec3[" + x + ", " + y + ", " + z + "]";
+		}
+	}
+
+	@StructType(sizeof = 8)
+	public static class Ship {
+		private static int id_gen = 100000;
+		@StructField(offset = 0) public int id;
+		@StructField(offset = 4) public Vec3 pos;
+
+		public Ship() {
+			id = ++id_gen;//new Random().nextInt(); // FIXME
+		}
+
+		@Override
+		public String toString() {
+			return "Ship[id=" + id + ", pos=" + pos + "]";
 		}
 	}
 }

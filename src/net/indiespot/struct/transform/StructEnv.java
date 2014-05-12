@@ -29,7 +29,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
-	public static final boolean PRINT_LOG = false;
+	public static final boolean PRINT_LOG = true;
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
 	public static final String array_wrapped_struct_flag = "[L" + plain_struct_flag + ";";
@@ -463,8 +463,21 @@ public class StructEnv {
 								StructInfo info = struct2info.get(owner);
 								int offset = info.field2offset.get(name).intValue();
 								String type = info.field2type.get(name);
+
+								String methodName, paramType, returnType;
+								if(wrapped_struct_types.contains(type)) {
+									methodName = "$put";
+									paramType = wrapped_struct_flag;
+									returnType = "V";
+								}
+								else {
+									methodName = type.toLowerCase() + "put";
+									paramType = type;
+									returnType = "V";
+								}
+
 								super.visitIntInsn(BIPUSH, offset);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), type.toLowerCase() + "put", "(" + wrapped_struct_flag + type + "I)V");
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + wrapped_struct_flag + paramType + "I)" + returnType);
 								return;
 							}
 
@@ -474,8 +487,21 @@ public class StructEnv {
 								StructInfo info = struct2info.get(owner);
 								int offset = info.field2offset.get(name).intValue();
 								String type = info.field2type.get(name);
+
+								String methodName, paramType, returnType;
+								if(wrapped_struct_types.contains(type)) {
+									methodName = "$get";
+									paramType = wrapped_struct_flag;
+									returnType = wrapped_struct_flag;
+								}
+								else {
+									methodName = type.toLowerCase() + "get";
+									paramType = wrapped_struct_flag;
+									returnType = type;
+								}
+
 								super.visitIntInsn(BIPUSH, offset);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), type.toLowerCase() + "get", "(" + wrapped_struct_flag + "I)" + type);
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + paramType + "I)" + returnType);
 								return;
 							}
 						}
@@ -522,7 +548,22 @@ public class StructEnv {
 						}
 
 						if(owner.equals(StructEnv.jvmClassName(StructUtil.class))) {
-							if(name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
+							if(name.equals("sizeof") && desc.equals("(Ljava/lang/Class;)I")) {
+								if(flow.stack.peek() == VarType.STRUCT_TYPE) {
+									flow.stack.set(0, VarType.INT);
+									// ...,sizeof
+									return;
+								}
+								else if(flow.stack.peek() == VarType.STRUCT) {
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "handle2pointer";
+									desc = "(" + wrapped_struct_flag + ")J";
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							}
+							else if(name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
 								if(flow.stack.peek() == VarType.NULL) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP);
@@ -563,18 +604,27 @@ public class StructEnv {
 							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;)[Ljava/lang/Object;")) {
 								if(flow.stack.peek() == VarType.REFERENCE) {
 									if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+										// ...,type,buffer
 										flow.stack.set(1, VarType.INT);
-										// ..., STRUCT_TYPE (sizeof), REFERENCE
-										//flow.visitInsn(SWAP);
-										// ..., REFERENCE, STRUCT_TYPE (sizeof)
-										//flow.visitInsn(POP);
-										// ..., REFERENCE
-										//flow.visitIntInsn(BIPUSH, struct2info.get(lastLdcStruct).sizeof);
-										//lastLdcStruct = null;
-										// ..., REFERENCE, SIZEOF
+										// ...,sizeof,buffer
 										owner = StructEnv.jvmClassName(StructMemory.class);
 										name = "mapBuffer";
 										desc = "(ILjava/nio/ByteBuffer;)[" + wrapped_struct_flag;
+									}
+								}
+								else {
+									throw new IllegalStateException();
+								}
+							}
+							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;II)[Ljava/lang/Object;")) {
+								if(flow.stack.peek(2) == VarType.REFERENCE) {
+									if(flow.stack.peek(3) == VarType.STRUCT_TYPE) {
+										// ...,type,buffer,stride,offset
+										flow.stack.set(3, VarType.INT);
+										// ...,sizeof,buffer,stride,offset
+										owner = StructEnv.jvmClassName(StructMemory.class);
+										name = "mapBuffer";
+										desc = "(ILjava/nio/ByteBuffer;II)[" + wrapped_struct_flag;
 									}
 								}
 								else {

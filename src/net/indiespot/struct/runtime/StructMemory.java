@@ -26,7 +26,7 @@ public class StructMemory {
 		int handle = stack.allocate(sizeof);
 
 		if(manually_fill_and_copy) {
-			fillMemoryByWord(handle, sizeof2words(sizeof), 0x00000000);
+			fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
 		}
 		else {
 			StructUnsafe.UNSAFE.setMemory(//
@@ -46,7 +46,7 @@ public class StructMemory {
 		int dstHandle = StructThreadLocalStack.getStack().allocate(sizeof);
 
 		if(manually_fill_and_copy) {
-			copyMemoryByWord(srcHandle, dstHandle, sizeof2words(sizeof));
+			copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
 		}
 		else {
 			StructUnsafe.UNSAFE.copyMemory(//
@@ -59,7 +59,7 @@ public class StructMemory {
 	}
 
 	public static int[] allocateArray(int length, int sizeof, StructAllocationStack stack) {
-		int sizeofWords = sizeof2words(sizeof);
+		int sizeofWords = bytes2words(sizeof);
 		int handle = stack.allocate(sizeof * length);
 		fillMemoryByWord(handle, sizeofWords * length, 0x00000000);
 		int[] arr = new int[length];
@@ -69,7 +69,7 @@ public class StructMemory {
 	}
 
 	public static int[] mapBuffer(int sizeof, ByteBuffer bb) {
-		int sizeofWords = sizeof2words(sizeof);
+		int sizeofWords = bytes2words(sizeof);
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int count = bb.remaining() / sizeof;
 		if(count == 0)
@@ -78,6 +78,23 @@ public class StructMemory {
 		int[] arr = new int[count];
 		for(int i = 0; i < arr.length; i++)
 			arr[i] = handle + i * sizeofWords;
+		return arr;
+	}
+
+	public static int[] mapBuffer(int sizeof, ByteBuffer bb, int stride, int offset) {
+		if(offset < 0 || offset + sizeof > stride || (offset % 4) != 0 || (stride % 4) != 0)
+			throw new IllegalStateException();
+		
+		int offsetWords = bytes2words(offset);
+		int strideWords = bytes2words(stride);
+		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
+		int count = bb.remaining() / stride;
+		if(count == 0)
+			throw new IllegalStateException("no usable space in buffer");
+		int handle = pointer2handle(addr);
+		int[] arr = new int[count];
+		for(int i = 0; i < arr.length; i++)
+			arr[i] = handle + offsetWords + i * strideWords;
 		return arr;
 	}
 
@@ -121,7 +138,7 @@ public class StructMemory {
 		throw new ClassCastException("cannot cast structs to a class");
 	}
 
-	public static int sizeof2words(int sizeof) {
+	public static int bytes2words(int sizeof) {
 		return sizeof >> 2;
 	}
 
@@ -240,5 +257,17 @@ public class StructMemory {
 	public static final double dget(int handle, int fieldOffset) {
 		checkHandle(handle);
 		return StructUnsafe.UNSAFE.getDouble(handle2pointer(handle) + fieldOffset);
+	}
+
+	// struct
+
+	public static final void $put(int handle, int value, int fieldOffset) {
+		checkHandle(handle);
+		StructUnsafe.UNSAFE.putInt(handle2pointer(handle) + fieldOffset, value);
+	}
+
+	public static final int $get(int handle, int fieldOffset) {
+		checkHandle(handle);
+		return StructUnsafe.UNSAFE.getInt(handle2pointer(handle) + fieldOffset);
 	}
 }

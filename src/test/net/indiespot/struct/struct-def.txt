@@ -1,1 +1,2 @@
 test.net.indiespot.struct.StructTest$Vec3
+test.net.indiespot.struct.StructTest$Ship
