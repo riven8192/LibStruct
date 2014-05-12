@@ -1165,7 +1165,6 @@ public class StructTest {
 		public Ship() {
 			id = ++id_gen;//new Random().nextInt(); // FIXME
 			//id = new Random().nextInt(); // FIXME
-			pos=null;
 		}
 
 		@Override
