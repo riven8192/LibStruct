@@ -563,18 +563,27 @@ public class StructEnv {
 							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;)[Ljava/lang/Object;")) {
 								if(flow.stack.peek() == VarType.REFERENCE) {
 									if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+										// ...,type,buffer
 										flow.stack.set(1, VarType.INT);
-										// ..., STRUCT_TYPE (sizeof), REFERENCE
-										//flow.visitInsn(SWAP);
-										// ..., REFERENCE, STRUCT_TYPE (sizeof)
-										//flow.visitInsn(POP);
-										// ..., REFERENCE
-										//flow.visitIntInsn(BIPUSH, struct2info.get(lastLdcStruct).sizeof);
-										//lastLdcStruct = null;
-										// ..., REFERENCE, SIZEOF
+										// ...,sizeof,buffer
 										owner = StructEnv.jvmClassName(StructMemory.class);
 										name = "mapBuffer";
 										desc = "(ILjava/nio/ByteBuffer;)[" + wrapped_struct_flag;
+									}
+								}
+								else {
+									throw new IllegalStateException();
+								}
+							}
+							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;II)[Ljava/lang/Object;")) {
+								if(flow.stack.peek(2) == VarType.REFERENCE) {
+									if(flow.stack.peek(3) == VarType.STRUCT_TYPE) {
+										// ...,type,buffer,stride,offset
+										flow.stack.set(3, VarType.INT);
+										// ...,sizeof,buffer,stride,offset
+										owner = StructEnv.jvmClassName(StructMemory.class);
+										name = "mapBuffer";
+										desc = "(ILjava/nio/ByteBuffer;II)[" + wrapped_struct_flag;
 									}
 								}
 								else {

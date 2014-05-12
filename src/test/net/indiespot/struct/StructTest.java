@@ -38,6 +38,7 @@ public class StructTest {
 
 			TestArray.test();
 			TestMapping.test();
+			TestInterleavedMapping.test();
 
 			TestInstanceMethod.test();
 			TestStructReturnType.test();
@@ -56,8 +57,8 @@ public class StructTest {
 
 		// ParticleTestStruct.main(args);
 		//TestMultiThreadedAllocation.test();
-		TestPerformance.test();
-		TheAgentD.main(args);
+		//TestPerformance.test();
+		//TheAgentD.main(args);
 
 		System.out.println("done2");
 	}
@@ -97,7 +98,7 @@ public class StructTest {
 		public static void test4() {
 			Class<?> typ1 = String.class;
 			Class<?> typ2 = Vec3.class;
-			
+
 			System.out.println(typ1);
 			//System.out.println("x="+typ2);
 			//System.exit(-1);
@@ -299,6 +300,47 @@ public class StructTest {
 			System.out.println(mapped.length);
 			for(int i = 0; i < mapped.length; i++) {
 				System.out.println(mapped[i].toString());
+			}
+			System.out.println("done:" + bb);
+		}
+	}
+
+	public static class TestInterleavedMapping {
+		public static void test() {
+			int alignMargin = 4 - 1;
+			int sizeof = 3 << 2;
+			int count = 10;
+			ByteBuffer bb = ByteBuffer.allocateDirect(count * sizeof + alignMargin);
+			StructMemory.alignBufferToWord(bb);
+			Vec3[] mapped1 = StructUtil.map(Vec3.class, bb, 24, 0);
+			Vec3[] mapped2 = StructUtil.map(Vec3.class, bb, 24, 12);
+			{
+				long p1 = StructUtil.getPointer(mapped1[0]);
+				long p2 = StructUtil.getPointer(mapped1[1]);
+				if(p2 - p1 != 24)
+					throw new IllegalStateException();
+			}
+			{
+				long p1 = StructUtil.getPointer(mapped2[0]);
+				long p2 = StructUtil.getPointer(mapped2[1]);
+				if(p2 - p1 != 24)
+					throw new IllegalStateException();
+			}
+			{
+				long p1 = StructUtil.getPointer(mapped1[0]);
+				long p2 = StructUtil.getPointer(mapped2[0]);
+				if(p2 - p1 != 12)
+					throw new IllegalStateException();
+			}
+
+			System.out.println(mapped1.length);
+			for(int i = 0; i < mapped1.length; i++) {
+				System.out.println(mapped1[i]);
+			}
+			System.out.println();
+			System.out.println(mapped2.length);
+			for(int i = 0; i < mapped2.length; i++) {
+				System.out.println(mapped2[i]);
 			}
 			System.out.println("done:" + bb);
 		}
