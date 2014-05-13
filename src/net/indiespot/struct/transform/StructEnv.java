@@ -74,7 +74,7 @@ public class StructEnv {
 				System.out.println("analyzing class: " + fqcn);
 
 			ClassWriter writer = new ClassWriter(0);
-			ClassVisitor visitor = new ClassVisitor(Opcodes.ASM4, writer) {
+			ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5, writer) {
 
 				@Override
 				public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
@@ -106,7 +106,7 @@ public class StructEnv {
 
 				@Override
 				public MethodVisitor visitMethod(int access, final String methodName, final String methodDesc, String signature, String[] exceptions) {
-					return new MethodVisitor(Opcodes.ASM4, super.visitMethod(access, methodName, methodDesc, signature, exceptions)) {
+					return new MethodVisitor(Opcodes.ASM5, super.visitMethod(access, methodName, methodDesc, signature, exceptions)) {
 						{
 							if(PRINT_LOG)
 								System.out.println("\tchecking method for rewrite: " + methodName + "" + methodDesc);
@@ -156,7 +156,7 @@ public class StructEnv {
 						}
 
 						@Override
-						public void visitMethodInsn(int opcode, String owner, String name, String desc) {
+						public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
 							if(plain_struct_types.contains(owner)) {
 								this.flagRewriteMethod(false);
 							}
@@ -169,7 +169,7 @@ public class StructEnv {
 								this.flagRewriteMethod(false);
 							}
 
-							super.visitMethodInsn(opcode, owner, name, desc);
+							super.visitMethodInsn(opcode, owner, name, desc, itf);
 						}
 
 						@Override
@@ -224,7 +224,7 @@ public class StructEnv {
 		final String[] currentMethodName = new String[1];
 		final String[] currentMethodDesc = new String[1];
 
-		ClassVisitor visitor = new ClassVisitor(Opcodes.ASM4, writer) {
+		ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5, writer) {
 
 			@Override
 			public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
@@ -330,7 +330,7 @@ public class StructEnv {
 				final String _methodName = methodName;
 
 				final FlowAnalysisMethodVisitor flow = new FlowAnalysisMethodVisitor(mv, access, fqcn, methodName, methodDesc, signature, exceptions);
-				return new MethodVisitor(Opcodes.ASM4, flow) {
+				return new MethodVisitor(Opcodes.ASM5, flow) {
 					private ReturnValueStrategy strategy;
 
 					@Override
@@ -363,7 +363,7 @@ public class StructEnv {
 
 						if(hasStructCreation) {
 							// ...
-							super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructThreadLocalStack.class), "saveStack", "()L" + StructAllocationStack.class.getName().replace('.', '/') + ";");
+							super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructThreadLocalStack.class), "saveStack", "()L" + StructAllocationStack.class.getName().replace('.', '/') + ";", false);
 							// ..., sas
 							super.visitVarInsn(ASTORE, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
 						}
@@ -380,7 +380,7 @@ public class StructEnv {
 							case LRETURN:
 							case DRETURN:
 								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
-								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()V");
+								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()V", false);
 								break;
 							}
 						}
@@ -397,7 +397,7 @@ public class StructEnv {
 							}
 							else if(strategy == ReturnValueStrategy.COPY) {
 								super.visitIntInsn(BIPUSH, struct2info.get(_returnsStructType).sizeof);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateCopy", "(" + wrapped_struct_flag + "I)" + wrapped_struct_flag);
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateCopy", "(" + wrapped_struct_flag + "I)" + wrapped_struct_flag, false);
 							}
 							else {
 								throw new IllegalStateException();
@@ -436,16 +436,16 @@ public class StructEnv {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
 								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
 								if(struct2info.get(type).skipZeroFill)
-									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateSkipZeroFill", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag);
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateSkipZeroFill", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag, false);
 								else
-									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocate", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag);
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocate", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag, false);
 								return;
 							}
 						}
 						else if(opcode == ANEWARRAY) {
 							if(struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
-								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(II)" + array_wrapped_struct_flag);
+								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(II)" + array_wrapped_struct_flag, false);
 								flow.stack.popEQ(VarType.STRUCT_ARRAY);
 								flow.stack.push(VarType.STRUCT_ARRAY);
 								return;
@@ -484,7 +484,7 @@ public class StructEnv {
 								}
 
 								super.visitIntInsn(BIPUSH, offset);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + wrapped_struct_flag + paramType + "I)" + returnType);
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + wrapped_struct_flag + paramType + "I)" + returnType, false);
 								return;
 							}
 
@@ -508,7 +508,7 @@ public class StructEnv {
 								}
 
 								super.visitIntInsn(BIPUSH, offset);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + paramType + "I)" + returnType);
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + paramType + "I)" + returnType, false);
 								return;
 							}
 						}
@@ -524,7 +524,7 @@ public class StructEnv {
 					}
 
 					@Override
-					public void visitMethodInsn(int opcode, String owner, String name, String desc) {
+					public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
 						for(String structType : struct2info.keySet()) {
 							desc = desc.replace(structType, plain_struct_flag); // FIXME?
 						}
@@ -678,10 +678,8 @@ public class StructEnv {
 							}
 						}
 
-						super.visitMethodInsn(opcode, owner, name, desc);
+						super.visitMethodInsn(opcode, owner, name, desc, itf);
 					}
-
-					//private String lastLdcStruct;
 
 					@Override
 					public void visitLdcInsn(Object cst) {
@@ -709,13 +707,15 @@ public class StructEnv {
 			new ClassReader(bytecode).accept(visitor, 0);
 		}
 		catch (Throwable cause) {
-			String msg = "LibStruct failed to rewrite class:\n";
-			msg += "\tFQCN: " + fqcn + "\n";
+			String msg = "LibStruct failed to rewrite classpath:\n";
+			msg += "\tLast entered class: \n";
+			msg += "\t\tfqcn: " + fqcn + "\n";
+			msg += "\n";
 			msg += "\tLast entered method: \n";
 			msg += "\t\tname: " + currentMethodName[0] + "\n";
 			msg += "\t\tdesc: " + currentMethodDesc[0] + "\n";
 			if(!StructEnv.PRINT_LOG)
-			msg += "\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
+				msg += "\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
 			throw new IllegalStateException(msg, cause);
 		}
 

@@ -648,7 +648,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	}
 
 	@Override
-	public void visitMethodInsn(int opcode, String owner, String name, String desc) {
+	public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
 		if(StructEnv.PRINT_LOG)
 			System.out.println("\t\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 
@@ -670,14 +670,14 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 						arr[i] = "Ljava/lang/String;";
 						if(i == arr.length - 1) {
 							// ...,struct
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;");
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;", itf);
 							// ...,string
 						}
 						else if(i == arr.length - 2) {
 							// ...,struct,a
 							this.visitInsn(SWAP);
 							// ...,a,struct
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;");
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;", itf);
 							// ...,a,string
 							this.visitInsn(SWAP);
 							// ...,string,a
@@ -688,7 +688,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 							// ...,b,a,struct,b,a
 							this.visitInsn(POP2);
 							// ...,b,a,struct
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;");
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;", itf);
 							// ...,b,a,string
 							this.visitInsn(DUP_X2);
 							// ...,string,b,a,string
@@ -745,7 +745,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			if(StructEnv.PRINT_LOG)
 				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 		}
-		super.visitMethodInsn(opcode, owner, name, desc);
+		super.visitMethodInsn(opcode, owner, name, desc, itf);
 	}
 
 	@Override

@@ -3,9 +3,6 @@ package test.net.indiespot.struct;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.StructField;
@@ -279,7 +276,7 @@ public class StructTest {
 
 		public static void test4() {
 			Class<?> typ1 = String.class;
-			Class<?> typ2 = Vec3.class;
+			//Class<?> typ2 = Vec3.class;
 
 			System.out.println(typ1);
 			//System.out.println("x="+typ2);

@@ -5,8 +5,6 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
-import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
 
 public class StructGC {
 	public static int malloc(int sizeof) {
@@ -99,7 +97,6 @@ public class StructGC {
 	private static volatile int gc_heap_size = 16 * (4 * 1024); // 64K
 	private static volatile long gc_max_empty_heaps = 100;
 	private static volatile float gc_fail_ratio = 0.1f;
-	private static volatile float gc_gain_ratio = 0.05f;
 
 	public static void configureGarbageCollector(//
 			long minIntervalMillis, //

@@ -128,7 +128,7 @@ public class StructAgent {
 		final StructInfo info = new StructInfo(fqcn);
 
 		ClassWriter writer = new ClassWriter(0);
-		ClassVisitor visitor = new ClassVisitor(Opcodes.ASM4, writer) {
+		ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5, writer) {
 
 			@Override
 			public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
@@ -140,7 +140,7 @@ public class StructAgent {
 			@Override
 			public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 				if(desc.equals("L" + StructEnv.jvmClassName(StructType.class) + ";")) {
-					return new AnnotationVisitor(Opcodes.ASM4, super.visitAnnotation(desc, visible)) {
+					return new AnnotationVisitor(Opcodes.ASM5, super.visitAnnotation(desc, visible)) {
 						public void visit(String name, Object value) {
 							if(name.equals("sizeof")) {
 								info.setSizeof(((Integer) value).intValue());
@@ -149,7 +149,7 @@ public class StructAgent {
 					};
 				}
 				else if(desc.equals("L" + StructEnv.jvmClassName(ForceUninitializedMemory.class) + ";")) {
-					return new AnnotationVisitor(Opcodes.ASM4, super.visitAnnotation(desc, visible)) {
+					return new AnnotationVisitor(Opcodes.ASM5, super.visitAnnotation(desc, visible)) {
 						public void visit(String name, Object value) {
 							info.skipZeroFill();
 						}
@@ -162,10 +162,10 @@ public class StructAgent {
 			@Override
 			public FieldVisitor visitField(int access, final String fieldName, final String fieldDesc, String signature, Object value) {
 				if((access & Opcodes.ACC_STATIC) == 0) {
-					return new FieldVisitor(Opcodes.ASM4, super.visitField(access, fieldName, fieldDesc, signature, value)) {
+					return new FieldVisitor(Opcodes.ASM5, super.visitField(access, fieldName, fieldDesc, signature, value)) {
 						public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 							if(desc.equals("L" + StructEnv.jvmClassName(StructField.class) + ";")) {
-								return new AnnotationVisitor(Opcodes.ASM4, super.visitAnnotation(desc, visible)) {
+								return new AnnotationVisitor(Opcodes.ASM5, super.visitAnnotation(desc, visible)) {
 									public void visit(String name, Object value) {
 										if(name.equals("offset")) {
 											info.addField(fieldName, fieldDesc, (Integer) value);
