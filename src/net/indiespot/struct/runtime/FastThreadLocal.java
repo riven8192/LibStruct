@@ -3,14 +3,27 @@ package net.indiespot.struct.runtime;
 public abstract class FastThreadLocal<T> {
 	public static final int MAX_SUPPORTED_THREADS = 100_000;
 
-	@SuppressWarnings("unchecked") private final T[] threadid2value = (T[]) new Object[MAX_SUPPORTED_THREADS];
+	@SuppressWarnings("unchecked")
+	private final T[] threadid2value = (T[]) new Object[MAX_SUPPORTED_THREADS];
 
 	public int size() {
 		int size = 0;
-		for(int i = 0; i < threadid2value.length; i++)
-			if(threadid2value[i] != null)
+		for (int i = 0; i < threadid2value.length; i++)
+			if (threadid2value[i] != null)
 				size++;
 		return size;
+	}
+
+	public static interface Visitor<T> {
+		public void visit(int threadId, T item);
+	}
+
+	public void visit(Visitor<T> visitor) {
+		for (int i = 0; i < threadid2value.length; i++) {
+			T value = threadid2value[i];
+			if (value != null)
+				visitor.visit(i, value);
+		}
 	}
 
 	public T[] copy() {
@@ -21,7 +34,7 @@ public abstract class FastThreadLocal<T> {
 		final int id = (int) Thread.currentThread().getId();
 		T old = threadid2value[id];
 		threadid2value[id] = null;
-		if(old != null)
+		if (old != null)
 			this.onRelease(old);
 		threadid2value[id] = value;
 	}
@@ -29,7 +42,7 @@ public abstract class FastThreadLocal<T> {
 	public final T get() {
 		final int id = (int) Thread.currentThread().getId();
 		T value = threadid2value[id];
-		if(value == null)
+		if (value == null)
 			threadid2value[id] = value = initialValue();
 		return value;
 	}
@@ -48,7 +61,7 @@ public abstract class FastThreadLocal<T> {
 			@Override
 			public void onThreadDeath(long threadId) {
 				T value = threadid2value[(int) threadId];
-				if(value == null)
+				if (value == null)
 					return;
 				threadid2value[(int) threadId] = null;
 				FastThreadLocal.this.onRelease(value);
