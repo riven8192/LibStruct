@@ -204,7 +204,7 @@ public class StructTest {
 			Vec3Queue queue = new Vec3Queue();
 
 			final int itemCount = 250_000;
-			for (int i = 0; i < 3; i++)
+			for (int i = 0; i < 8; i++)
 				createProducer(queue, itemCount);
 
 			final long pollTimeout = 2_000;

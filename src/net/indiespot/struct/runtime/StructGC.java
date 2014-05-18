@@ -73,8 +73,8 @@ public class StructGC {
 
 	private static StructHeap newHeap() {
 		synchronized (sync) {
-			if (!empty_heaps.isEmpty()) {
-				StructHeap heap = empty_heaps.remove(empty_heaps.size() - 1);
+			if (!sync_empty_heaps.isEmpty()) {
+				StructHeap heap = sync_empty_heaps.remove(sync_empty_heaps.size() - 1);
 				if (heap == null || !heap.isEmpty())
 					throw new IllegalStateException();
 				return heap;
@@ -88,6 +88,7 @@ public class StructGC {
 
 	private static class Memory {
 		private static final IntStack sync_frees = new IntStack();
+		private static final List<StructHeap> sync_heaps = new ArrayList<>();
 		private static final List<MemoryRegion> sync_regions = new ArrayList<>();
 		private static final int region_size = heap_size * 8;
 		private static final List<MemoryRegion> gc_regions = new ArrayList<>();
@@ -143,6 +144,10 @@ public class StructGC {
 			int freed = 0;
 
 			synchronized (sync) {
+				for (StructHeap heap : sync_heaps)
+					getRegionFor(heap).gcHeaps.add(heap);
+				sync_heaps.clear();
+
 				gc_regions.addAll(sync_regions);
 				sync_regions.clear();
 			}
@@ -244,7 +249,10 @@ public class StructGC {
 					if (heap.isEmpty()) {
 						if (gcHeaps.remove(i) != heap)
 							throw new IllegalStateException();
-						empty_heaps.add(heap);
+
+						synchronized (sync) {
+							sync_empty_heaps.add(heap);
+						}
 					}
 					continue outer;
 				}
@@ -263,7 +271,7 @@ public class StructGC {
 		}
 	}
 
-	private static final List<StructHeap> empty_heaps = new ArrayList<>();
+	private static final List<StructHeap> sync_empty_heaps = new ArrayList<>();
 	public static FastThreadLocal<StructHeap> local_heaps = new FastThreadLocal<StructHeap>() {
 		@Override
 		public StructHeap initialValue() {
@@ -272,11 +280,13 @@ public class StructGC {
 
 		@Override
 		public void onRelease(StructHeap heap) {
+			if (heap == null)
+				throw new NullPointerException();
 			synchronized (sync) {
 				if (heap.isEmpty())
-					empty_heaps.add(heap);
+					sync_empty_heaps.add(heap);
 				else
-					Memory.getRegionFor(heap).gcHeaps.add(heap);
+					Memory.sync_heaps.add(heap);
 			}
 		}
 	};
