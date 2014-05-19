@@ -25,7 +25,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	private final String callsiteDescription;
 
 	public FlowAnalysisMethodVisitor(MethodVisitor mv, int access, String owner, String name, String desc, String signature, String[] exceptions) {
-		super(Opcodes.ASM4, mv);
+		super(Opcodes.ASM5, mv);
 
 		callsiteDescription = owner + "." + name + "" + desc;
 

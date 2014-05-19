@@ -2,7 +2,7 @@ package net.indiespot.struct.runtime;
 
 import java.nio.ByteBuffer;
 
-public class StructUtil {
+public class Struct {
 	public static <T> T asNull(Class<T> structType) {
 		throwFit();
 		return null;

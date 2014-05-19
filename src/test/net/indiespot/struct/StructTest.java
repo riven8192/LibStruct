@@ -11,7 +11,7 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.IllegalStackAccessError;
 import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
-import net.indiespot.struct.runtime.StructUtil;
+import net.indiespot.struct.runtime.Struct;
 
 public class StructTest {
 	public static void main(String[] args) {
@@ -73,14 +73,14 @@ public class StructTest {
 	public static class TestMalloc {
 		public static void test() {
 			for(int i = 0; i < 4; i++) {
-				Vec3 vec1 = StructUtil.malloc(Vec3.class);
+				Vec3 vec1 = Struct.malloc(Vec3.class);
 				System.out.println(vec1);
 
-				Vec3 vec2 = StructUtil.malloc(Vec3.class);
+				Vec3 vec2 = Struct.malloc(Vec3.class);
 				System.out.println(vec2);
 
-				StructUtil.free(vec1);
-				StructUtil.free(vec2);
+				Struct.free(vec1);
+				Struct.free(vec2);
 			}
 		}
 
@@ -90,7 +90,7 @@ public class StructTest {
 
 			{
 				ByteBuffer bb = ByteBuffer.allocateDirect(12 * 1000);
-				queue = StructUtil.map(Vec3.class, bb);
+				queue = Struct.map(Vec3.class, bb);
 			}
 
 			public synchronized void push(Vec3 vec) {
@@ -136,7 +136,7 @@ public class StructTest {
 
 					if(size == 0) {
 						if(System.currentTimeMillis() - started > timeout) {
-							return StructUtil.asNull(Vec3.class);
+							return Struct.asNull(Vec3.class);
 						}
 					}
 				}
@@ -183,7 +183,7 @@ public class StructTest {
 				@Override
 				public void run() {
 					for(int i = 0; i < items; i++) {
-						queue.push(StructUtil.malloc(Vec3.class));
+						queue.push(Struct.malloc(Vec3.class));
 
 						if(i % 1000 == 0) {
 							try {
@@ -209,7 +209,7 @@ public class StructTest {
 						if(item == null)
 							break;
 
-						StructUtil.free(item);
+						Struct.free(item);
 					}
 				}
 			}).start();
@@ -218,8 +218,8 @@ public class StructTest {
 
 	public static class TestSizeof {
 		public static void test() {
-			int sizeofVec3 = StructUtil.sizeof(Vec3.class);
-			int sizeofShip = StructUtil.sizeof(Ship.class);
+			int sizeofVec3 = Struct.sizeof(Vec3.class);
+			int sizeofShip = Struct.sizeof(Ship.class);
 
 			assert (sizeofVec3 == 12);
 			assert (sizeofShip == 8);
@@ -263,15 +263,15 @@ public class StructTest {
 		}
 
 		public static void test1() {
-			assert StructUtil.isReachable(null) == false;
+			assert Struct.isReachable(null) == false;
 		}
 
 		public static void test2() {
-			assert StructUtil.isReachable(new Vec3()) == true;
+			assert Struct.isReachable(new Vec3()) == true;
 		}
 
 		public static void test3() {
-			assert StructUtil.getPointer(new Vec3()) > 0L;
+			assert Struct.getPointer(new Vec3()) > 0L;
 		}
 
 		public static void test4() {
@@ -470,9 +470,9 @@ public class StructTest {
 			int count = 10;
 			ByteBuffer bb = ByteBuffer.allocateDirect(count * sizeof + alignMargin);
 			StructMemory.alignBufferToWord(bb);
-			Vec3[] mapped = StructUtil.map(Vec3.class, bb);
-			long p1 = StructUtil.getPointer(mapped[0]);
-			long p2 = StructUtil.getPointer(mapped[1]);
+			Vec3[] mapped = Struct.map(Vec3.class, bb);
+			long p1 = Struct.getPointer(mapped[0]);
+			long p2 = Struct.getPointer(mapped[1]);
 			if(p2 - p1 != 12)
 				throw new IllegalStateException();
 
@@ -491,23 +491,23 @@ public class StructTest {
 			int count = 10;
 			ByteBuffer bb = ByteBuffer.allocateDirect(count * sizeof + alignMargin);
 			StructMemory.alignBufferToWord(bb);
-			Vec3[] mapped1 = StructUtil.map(Vec3.class, bb, 24, 0);
-			Vec3[] mapped2 = StructUtil.map(Vec3.class, bb, 24, 12);
+			Vec3[] mapped1 = Struct.map(Vec3.class, bb, 24, 0);
+			Vec3[] mapped2 = Struct.map(Vec3.class, bb, 24, 12);
 			{
-				long p1 = StructUtil.getPointer(mapped1[0]);
-				long p2 = StructUtil.getPointer(mapped1[1]);
+				long p1 = Struct.getPointer(mapped1[0]);
+				long p2 = Struct.getPointer(mapped1[1]);
 				if(p2 - p1 != 24)
 					throw new IllegalStateException();
 			}
 			{
-				long p1 = StructUtil.getPointer(mapped2[0]);
-				long p2 = StructUtil.getPointer(mapped2[1]);
+				long p1 = Struct.getPointer(mapped2[0]);
+				long p2 = Struct.getPointer(mapped2[1]);
 				if(p2 - p1 != 24)
 					throw new IllegalStateException();
 			}
 			{
-				long p1 = StructUtil.getPointer(mapped1[0]);
-				long p2 = StructUtil.getPointer(mapped2[0]);
+				long p1 = Struct.getPointer(mapped1[0]);
+				long p2 = Struct.getPointer(mapped2[0]);
 				if(p2 - p1 != 12)
 					throw new IllegalStateException();
 			}
@@ -798,8 +798,8 @@ public class StructTest {
 			Vec3 vec = new Vec3();
 			Object obj = new Object();
 
-			System.out.println("addr=" + StructUtil.getPointer(vec));
-			System.out.println("addr=" + StructUtil.getPointer(obj));
+			System.out.println("addr=" + Struct.getPointer(vec));
+			System.out.println("addr=" + Struct.getPointer(obj));
 		}
 	}
 
@@ -833,9 +833,9 @@ public class StructTest {
 			Vec3 vec2 = returnSelf(vec1);
 			Vec3 vec3 = returnCopy(vec1);
 
-			System.out.println(StructUtil.getPointer(vec1));
-			System.out.println(StructUtil.getPointer(vec2));
-			System.out.println(StructUtil.getPointer(vec3));
+			System.out.println(Struct.getPointer(vec1));
+			System.out.println(Struct.getPointer(vec2));
+			System.out.println(Struct.getPointer(vec3));
 
 			if(vec1 != vec2)
 				throw new IllegalStateException("vec1 != vec2");
@@ -909,8 +909,8 @@ public class StructTest {
 			arr[arr.length - 1].x = 4.5f;
 			arr[arr.length - 1].set(5.6f, 6.7f, 7.8f);
 
-			long p1 = StructUtil.getPointer(arr[0]);
-			long p2 = StructUtil.getPointer(arr[1]);
+			long p1 = Struct.getPointer(arr[0]);
+			long p2 = Struct.getPointer(arr[1]);
 			if(p2 - p1 != 12)
 				throw new IllegalStateException();
 
