@@ -12,11 +12,11 @@ import net.indiespot.struct.StructInfo;
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
+import net.indiespot.struct.runtime.Struct;
 import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.StructThreadLocalStack;
-import net.indiespot.struct.runtime.StructUtil;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
@@ -165,7 +165,7 @@ public class StructEnv {
 									this.flagRewriteMethod(false);
 								}
 							}
-							if (owner.equals(jvmClassName(StructUtil.class))) {
+							if (owner.equals(jvmClassName(Struct.class))) {
 								this.flagRewriteMethod(false);
 							}
 
@@ -545,7 +545,7 @@ public class StructEnv {
 							}
 						}
 
-						if (owner.equals(StructEnv.jvmClassName(StructUtil.class))) {
+						if (owner.equals(StructEnv.jvmClassName(Struct.class))) {
 							if (name.equals("typedNull") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
 								if (flow.stack.peek() == VarType.STRUCT_TYPE) {
 									flow.stack.set(0, VarType.INT);
