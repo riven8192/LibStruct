@@ -16,7 +16,7 @@ import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.StructThreadLocalStack;
-import net.indiespot.struct.runtime.Struct;
+import net.indiespot.struct.runtime.StructUtil;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.Attribute;
@@ -46,7 +46,7 @@ public class StructEnv {
 
 	public static void addStruct(StructInfo info) {
 		info.validate();
-		if(is_rewriting)
+		if (is_rewriting)
 			throw new IllegalStateException("cannot add struct definition when classes have been rewritten already");
 		struct2info.put(info.fqcn, info);
 		plain_struct_types.add(info.fqcn);
@@ -70,7 +70,7 @@ public class StructEnv {
 
 		private void analyze(final String fqcn, byte[] bytecode) {
 
-			if(PRINT_LOG)
+			if (PRINT_LOG)
 				System.out.println("analyzing class: " + fqcn);
 
 			ClassWriter writer = new ClassWriter(0);
@@ -78,8 +78,8 @@ public class StructEnv {
 
 				@Override
 				public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-					if(desc.equals("L" + StructEnv.jvmClassName(StructType.class) + ";")) {
-						if(!plain_struct_types.contains(fqcn)) {
+					if (desc.equals("L" + StructEnv.jvmClassName(StructType.class) + ";")) {
+						if (!plain_struct_types.contains(fqcn)) {
 							throw new IllegalStateException("encountered undefined struct: " + fqcn);
 						}
 					}
@@ -88,10 +88,10 @@ public class StructEnv {
 
 				@Override
 				public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-					if(wrapped_struct_types.contains(desc)) {
+					if (wrapped_struct_types.contains(desc)) {
 						this.flagRewriteField(name, desc);
 					}
-					if(array_wrapped_struct_types.contains(desc)) {
+					if (array_wrapped_struct_types.contains(desc)) {
 						this.flagRewriteField(name, desc);
 					}
 
@@ -99,8 +99,8 @@ public class StructEnv {
 				}
 
 				private void flagRewriteField(String name, String desc) {
-					if(fieldsWithStructType.add(name + desc))
-						if(PRINT_LOG)
+					if (fieldsWithStructType.add(name + desc))
+						if (PRINT_LOG)
 							System.out.println("\tflagging field: " + name + "" + desc);
 				}
 
@@ -108,15 +108,15 @@ public class StructEnv {
 				public MethodVisitor visitMethod(int access, final String methodName, final String methodDesc, String signature, String[] exceptions) {
 					return new MethodVisitor(Opcodes.ASM5, super.visitMethod(access, methodName, methodDesc, signature, exceptions)) {
 						{
-							if(PRINT_LOG)
+							if (PRINT_LOG)
 								System.out.println("\tchecking method for rewrite: " + methodName + "" + methodDesc);
 
-							if(plain_struct_types.contains(fqcn)) {
+							if (plain_struct_types.contains(fqcn)) {
 								this.flagRewriteMethod(false);
 							}
 
-							for(String wrappedStructType : wrapped_struct_types) {
-								if(methodDesc.contains(wrappedStructType)) {
+							for (String wrappedStructType : wrapped_struct_types) {
+								if (methodDesc.contains(wrappedStructType)) {
 									this.flagRewriteMethod(false);
 								}
 							}
@@ -124,18 +124,18 @@ public class StructEnv {
 
 						@Override
 						public void visitTypeInsn(int opcode, String type) {
-							if(opcode == NEW) {
-								if(plain_struct_types.contains(type)) {
+							if (opcode == NEW) {
+								if (plain_struct_types.contains(type)) {
 									this.flagRewriteMethod(true);
 								}
 							}
-							if(opcode == INSTANCEOF) {
-								if(plain_struct_types.contains(type)) {
+							if (opcode == INSTANCEOF) {
+								if (plain_struct_types.contains(type)) {
 									this.flagRewriteMethod(false);
 								}
 							}
-							if(opcode == ANEWARRAY) {
-								if(plain_struct_types.contains(type)) {
+							if (opcode == ANEWARRAY) {
+								if (plain_struct_types.contains(type)) {
 									this.flagRewriteMethod(false);
 								}
 							}
@@ -143,11 +143,11 @@ public class StructEnv {
 
 						@Override
 						public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-							if(plain_struct_types.contains(owner)) {
+							if (plain_struct_types.contains(owner)) {
 								this.flagRewriteMethod(false);
 							}
-							for(String wrappedStructType : wrapped_struct_types) {
-								if(desc.contains(wrappedStructType)) {
+							for (String wrappedStructType : wrapped_struct_types) {
+								if (desc.contains(wrappedStructType)) {
 									this.flagRewriteMethod(false);
 								}
 							}
@@ -157,15 +157,15 @@ public class StructEnv {
 
 						@Override
 						public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-							if(plain_struct_types.contains(owner)) {
+							if (plain_struct_types.contains(owner)) {
 								this.flagRewriteMethod(false);
 							}
-							for(String wrappedStructType : wrapped_struct_types) {
-								if(desc.contains(wrappedStructType)) {
+							for (String wrappedStructType : wrapped_struct_types) {
+								if (desc.contains(wrappedStructType)) {
 									this.flagRewriteMethod(false);
 								}
 							}
-							if(owner.equals(jvmClassName(Struct.class))) {
+							if (owner.equals(jvmClassName(StructUtil.class))) {
 								this.flagRewriteMethod(false);
 							}
 
@@ -174,8 +174,8 @@ public class StructEnv {
 
 						@Override
 						public void visitLdcInsn(Object cst) {
-							if(cst instanceof Type) {
-								if(plain_struct_types.contains(((Type) cst).getInternalName())) {
+							if (cst instanceof Type) {
+								if (plain_struct_types.contains(((Type) cst).getInternalName())) {
 									this.flagRewriteMethod(false);
 								}
 							}
@@ -184,18 +184,18 @@ public class StructEnv {
 						}
 
 						private void flagRewriteMethod(boolean forStructCreation) {
-							if(methodsWithStructAccess.add(methodName + methodDesc))
-								if(PRINT_LOG)
+							if (methodsWithStructAccess.add(methodName + methodDesc))
+								if (PRINT_LOG)
 									System.out.println("\t\tflagged for rewrite");
 
-							if(forStructCreation) {
+							if (forStructCreation) {
 								methodsWithStructCreation.add(methodName + methodDesc);
 							}
 						}
 
 						@Override
 						public void visitMaxs(int maxStack, int maxLocals) {
-							methodNameDesc2locals.put(methodName + methodDesc, maxLocals);
+							methodNameDesc2locals.put(methodName + methodDesc, Integer.valueOf(maxLocals));
 							super.visitMaxs(maxStack, maxLocals);
 						}
 					};
@@ -210,7 +210,7 @@ public class StructEnv {
 
 		final ClassInfo info = new ClassInfo();
 		info.analyze(fqcn, bytecode);
-		if(!info.needsRewrite())
+		if (!info.needsRewrite())
 			return null;
 
 		final ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS) {
@@ -258,22 +258,22 @@ public class StructEnv {
 
 			@Override
 			public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-				if(PRINT_LOG)
+				if (PRINT_LOG)
 					System.out.println("\tfield1: " + name + " " + desc);
 
-				if(struct2info.containsKey(fqcn)) {
-					if((access & ACC_STATIC) == 0) {
-						if(PRINT_LOG)
+				if (struct2info.containsKey(fqcn)) {
+					if ((access & ACC_STATIC) == 0) {
+						if (PRINT_LOG)
 							System.out.println("\tremoved struct field");
 						return null; // remove instance fields
 					}
 				}
 
-				if(wrapped_struct_types.contains(desc))
+				if (wrapped_struct_types.contains(desc))
 					desc = wrapped_struct_flag;
-				if(array_wrapped_struct_types.contains(desc))
+				if (array_wrapped_struct_types.contains(desc))
 					desc = array_wrapped_struct_flag;
-				if(PRINT_LOG)
+				if (PRINT_LOG)
 					System.out.println("\tfield2: " + name + " " + desc);
 				String finalFieldDesc = desc.replace(wrapped_struct_flag, "I");
 				return super.visitField(access, name, finalFieldDesc, signature, value);
@@ -287,22 +287,22 @@ public class StructEnv {
 				final String origMethodName = methodName;
 				final String origMethodDesc = methodDesc;
 
-				if(PRINT_LOG)
+				if (PRINT_LOG)
 					System.out.println("\tmethod1: " + methodName + " " + methodDesc);
 
 				String returnsStructType = null;
-				for(String struct : struct2info.keySet()) {
-					if(methodDesc.endsWith(")L" + struct + ";"))
+				for (String struct : struct2info.keySet()) {
+					if (methodDesc.endsWith(")L" + struct + ";"))
 						returnsStructType = struct;
 					methodDesc = methodDesc.replace("L" + struct + ";", wrapped_struct_flag);
 				}
 				final String _returnsStructType = returnsStructType;
 
-				if(struct2info.containsKey(fqcn)) {
-					if(methodName.equals("<init>"))
+				if (struct2info.containsKey(fqcn)) {
+					if (methodName.equals("<init>"))
 						methodName = RENAMED_CONSTRUCTOR_NAME;
 
-					if((access & ACC_STATIC) == 0) {
+					if ((access & ACC_STATIC) == 0) {
 						// make instance methods static
 						// add 'this' as first parameter
 						access |= ACC_STATIC;
@@ -310,19 +310,19 @@ public class StructEnv {
 					}
 				}
 
-				if(PRINT_LOG)
+				if (PRINT_LOG)
 					System.out.println("\tmethod2: " + methodName + " " + methodDesc);
 
 				String finalMethodName = methodName.replace(wrapped_struct_flag, "I");
 				String finalMethodDesc = methodDesc.replace(wrapped_struct_flag, "I");
 				final MethodVisitor mv = super.visitMethod(access, finalMethodName, finalMethodDesc, signature, exceptions);
 
-				if(struct_rewrite_early_out) {
+				if (struct_rewrite_early_out) {
 					// do we need to rewrite this method?
 					boolean hasStructAccess = info.methodsWithStructAccess.contains(origMethodName + origMethodDesc);
-					if(PRINT_LOG)
+					if (PRINT_LOG)
 						System.out.println("\t\tearly out for rewrite? [" + !hasStructAccess + "]");
-					if(!hasStructAccess)
+					if (!hasStructAccess)
 						return mv; // nope!
 				}
 				final boolean hasStructCreation = info.methodsWithStructCreation.contains(origMethodName + origMethodDesc);
@@ -335,14 +335,13 @@ public class StructEnv {
 
 					@Override
 					public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-						if(desc.equals("L" + jvmClassName(CopyStruct.class) + ";")) {
+						if (desc.equals("L" + jvmClassName(CopyStruct.class) + ";")) {
 							strategy = ReturnValueStrategy.COPY;
-							if(PRINT_LOG)
+							if (PRINT_LOG)
 								System.out.println("\t\t\twith struct return value, with Copy strategy");
-						}
-						else if(desc.equals("L" + jvmClassName(TakeStruct.class) + ";")) {
+						} else if (desc.equals("L" + jvmClassName(TakeStruct.class) + ";")) {
 							strategy = ReturnValueStrategy.PASS;
-							if(PRINT_LOG)
+							if (PRINT_LOG)
 								System.out.println("\t\t\twith struct return value, with Pass strategy");
 						}
 						return super.visitAnnotation(desc, visible);
@@ -350,18 +349,18 @@ public class StructEnv {
 
 					@Override
 					public void visitCode() {
-						if(_returnsStructType != null) {
+						if (_returnsStructType != null) {
 							String msg = "";
 							msg += "must define how struct return values are handled: ";
 							msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
 
-							if(strategy == null)
+							if (strategy == null)
 								throw new IllegalStateException(msg);
 						}
 
 						super.visitCode();
 
-						if(hasStructCreation) {
+						if (hasStructCreation) {
 							// ...
 							super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructThreadLocalStack.class), "saveStack", "()L" + StructAllocationStack.class.getName().replace('.', '/') + ";", false);
 							// ..., sas
@@ -371,35 +370,33 @@ public class StructEnv {
 
 					@Override
 					public void visitInsn(int opcode) {
-						if(hasStructCreation) {
+						if (hasStructCreation) {
 							switch (opcode) {
-							case RETURN:
-							case ARETURN:
-							case IRETURN:
-							case FRETURN:
-							case LRETURN:
-							case DRETURN:
-								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
-								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()V", false);
-								break;
+								case RETURN:
+								case ARETURN:
+								case IRETURN:
+								case FRETURN:
+								case LRETURN:
+								case DRETURN:
+									super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
+									super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()V", false);
+									break;
 							}
 						}
 
-						if(opcode == ARETURN && flow.stack.peek() == VarType.STRUCT) {
-							if(strategy == null)
+						if (opcode == ARETURN && flow.stack.peek() == VarType.STRUCT) {
+							if (strategy == null)
 								throw new IllegalStateException();
 
-							if(PRINT_LOG)
+							if (PRINT_LOG)
 								System.out.println("\t\t\treturn value strategy: " + strategy);
 
-							if(strategy == ReturnValueStrategy.PASS) {
+							if (strategy == ReturnValueStrategy.PASS) {
 								// no-op
-							}
-							else if(strategy == ReturnValueStrategy.COPY) {
+							} else if (strategy == ReturnValueStrategy.COPY) {
 								super.visitIntInsn(BIPUSH, struct2info.get(_returnsStructType).sizeof);
 								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateCopy", "(" + wrapped_struct_flag + "I)" + wrapped_struct_flag, false);
-							}
-							else {
+							} else {
 								throw new IllegalStateException();
 							}
 						}
@@ -409,19 +406,19 @@ public class StructEnv {
 
 					@Override
 					public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
-						if(local != null) {
-							for(int i = 0; i < local.length; i++) {
-								if(array_wrapped_struct_types.contains(local[i]))
+						if (local != null) {
+							for (int i = 0; i < local.length; i++) {
+								if (array_wrapped_struct_types.contains(local[i]))
 									local[i] = array_wrapped_struct_flag;
-								else if(wrapped_struct_types.contains(local[i]))
+								else if (wrapped_struct_types.contains(local[i]))
 									local[i] = wrapped_struct_flag;
 							}
 						}
-						if(stack != null) {
-							for(int i = 0; i < stack.length; i++) {
-								if(array_wrapped_struct_types.contains(stack[i]))
+						if (stack != null) {
+							for (int i = 0; i < stack.length; i++) {
+								if (array_wrapped_struct_types.contains(stack[i]))
 									stack[i] = array_wrapped_struct_flag;
-								else if(wrapped_struct_types.contains(stack[i]))
+								else if (wrapped_struct_types.contains(stack[i]))
 									stack[i] = wrapped_struct_flag;
 							}
 						}
@@ -431,31 +428,29 @@ public class StructEnv {
 
 					@Override
 					public void visitTypeInsn(int opcode, String type) {
-						if(opcode == NEW) {
-							if(struct2info.containsKey(type)) {
+						if (opcode == NEW) {
+							if (struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
 								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
-								if(struct2info.get(type).skipZeroFill)
+								if (struct2info.get(type).skipZeroFill)
 									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateSkipZeroFill", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag, false);
 								else
 									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocate", "(IL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + wrapped_struct_flag, false);
 								return;
 							}
-						}
-						else if(opcode == ANEWARRAY) {
-							if(struct2info.containsKey(type)) {
+						} else if (opcode == ANEWARRAY) {
+							if (struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
 								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(II)" + array_wrapped_struct_flag, false);
 								flow.stack.popEQ(VarType.STRUCT_ARRAY);
 								flow.stack.push(VarType.STRUCT_ARRAY);
 								return;
 							}
-						}
-						else if(opcode == CHECKCAST) {
-							if(flow.stack.peek() == VarType.STRUCT) {
+						} else if (opcode == CHECKCAST) {
+							if (flow.stack.peek() == VarType.STRUCT) {
 								return;
 							}
-							if(flow.stack.peek() == VarType.STRUCT_ARRAY) {
+							if (flow.stack.peek() == VarType.STRUCT_ARRAY) {
 								return;
 							}
 						}
@@ -465,19 +460,18 @@ public class StructEnv {
 
 					@Override
 					public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-						if(opcode == PUTFIELD) {
-							if(struct2info.containsKey(owner)) {
+						if (opcode == PUTFIELD) {
+							if (struct2info.containsKey(owner)) {
 								StructInfo info = struct2info.get(owner);
 								int offset = info.field2offset.get(name).intValue();
 								String type = info.field2type.get(name);
 
 								String methodName, paramType, returnType;
-								if(wrapped_struct_types.contains(type)) {
+								if (wrapped_struct_types.contains(type)) {
 									methodName = "$put";
 									paramType = wrapped_struct_flag;
 									returnType = "V";
-								}
-								else {
+								} else {
 									methodName = type.toLowerCase() + "put";
 									paramType = type;
 									returnType = "V";
@@ -488,20 +482,18 @@ public class StructEnv {
 								return;
 							}
 
-						}
-						else if(opcode == GETFIELD) {
-							if(struct2info.containsKey(owner)) {
+						} else if (opcode == GETFIELD) {
+							if (struct2info.containsKey(owner)) {
 								StructInfo info = struct2info.get(owner);
 								int offset = info.field2offset.get(name).intValue();
 								String type = info.field2type.get(name);
 
 								String methodName, paramType, returnType;
-								if(wrapped_struct_types.contains(type)) {
+								if (wrapped_struct_types.contains(type)) {
 									methodName = "$get";
 									paramType = wrapped_struct_flag;
 									returnType = wrapped_struct_flag;
-								}
-								else {
+								} else {
 									methodName = type.toLowerCase() + "get";
 									paramType = wrapped_struct_flag;
 									returnType = type;
@@ -513,10 +505,10 @@ public class StructEnv {
 							}
 						}
 
-						if(wrapped_struct_types.contains(desc)) {
+						if (wrapped_struct_types.contains(desc)) {
 							desc = wrapped_struct_flag;
 						}
-						if(array_wrapped_struct_types.contains(desc)) {
+						if (array_wrapped_struct_types.contains(desc)) {
 							desc = array_wrapped_struct_flag;
 						}
 
@@ -525,38 +517,37 @@ public class StructEnv {
 
 					@Override
 					public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-						for(String structType : struct2info.keySet()) {
+						for (String structType : struct2info.keySet()) {
 							desc = desc.replace(structType, plain_struct_flag); // FIXME?
 						}
 
-						if(struct2info.containsKey(fqcn) && _methodName.equals(RENAMED_CONSTRUCTOR_NAME)) {
+						if (struct2info.containsKey(fqcn) && _methodName.equals(RENAMED_CONSTRUCTOR_NAME)) {
 							// remove Object.super() from any Struct constructor
-							if(opcode == INVOKESPECIAL && name.equals("<init>") && desc.equals("()V")) {
+							if (opcode == INVOKESPECIAL && name.equals("<init>") && desc.equals("()V")) {
 								super.visitInsn(POP);
 								return;
 							}
 						}
 
-						if(struct2info.containsKey(owner)) {
-							if(opcode == INVOKESPECIAL) {
-								if(name.equals("<init>")) {
+						if (struct2info.containsKey(owner)) {
+							if (opcode == INVOKESPECIAL) {
+								if (name.equals("<init>")) {
 									name = RENAMED_CONSTRUCTOR_NAME;
 
 									// add 'this' as first parameter
 									opcode = INVOKESTATIC;
 									desc = "(" + wrapped_struct_flag + desc.substring(1);
 								}
-							}
-							else if(opcode == INVOKEVIRTUAL) {
+							} else if (opcode == INVOKEVIRTUAL) {
 								// add 'this' as first parameter
 								opcode = INVOKESTATIC;
 								desc = "(" + wrapped_struct_flag + desc.substring(1);
 							}
 						}
 
-						if(owner.equals(StructEnv.jvmClassName(Struct.class))) {
-							if(name.equals("asNull") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
-								if(flow.stack.peek() == VarType.STRUCT_TYPE) {
+						if (owner.equals(StructEnv.jvmClassName(StructUtil.class))) {
+							if (name.equals("typedNull") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
+								if (flow.stack.peek() == VarType.STRUCT_TYPE) {
 									flow.stack.set(0, VarType.INT);
 									// ..., sizeof
 									super.visitInsn(Opcodes.POP);
@@ -565,51 +556,66 @@ public class StructEnv {
 									// ..., 'null'
 									flow.stack.set(0, VarType.STRUCT);
 									return;
-								}
-								else {
+								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							}
-							else if(name.equals("sizeof") && desc.equals("(Ljava/lang/Class;)I")) {
-								if(flow.stack.peek() == VarType.STRUCT_TYPE) {
+							} else if (name.equals("sizeof") && desc.equals("(Ljava/lang/Class;)I")) {
+								if (flow.stack.peek() == VarType.STRUCT_TYPE) {
 									flow.stack.set(0, VarType.INT);
 									// ...,sizeof
 									return;
-								}
-								else {
+								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							}
-							else if(name.equals("malloc") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
-								if(flow.stack.peek() == VarType.STRUCT_TYPE) {
+							} else if (name.equals("emptyArray") && desc.equals("(Ljava/lang/Class;I)[Ljava/lang/Object;")) {
+								if (flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+									flow.stack.set(1, VarType.INT);
+									// ...,sizeof,length
+									flow.visitInsn(Opcodes.SWAP);
+									// ...,length,sizeof
+									flow.visitInsn(Opcodes.POP);
+									// ...,length
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "emptyArray";
+									desc = "(I)[" + wrapped_struct_flag;
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							} else if (name.equals("malloc") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
+								if (flow.stack.peek() == VarType.STRUCT_TYPE) {
 									flow.stack.set(0, VarType.INT);
 									// ...,sizeof
 									owner = StructEnv.jvmClassName(StructGC.class);
 									name = "malloc";
 									desc = "(I)" + wrapped_struct_flag;
-								}
-								else {
+								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							}
-							else if(name.equals("free") && desc.equals("(Ljava/lang/Object;)V")) {
-								if(flow.stack.peek() == VarType.NULL) {
+							} else if (name.equals("malloc") && desc.equals("(Ljava/lang/Class;I)[Ljava/lang/Object;")) {
+								if (flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+									flow.stack.set(1, VarType.INT);
+									// ...,sizeof,length
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "malloc";
+									desc = "(II)[" + wrapped_struct_flag;
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							} else if (name.equals("free") && desc.equals("(Ljava/lang/Object;)V")) {
+								if (flow.stack.peek() == VarType.NULL) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP); // right thing to do?
 									// ...
 									return;
-								}
-								else if(flow.stack.peek() == VarType.STRUCT) {
+								} else if (flow.stack.peek() == VarType.STRUCT) {
 									owner = StructEnv.jvmClassName(StructGC.class);
 									name = "freeHandle";
 									desc = "(" + wrapped_struct_flag + ")V";
-								}
-								else {
+								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							}
-							else if(name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
-								if(flow.stack.peek() == VarType.NULL) {
+							} else if (name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
+								if (flow.stack.peek() == VarType.NULL) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP);
 									// ...
@@ -618,37 +624,31 @@ public class StructEnv {
 									super.visitInsn(Opcodes.I2L);
 									// ..., -1L
 									return;
-								}
-								else if(flow.stack.peek() == VarType.STRUCT) {
+								} else if (flow.stack.peek() == VarType.STRUCT) {
 									owner = StructEnv.jvmClassName(StructMemory.class);
 									name = "handle2pointer";
 									desc = "(" + wrapped_struct_flag + ")J";
-								}
-								else {
+								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							}
-							else if(name.equals("isReachable") && desc.equals("(Ljava/lang/Object;)Z")) {
-								if(flow.stack.peek() == VarType.NULL) {
+							} else if (name.equals("isReachable") && desc.equals("(Ljava/lang/Object;)Z")) {
+								if (flow.stack.peek() == VarType.NULL) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP);
 									// ...
 									super.visitInsn(Opcodes.ICONST_0);
 									// ..., 'false'
 									return;
-								}
-								else if(flow.stack.peek() == VarType.STRUCT) {
+								} else if (flow.stack.peek() == VarType.STRUCT) {
 									owner = StructEnv.jvmClassName(StructMemory.class);
 									name = "isValid";
 									desc = "(" + wrapped_struct_flag + ")Z";
-								}
-								else {
+								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							}
-							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;)[Ljava/lang/Object;")) {
-								if(flow.stack.peek() == VarType.REFERENCE) {
-									if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+							} else if (name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;)[Ljava/lang/Object;")) {
+								if (flow.stack.peek() == VarType.REFERENCE) {
+									if (flow.stack.peek(1) == VarType.STRUCT_TYPE) {
 										// ...,type,buffer
 										flow.stack.set(1, VarType.INT);
 										// ...,sizeof,buffer
@@ -656,14 +656,12 @@ public class StructEnv {
 										name = "mapBuffer";
 										desc = "(ILjava/nio/ByteBuffer;)[" + wrapped_struct_flag;
 									}
-								}
-								else {
+								} else {
 									throw new IllegalStateException();
 								}
-							}
-							else if(name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;II)[Ljava/lang/Object;")) {
-								if(flow.stack.peek(2) == VarType.REFERENCE) {
-									if(flow.stack.peek(3) == VarType.STRUCT_TYPE) {
+							} else if (name.equals("map") && desc.equals("(Ljava/lang/Class;Ljava/nio/ByteBuffer;II)[Ljava/lang/Object;")) {
+								if (flow.stack.peek(2) == VarType.REFERENCE) {
+									if (flow.stack.peek(3) == VarType.STRUCT_TYPE) {
 										// ...,type,buffer,stride,offset
 										flow.stack.set(3, VarType.INT);
 										// ...,sizeof,buffer,stride,offset
@@ -671,8 +669,7 @@ public class StructEnv {
 										name = "mapBuffer";
 										desc = "(ILjava/nio/ByteBuffer;II)[" + wrapped_struct_flag;
 									}
-								}
-								else {
+								} else {
 									throw new IllegalStateException();
 								}
 							}
@@ -683,8 +680,8 @@ public class StructEnv {
 
 					@Override
 					public void visitLdcInsn(Object cst) {
-						if(cst instanceof Type) {
-							if(plain_struct_types.contains(((Type) cst).getInternalName())) {
+						if (cst instanceof Type) {
+							if (plain_struct_types.contains(((Type) cst).getInternalName())) {
 								flow.visitIntInsn(Opcodes.BIPUSH, struct2info.get(((Type) cst).getInternalName()).sizeof);
 								flow.stack.popEQ(VarType.INT);
 								flow.stack.push(VarType.STRUCT_TYPE);
@@ -705,8 +702,7 @@ public class StructEnv {
 
 		try {
 			new ClassReader(bytecode).accept(visitor, 0);
-		}
-		catch (Throwable cause) {
+		} catch (Throwable cause) {
 			String msg = "LibStruct failed to rewrite classpath:\n";
 			msg += "\tLast entered class: \n";
 			msg += "\t\tfqcn: " + fqcn + "\n";
@@ -714,7 +710,7 @@ public class StructEnv {
 			msg += "\tLast entered method: \n";
 			msg += "\t\tname: " + currentMethodName[0] + "\n";
 			msg += "\t\tdesc: " + currentMethodDesc[0] + "\n";
-			if(!StructEnv.PRINT_LOG)
+			if (!StructEnv.PRINT_LOG)
 				msg += "\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
 			throw new IllegalStateException(msg, cause);
 		}

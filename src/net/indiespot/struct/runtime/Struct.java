@@ -2,8 +2,8 @@ package net.indiespot.struct.runtime;
 
 import java.nio.ByteBuffer;
 
-public class Struct {
-	public static <T> T asNull(Class<T> structType) {
+public class StructUtil {
+	public static <T> T typedNull(Class<T> structType) {
 		throwFit();
 		return null;
 	}
@@ -15,12 +15,22 @@ public class Struct {
 
 	//
 
+	public static <T> T[] emptyArray(Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
 	public static <T> T malloc(Class<T> structType) {
 		throwFit();
 		return null;
 	}
 
-	public static void free(Object struct) {
+	public static <T> T[] malloc(Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
+	public static <T> void free(T struct) {
 		throwFit();
 	}
 

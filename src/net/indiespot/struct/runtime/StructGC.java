@@ -8,70 +8,270 @@ import java.util.List;
 
 public class StructGC {
 	public static int malloc(int sizeof) {
-		if(sizeof > gc_heap_size)
-			throw new IllegalStateException();
+		if (sizeof > heap_size)
+			throw new IllegalArgumentException();
 
 		StructHeap localHeap = local_heaps.get();
 		int handle = localHeap.malloc(sizeof);
-		if(handle == 0) {
+		if (handle == 0) {
 			// try again with a new heap
 			local_heaps.set(newHeap());
 			localHeap = local_heaps.get();
 			handle = localHeap.malloc(sizeof);
-			if(handle == 0)
+			if (handle == 0)
 				throw new IllegalStateException();
 		}
 		return handle;
+	}
+
+	public static int[] malloc(int sizeof, int length) {
+		if (length <= 0)
+			throw new IllegalArgumentException();
+
+		if (sizeof * length > heap_size) {
+			int[] handles = new int[length];
+			for (int i = 0; i < length; i++)
+				handles[i] = malloc(sizeof);
+			return handles;
+		}
+
+		StructHeap localHeap = local_heaps.get();
+		int handle = localHeap.malloc(sizeof, length);
+		if (handle == 0) {
+			// try again with a new heap
+			local_heaps.set(newHeap());
+			localHeap = local_heaps.get();
+			handle = localHeap.malloc(sizeof, length);
+			if (handle == 0)
+				throw new IllegalStateException();
+		}
+
+		int[] handles = new int[length];
+		for (int i = 0; i < length; i++)
+			handles[i] = handle + i * StructMemory.bytes2words(sizeof);
+		return handles;
 	}
 
 	public static void freeHandle(int handle) {
 		StructHeap localHeap = local_heaps.get();
 		boolean freedFromLocalHeap = localHeap.freeHandle(handle);
 
-		if(!freedFromLocalHeap) {
-			synchronized (gc_mutex) {
-				gc_eden.push(handle);
+		if (!freedFromLocalHeap) {
+			synchronized (sync) {
+				Memory.sync_frees.push(handle);
 			}
 		}
+	}
+
+	public static int getHandleCount() {
+		return Memory.getHandleCount();
 	}
 
 	public static void discardThreadLocal() {
 		local_heaps.set(null);
 	}
 
-	public static int countGarbage() {
-		int handles = 0;
-		for(int i = 0; i < gc_gens.length; i++)
-			handles += gc_gens[i].size;
-		return handles;
-	}
-
 	private static StructHeap newHeap() {
-		synchronized (gc_mutex) {
-			if(!empty_heaps.isEmpty()) {
-				StructHeap heap = empty_heaps.remove(empty_heaps.size() - 1);
-				if(heap == null || !heap.isEmpty())
+		synchronized (sync) {
+			if (!sync_empty_heaps.isEmpty()) {
+				StructHeap heap = sync_empty_heaps.remove(sync_empty_heaps.size() - 1);
+				if (heap == null || !heap.isEmpty())
 					throw new IllegalStateException();
 				return heap;
 			}
 		}
 
-		ByteBuffer bb = ByteBuffer.allocateDirect(gc_heap_size);
-		bb.order(ByteOrder.nativeOrder());
-		return new StructHeap(bb);
+		return Memory.newHeap();
 	}
 
-	private static final Object gc_mutex = new Object();
-	private static final IntStack gc_eden = new IntStack();
-	private static final IntStack[] gc_gens = new IntStack[8];
-	static {
-		for(int i = 0; i < gc_gens.length; i++) {
-			gc_gens[i] = (i == 0) ? gc_eden : new IntStack();
+	private static final Object sync = new Object();
+
+	private static class Memory {
+		private static final IntStack sync_frees = new IntStack();
+		private static final List<StructHeap> sync_heaps = new ArrayList<>();
+		private static final List<MemoryRegion> sync_regions = new ArrayList<>();
+		private static final int region_size = heap_size * 8;
+		private static final List<MemoryRegion> gc_regions = new ArrayList<>();
+
+		public static StructHeap newHeap() {
+			ByteBuffer bb;
+
+			long addr1, addr2;
+			do {
+				bb = ByteBuffer.allocateDirect(heap_size);
+				bb.order(ByteOrder.nativeOrder());
+				addr1 = StructUnsafe.getBufferBaseAddress(bb);
+				addr2 = addr1 + heap_size - 1;
+			} while (addr1 / region_size != addr2 / region_size);
+
+			StructHeap heap = new StructHeap(bb);
+			MemoryRegion region = getRegionFor(heap);
+			if (region == null) {
+				int minWord = StructMemory.bytes2words(addr1 / region_size * region_size);
+				int wordCount = StructMemory.bytes2words(region_size);
+				synchronized (sync) {
+					sync_regions.add(new MemoryRegion(minWord, wordCount));
+				}
+			}
+			return heap;
+		}
+
+		public static MemoryRegion getRegionFor(int handle) {
+			for (int i = 0, size = gc_regions.size(); i < size; i++)
+				if (gc_regions.get(i).isInRegion(handle))
+					return gc_regions.get(i);
+			synchronized (sync) {
+				for (int i = 0, size = sync_regions.size(); i < size; i++)
+					if (sync_regions.get(i).isInRegion(handle))
+						return sync_regions.get(i);
+			}
+			return null;
+		}
+
+		public static MemoryRegion getRegionFor(StructHeap heap) {
+			for (int i = 0, size = gc_regions.size(); i < size; i++)
+				if (gc_regions.get(i).isInRegion(heap))
+					return gc_regions.get(i);
+			synchronized (sync) {
+				for (int i = 0, size = sync_regions.size(); i < size; i++)
+					if (sync_regions.get(i).isInRegion(heap))
+						return sync_regions.get(i);
+			}
+			return null;
+		}
+
+		public static int gc(long begin) {
+			int freed = 0;
+
+			synchronized (sync) {
+				for (StructHeap heap : sync_heaps)
+					getRegionFor(heap).gcHeaps.add(heap);
+				sync_heaps.clear();
+
+				gc_regions.addAll(sync_regions);
+				sync_regions.clear();
+			}
+
+			for (int i = 0, size = gc_regions.size(); i < size; i++)
+				freed += gc_regions.get(i).gc(begin);
+
+			synchronized (sync) {
+				while (!Memory.sync_frees.isEmpty()) {
+					int handle = Memory.sync_frees.pop();
+					getRegionFor(handle).toFree.push(handle);
+				}
+			}
+
+			int handleCount = 0;
+			for (int i = 0, size = gc_regions.size(); i < size; i++)
+				handleCount += gc_regions.get(i).getHandleCount();
+			Memory.gcRegionsHandleCount = handleCount;
+
+			return freed;
+		}
+
+		private static volatile int gcRegionsHandleCount;
+
+		public static int getHandleCount() {
+			int handleCount = gcRegionsHandleCount;
+			synchronized (sync) {
+				for (int i = 0, size = sync_regions.size(); i < size; i++)
+					handleCount += sync_regions.get(i).getHandleCount();
+			}
+			final int[] holder = new int[1];
+			local_heaps.visit(new FastThreadLocal.Visitor<StructHeap>() {
+				@Override
+				public void visit(int threadId, StructHeap heap) {
+					holder[0] += heap.getHandleCount();
+				}
+			});
+			return handleCount + holder[0];
 		}
 	}
 
-	private static final List<StructHeap> gc_heaps = new ArrayList<>();
-	private static final List<StructHeap> empty_heaps = new ArrayList<>();
+	private static class MemoryRegion {
+		private final int minWord, wordCount;
+
+		public MemoryRegion(int minWord, int wordCount) {
+			if (minWord % (StructMemory.bytes2words(Memory.region_size)) != 0)
+				throw new IllegalStateException();
+			if (wordCount != StructMemory.bytes2words(Memory.region_size))
+				throw new IllegalStateException();
+			this.minWord = minWord;
+			this.wordCount = wordCount;
+		}
+
+		final List<StructHeap> gcHeaps = new ArrayList<>();
+		final IntStack toFree = new IntStack();
+		final IntStack failed = new IntStack();
+
+		public boolean isInRegion(int handle) {
+			return (handle >= minWord) && (handle < (minWord + wordCount));
+		}
+
+		public boolean isInRegion(StructHeap heap) {
+			long addr = StructUnsafe.getBufferBaseAddress(heap.buffer);
+			int minWord = StructMemory.bytes2words(addr / Memory.region_size * Memory.region_size);
+			return this.minWord == minWord;
+		}
+
+		public void retryFailedHandles() {
+			while (!failed.isEmpty())
+				toFree.push(failed.pop());
+		}
+
+		public int gc(long begin) {
+			this.retryFailedHandles(); // FIXME
+
+			if (toFree.isEmpty() || isExpired(begin))
+				return 0;
+
+			int originalToFree = toFree.size;
+
+			final int chunk = 100;
+			int counter = 0;
+
+			outer: while (!toFree.isEmpty()) {
+				if (counter++ % chunk == 0) {
+					if (isExpired(begin)) {
+						break;
+					}
+				}
+
+				int handle = toFree.pop();
+
+				for (int i = gcHeaps.size() - 1; i >= 0; i--) {
+					StructHeap heap = gcHeaps.get(i);
+					if (!heap.freeHandle(handle))
+						continue;
+
+					// System.out.println("freed handle: " + handle);
+					if (heap.isEmpty()) {
+						if (gcHeaps.remove(i) != heap)
+							throw new IllegalStateException();
+
+						synchronized (sync) {
+							sync_empty_heaps.add(heap);
+						}
+					}
+					continue outer;
+				}
+
+				failed.push(handle);
+			}
+
+			return (originalToFree - toFree.size);
+		}
+
+		public int getHandleCount() {
+			int count = 0;
+			for (int i = gcHeaps.size() - 1; i >= 0; i--)
+				count += gcHeaps.get(i).getHandleCount();
+			return count;
+		}
+	}
+
+	private static final List<StructHeap> sync_empty_heaps = new ArrayList<>();
 	public static FastThreadLocal<StructHeap> local_heaps = new FastThreadLocal<StructHeap>() {
 		@Override
 		public StructHeap initialValue() {
@@ -80,11 +280,13 @@ public class StructGC {
 
 		@Override
 		public void onRelease(StructHeap heap) {
-			synchronized (gc_mutex) {
-				if(heap.isEmpty())
-					empty_heaps.add(heap);
+			if (heap == null)
+				throw new NullPointerException();
+			synchronized (sync) {
+				if (heap.isEmpty())
+					sync_empty_heaps.add(heap);
 				else
-					gc_heaps.add(heap);
+					Memory.sync_heaps.add(heap);
 			}
 		}
 	};
@@ -94,37 +296,31 @@ public class StructGC {
 	private static volatile float gc_inc_interval = 1.2f;
 	private static volatile float gc_dec_interval = 0.5f;
 	private static volatile long gc_max_micros = 1000;
-	private static volatile int gc_heap_size = 16 * (4 * 1024); // 64K
-	private static volatile long gc_max_empty_heaps = 100;
-	private static volatile float gc_fail_ratio = 0.1f;
+	private static final int heap_size = 16 * (4 * 1024); // 64K
 
 	public static void configureGarbageCollector(//
-			long minIntervalMillis, //
-			long maxIntervalMillis, //
-			float incIntervalFactor, //
-			long maxDurationMicros,//
-			int heapSize,//
-			int maxEmptyHeaps//
+	   long minIntervalMillis, //
+	   long maxIntervalMillis, //
+	   float incIntervalFactor, //
+	   long maxDurationMicros,//
+	   int heapSize,//
+	   int maxEmptyHeaps//
 	) {
-		if(minIntervalMillis < 0)
+		if (minIntervalMillis < 0)
 			throw new IllegalArgumentException();
-		if(maxIntervalMillis < minIntervalMillis)
+		if (maxIntervalMillis < minIntervalMillis)
 			throw new IllegalArgumentException();
-		if(incIntervalFactor < 1.0f)
+		if (incIntervalFactor < 1.0f)
 			throw new IllegalArgumentException();
-		if(maxDurationMicros < 0)
+		if (maxDurationMicros < 0)
 			throw new IllegalArgumentException();
-		if(heapSize < 0)
-			throw new IllegalArgumentException();
-		if(maxEmptyHeaps < 0)
+		if (maxEmptyHeaps < 0)
 			throw new IllegalArgumentException();
 
 		gc_min_interval = minIntervalMillis;
 		gc_max_interval = maxIntervalMillis;
 		gc_inc_interval = incIntervalFactor;
 		gc_max_micros = maxDurationMicros;
-		gc_heap_size = heapSize;
-		gc_max_empty_heaps = maxEmptyHeaps;
 	}
 
 	static {
@@ -132,46 +328,27 @@ public class StructGC {
 			@Override
 			public void run() {
 				long sleep = gc_min_interval;
-				int[] heapSizes = new int[gc_gens.length];
 
 				while (true) {
 					try {
 						Thread.sleep(sleep);
-					}
-					catch (InterruptedException e) {
+					} catch (InterruptedException e) {
 						// ignore
 					}
 
-					long took;
-					int freed, gcHeaps, emptyHeaps;
-					synchronized (gc_mutex) {
-						long tBegin = System.nanoTime();
-						freed = gc(tBegin);
-						took = System.nanoTime() - tBegin;
+					long tBegin = System.nanoTime();
+					int freed = Memory.gc(tBegin);
+					long took = System.nanoTime() - tBegin;
+					if (freed > 0)
+						System.out.println("LibStructGC freed " + freed + " handles in " + (took / 1000) + "us");
 
-						for(int i = 0; i < gc_gens.length; i++)
-							heapSizes[i] = gc_gens[i].size;
-
-						if(freed == 0)
-							sleep = Math.round(sleep * gc_inc_interval);
-						else
-							sleep = Math.round(sleep * gc_dec_interval);
-
-						// clamp
-						sleep = Math.max(sleep, gc_min_interval);
-						sleep = Math.min(sleep, gc_max_interval);
-
-						gcHeaps = gc_heaps.size();
-						emptyHeaps = empty_heaps.size();
-					}
-
-					if(freed > 0) {
-						synchronized (gc_info_callbacks) {
-							for(GcInfo info : gc_info_callbacks) {
-								info.onGC(gcHeaps, emptyHeaps, freed, heapSizes, took);
-							}
-						}
-					}
+					if (freed == 0)
+						sleep = Math.round(sleep * gc_inc_interval);
+					else
+						sleep = Math.round(sleep * gc_dec_interval);
+					// clamp
+					sleep = Math.max(sleep, gc_min_interval);
+					sleep = Math.min(sleep, gc_max_interval);
 				}
 			}
 		});
@@ -182,70 +359,6 @@ public class StructGC {
 		thread.start();
 	}
 
-	private static int gc(long begin) {
-		int freed = 0;
-		int offset = 1;
-		for(; offset < gc_gens.length; offset++)
-			freed += gc(begin, gc_gens[offset - 1], gc_gens[offset]);
-
-		if(offset == gc_gens.length) {
-			// if we have time to process the oldest handles, spread them all around
-			IntStack last = gc_gens[gc_gens.length - 1];
-			while (!last.isEmpty())
-				gc_gens[++offset % (gc_gens.length - 1)].push(last.pop());
-		}
-
-		while (empty_heaps.size() > gc_max_empty_heaps) {
-			empty_heaps.remove(empty_heaps.size() - 1);
-		}
-
-		return freed;
-	}
-
-	private static int gc(long begin, IntStack toFree, IntStack failed) {
-		if(toFree.isEmpty() || isExpired(begin))
-			return 0;
-
-		int originalToFree = toFree.size;
-
-		final int chunk = 100;
-		int counter = 0;
-
-		outer: while (!toFree.isEmpty()) {
-			if(counter++ % chunk == 0) {
-				if(isExpired(begin)) {
-					break;
-				}
-			}
-
-			int handle = toFree.pop();
-
-			for(int i = gc_heaps.size() - 1; i >= 0; i--) {
-				StructHeap heap = gc_heaps.get(i);
-				if(!heap.freeHandle(handle))
-					continue;
-
-				if(heap.isEmpty()) {
-					if(gc_heaps.remove(i) != heap)
-						throw new IllegalStateException();
-					empty_heaps.add(heap);
-				}
-				continue outer;
-			}
-
-			failed.push(handle);
-		}
-
-		int found = (originalToFree - toFree.size);
-
-		int kick = (int) Math.floor(toFree.size * gc_fail_ratio);
-		for(int i = 0; i < kick; i++)
-			//	while (!toFree.isEmpty())
-			failed.push(toFree.pop());
-
-		return found;
-	}
-
 	private static boolean isExpired(long begin) {
 		return (System.nanoTime() - begin) / 1_000L > gc_max_micros;
 	}
@@ -253,7 +366,7 @@ public class StructGC {
 	private static final List<GcInfo> gc_info_callbacks = new ArrayList<>();
 
 	public static void addListener(GcInfo infoCallback) {
-		if(infoCallback == null)
+		if (infoCallback == null)
 			throw new NullPointerException();
 
 		synchronized (gc_info_callbacks) {
@@ -270,7 +383,7 @@ public class StructGC {
 		private int size = 0;
 
 		public void push(int value) {
-			if(size == values.length)
+			if (size == values.length)
 				values = Arrays.copyOf(values, values.length * 2);
 			values[size++] = value;
 		}
@@ -293,7 +406,7 @@ public class StructGC {
 		private int size = 0;
 
 		public void add(int value) {
-			if(size == values.length)
+			if (size == values.length)
 				values = Arrays.copyOf(values, values.length * 2);
 			values[size++] = value;
 		}
@@ -303,20 +416,20 @@ public class StructGC {
 		}
 
 		public int indexOf(int value) {
-			for(int i = 0; i < size; i++)
-				if(values[i] == value)
+			for (int i = 0; i < size; i++)
+				if (values[i] == value)
 					return i;
 			return -1;
 		}
 
 		public int get(int index) {
-			if(index >= size)
+			if (index >= size)
 				throw new IllegalStateException();
 			return values[index];
 		}
 
 		public int removeIndex(int index) {
-			if(index < 0 || index >= size)
+			if (index < 0 || index >= size)
 				throw new IllegalStateException();
 			System.arraycopy(values, index + 1, values, index, size - index - 1);
 			int got = values[index];
@@ -326,7 +439,7 @@ public class StructGC {
 
 		public boolean removeValue(int value) {
 			int io = this.indexOf(value);
-			if(io == -1)
+			if (io == -1)
 				return false;
 			this.removeIndex(io);
 			return true;
@@ -344,7 +457,7 @@ public class StructGC {
 		public String toString() {
 			StringBuilder sb = new StringBuilder();
 			sb.append(StructGC.class.getSimpleName()).append("[");
-			for(int i = 0; i < size; i++)
+			for (int i = 0; i < size; i++)
 				sb.append(values[i]).append(',');
 			sb.append("]");
 			return sb.toString();
