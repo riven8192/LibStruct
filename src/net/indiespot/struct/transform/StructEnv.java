@@ -30,7 +30,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
-	public static final boolean PRINT_LOG = false;
+	public static final boolean PRINT_LOG = true;
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
 	public static final String array_wrapped_struct_flag = "[L" + plain_struct_flag + ";";
@@ -150,7 +150,7 @@ public class StructEnv {
 							}
 							if (opcode == ANEWARRAY) {
 								if (plain_struct_types.contains(type)) {
-									this.flagRewriteMethod(false);
+									this.flagRewriteMethod(true);
 								}
 							}
 						}
@@ -455,7 +455,8 @@ public class StructEnv {
 						} else if (opcode == ANEWARRAY) {
 							if (struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
-								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(II)" + array_wrapped_struct_flag, false);
+								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
+								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(IIL" + StructAllocationStack.class.getName().replace('.', '/') + ";)" + array_wrapped_struct_flag, false);
 								flow.stack.popEQ(VarType.STRUCT_ARRAY);
 								flow.stack.push(VarType.STRUCT_ARRAY);
 								return;
