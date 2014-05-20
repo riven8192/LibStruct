@@ -67,9 +67,13 @@ public class StructGC {
 		StructHeap localHeap = local_heaps.get();
 
 		boolean allFreedFromLocalHeap = true;
-		for(int i = 0; i < handles.length; i++)
-			if(allFreedFromLocalHeap &= localHeap.freeHandle(handles[i]))
+		for(int i = 0; i < handles.length; i++) {
+			if(localHeap.freeHandle(handles[i])) {
 				handles[i] = 0x00;
+			} else {
+				allFreedFromLocalHeap = false;
+			}
+		}
 
 		if(!allFreedFromLocalHeap) {
 			synchronized (sync) {
