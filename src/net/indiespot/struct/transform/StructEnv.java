@@ -30,7 +30,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
-	public static final boolean PRINT_LOG = false;
+	public static final boolean PRINT_LOG = true;
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
 	public static final String array_wrapped_struct_flag = "[L" + plain_struct_flag + ";";
@@ -75,15 +75,15 @@ public class StructEnv {
 
 			ClassWriter writer = new ClassWriter(0);
 			ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5, writer) {
-				
+
 				@Override
 				public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
 					if (plain_struct_types.contains(fqcn)) {
-						if(!superName.equals("java/lang/Object")){
-							throw new IllegalStateException("struct ["+fqcn+"] must have java.lang.Object as super-type");
+						if (!superName.equals("java/lang/Object")) {
+							throw new IllegalStateException("struct [" + fqcn + "] must have java.lang.Object as super-type");
 						}
-						if(interfaces != null && interfaces.length != 0){
-							throw new IllegalStateException("struct ["+fqcn+"] must not implement any interfaces");
+						if (interfaces != null && interfaces.length != 0) {
+							throw new IllegalStateException("struct [" + fqcn + "] must not implement any interfaces");
 						}
 					}
 
@@ -642,7 +642,31 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							}else if (name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
+							} else if (name.equals("copy") && desc.equals("(Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/Object;)V")) {
+								if (flow.stack.peek(2) == VarType.STRUCT_TYPE) {
+									flow.stack.set(2, VarType.INT);
+									// ...,sizeof,src,dst
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "copy";
+									desc = "(I" + wrapped_struct_flag + "" + wrapped_struct_flag + ")V";
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek(2));
+								}
+							} else if (name.equals("view") && desc.equals("(Ljava/lang/Object;Ljava/lang/Class;I)Ljava/lang/Object;")) {
+								if (flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+									flow.stack.set(1, VarType.INT);
+									// ...,this,as,offset
+									super.visitInsn(Opcodes.SWAP);
+									// ...,this,offset,as
+									super.visitInsn(Opcodes.POP);
+									// ...,this,offset
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "view";
+									desc = "(" + wrapped_struct_flag + "I)"+wrapped_struct_flag;
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek(2));
+								}
+							} else if (name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
 								if (flow.stack.peek() == VarType.NULL) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP);
