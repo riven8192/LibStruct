@@ -75,6 +75,20 @@ public class StructEnv {
 
 			ClassWriter writer = new ClassWriter(0);
 			ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5, writer) {
+				
+				@Override
+				public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+					if (plain_struct_types.contains(fqcn)) {
+						if(!superName.equals("java/lang/Object")){
+							throw new IllegalStateException("struct ["+fqcn+"] must have java.lang.Object as super-type");
+						}
+						if(interfaces != null && interfaces.length != 0){
+							throw new IllegalStateException("struct ["+fqcn+"] must not implement any interfaces");
+						}
+					}
+
+					super.visit(version, access, name, signature, superName, interfaces);
+				}
 
 				@Override
 				public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
