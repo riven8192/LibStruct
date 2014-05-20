@@ -116,14 +116,14 @@ public class StructTest {
 				long tMemoryAllocAndFree2Arr = (t7 - t6) / 1000L;
 
 				System.out.println();
-				System.out.println("tInstance1      \t" + tInstance1 + "us      \t" + (int) (allocCount / (double) tInstance1) + "M/s");
-				System.out.println("tStackAlloc1    \t" + tStackAlloc1 + "us    \t" + (int) (allocCount / (double) tStackAlloc1) + "M/s");
-				System.out.println("tStackAlloc1N   \t" + tStackAlloc1N + "us   \t" + (int) (allocCount / (double) tStackAlloc1N) + "M/s");
-				System.out.println("tStackAlloc10N  \t" + tStackAlloc10N + "us  \t" + (int) (allocCount / (double) tStackAlloc10N) + "M/s");
-				System.out.println("tStackAllocArr  \t" + tStackAllocArr + "us  \t" + (int) (allocCount / (double) tStackAllocArr) + "M/s");
-				System.out.println("tMemoryAllocFree     \t" + tMemoryAllocAndFree + "us    \t" + (int) (allocCount / (double) tMemoryAllocAndFree) + "M/s");
-				System.out.println("tMemoryAllocFreeArr  \t" + tMemoryAllocAndFreeArr + "us \t" + (int) (allocCount / (double) tMemoryAllocAndFreeArr) + "M/s");
-				System.out.println("tMemoryAllocFreeArr2 \t" + tMemoryAllocAndFree2Arr + "us \t" + (int) (allocCount / (double) tMemoryAllocAndFree2Arr) + "M/s");
+				System.out.println("tInstance1      \t" + tInstance1 / 1000 + "ms \t" + (int) (allocCount / (double) tInstance1) + "M/s");
+				System.out.println("tStackAlloc1    \t" + tStackAlloc1 / 1000 + "ms \t" + (int) (allocCount / (double) tStackAlloc1) + "M/s");
+				System.out.println("tStackAlloc1N   \t" + tStackAlloc1N / 1000 + "ms   \t" + (int) (allocCount / (double) tStackAlloc1N) + "M/s");
+				System.out.println("tStackAlloc10N  \t" + tStackAlloc10N / 1000 + "ms  \t" + (int) (allocCount / (double) tStackAlloc10N) + "M/s");
+				System.out.println("tStackAllocArr  \t" + tStackAllocArr / 1000 + "ms  \t" + (int) (allocCount / (double) tStackAllocArr) + "M/s");
+				System.out.println("tMemoryAllocFree     \t" + tMemoryAllocAndFree / 1000 + "ms    \t" + (int) (allocCount / (double) tMemoryAllocAndFree) + "M/s");
+				System.out.println("tMemoryAllocFreeArr  \t" + tMemoryAllocAndFreeArr / 1000 + "ms \t" + (int) (allocCount / (double) tMemoryAllocAndFreeArr) + "M/s");
+				System.out.println("tMemoryAllocFreeArr2 \t" + tMemoryAllocAndFree2Arr / 1000 + "ms \t" + (int) (allocCount / (double) tMemoryAllocAndFree2Arr) + "M/s");
 			}
 		}
 
