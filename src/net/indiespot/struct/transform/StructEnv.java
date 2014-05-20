@@ -629,7 +629,20 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							} else if (name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
+							} else if (name.equals("free") && desc.equals("([Ljava/lang/Object;)V")) {
+								if (flow.stack.peek() == VarType.NULL) {
+									// ..., NULL
+									super.visitInsn(Opcodes.POP); // right thing to do?
+									// ...
+									return;
+								} else if (flow.stack.peek() == VarType.STRUCT_ARRAY) {
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "freeHandles";
+									desc = "([" + wrapped_struct_flag + ")V";
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							}else if (name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
 								if (flow.stack.peek() == VarType.NULL) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP);

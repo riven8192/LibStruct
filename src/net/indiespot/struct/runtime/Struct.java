@@ -34,6 +34,10 @@ public class Struct {
 		throwFit();
 	}
 
+	public static <T> void free(T[] structArray) {
+		throwFit();
+	}
+
 	//
 
 	public static <T> T[] map(Class<T> structType, ByteBuffer bb) {

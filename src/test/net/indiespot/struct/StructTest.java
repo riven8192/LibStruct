@@ -102,6 +102,9 @@ public class StructTest {
 				for(int i = 0; i < allocCount; i += 100)
 					memoryAllocArray(100);
 				long t6 = System.nanoTime();
+				for(int i = 0; i < allocCount; i += 100)
+					memoryAllocArrayBulkFree(100);
+				long t7 = System.nanoTime();
 
 				long tInstance1 = (t0 - tm1) / 1000L;
 				long tStackAlloc1 = (t1 - t0) / 1000L;
@@ -110,6 +113,7 @@ public class StructTest {
 				long tStackAllocArr = (t4 - t3) / 1000L;
 				long tMemoryAllocAndFree = (t5 - t4) / 1000L;
 				long tMemoryAllocAndFreeArr = (t6 - t5) / 1000L;
+				long tMemoryAllocAndFree2Arr = (t7 - t6) / 1000L;
 
 				System.out.println();
 				System.out.println("tInstance1      \t" + tInstance1 + "us      \t" + (int) (allocCount / (double) tInstance1) + "M/s");
@@ -117,8 +121,9 @@ public class StructTest {
 				System.out.println("tStackAlloc1N   \t" + tStackAlloc1N + "us   \t" + (int) (allocCount / (double) tStackAlloc1N) + "M/s");
 				System.out.println("tStackAlloc10N  \t" + tStackAlloc10N + "us  \t" + (int) (allocCount / (double) tStackAlloc10N) + "M/s");
 				System.out.println("tStackAllocArr  \t" + tStackAllocArr + "us  \t" + (int) (allocCount / (double) tStackAllocArr) + "M/s");
-				System.out.println("tMemoryAllocAndFree    \t" + tMemoryAllocAndFree + "us    \t" + (int) (allocCount / (double) tMemoryAllocAndFree) + "M/s");
-				System.out.println("tMemoryAllocAndFreeArr \t" + tMemoryAllocAndFreeArr + "us \t" + (int) (allocCount / (double) tMemoryAllocAndFreeArr) + "M/s");
+				System.out.println("tMemoryAllocFree     \t" + tMemoryAllocAndFree + "us    \t" + (int) (allocCount / (double) tMemoryAllocAndFree) + "M/s");
+				System.out.println("tMemoryAllocFreeArr  \t" + tMemoryAllocAndFreeArr + "us \t" + (int) (allocCount / (double) tMemoryAllocAndFreeArr) + "M/s");
+				System.out.println("tMemoryAllocFreeArr2 \t" + tMemoryAllocAndFree2Arr + "us \t" + (int) (allocCount / (double) tMemoryAllocAndFree2Arr) + "M/s");
 			}
 		}
 
@@ -126,10 +131,12 @@ public class StructTest {
 			new NormalVec3(); // HotSpot might remove this
 		}
 
+		@SuppressWarnings("unused")
 		private static void stackAlloc1() {
 			Vec3 vec = new Vec3(); // HotSpot will _not_ remove this
 		}
 
+		@SuppressWarnings("unused")
 		private static void stackAlloc1N(int n) {
 			for(int i = 0; i < n; i++) {
 				Vec3 vec = new Vec3(); // HotSpot will _not_ remove this
@@ -151,19 +158,22 @@ public class StructTest {
 			}
 		}
 
+		@SuppressWarnings("unused")
 		private static void stackAllocArray(int n) {
 			Vec3[] arr = new Vec3[n]; // HotSpot will _not_ remove this
 		}
 
 		private static void memoryAlloc() {
-			Vec3 vec = Struct.malloc(Vec3.class);
-			Struct.free(vec);
+			Struct.free(Struct.malloc(Vec3.class));
 		}
 
 		private static void memoryAllocArray(int n) {
-			Vec3[] arr = Struct.malloc(Vec3.class, n);
-			for(Vec3 vec : arr)
+			for(Vec3 vec : Struct.malloc(Vec3.class, n))
 				Struct.free(vec);
+		}
+
+		private static void memoryAllocArrayBulkFree(int n) {
+			Struct.free(Struct.malloc(Vec3.class, n));
 		}
 	}
 
