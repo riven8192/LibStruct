@@ -65,8 +65,6 @@ public class StructHeap {
 			if (++freeCount == allocCount) {
 				allocCount = 0;
 				freeCount = 0;
-				for (int i = 0; i < block.wordsAllocated; i++)
-					buffer.putInt(i << 2, 0x00000000);
 				block.wordsAllocated = 0;
 			}
 			return true;

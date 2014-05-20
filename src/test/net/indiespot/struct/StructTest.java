@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
+import net.indiespot.struct.cp.ForceUninitializedMemory;
 import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
@@ -76,9 +77,12 @@ public class StructTest {
 
 	public static class TestAllocPerformance {
 		public static void test() {
-			final int allocCount = 1_000_000;
+			final int allocCount = 10_000_000;
 
 			for(int k = 0; k < 10; k++) {
+				long tm1 = System.nanoTime();
+				for(int i = 0; i < allocCount; i++)
+					instance();
 				long t0 = System.nanoTime();
 				for(int i = 0; i < allocCount; i++)
 					stackAlloc1();
@@ -99,21 +103,27 @@ public class StructTest {
 					memoryAllocArray(100);
 				long t6 = System.nanoTime();
 
+				long tInstance1 = (t0 - tm1) / 1000L;
 				long tStackAlloc1 = (t1 - t0) / 1000L;
 				long tStackAlloc1N = (t2 - t1) / 1000L;
 				long tStackAlloc10N = (t3 - t2) / 1000L;
 				long tStackAllocArr = (t4 - t3) / 1000L;
-				long tMemoryAlloc = (t5 - t4) / 1000L;
-				long tMemoryAllocArr = (t6 - t5) / 1000L;
+				long tMemoryAllocAndFree = (t5 - t4) / 1000L;
+				long tMemoryAllocAndFreeArr = (t6 - t5) / 1000L;
 
 				System.out.println();
-				System.out.println("tStackAlloc1\t" + tStackAlloc1 + "us\t" + (int) (allocCount / (double) tStackAlloc1) + "M/s");
-				System.out.println("tStackAlloc1N\t" + tStackAlloc1N + "us\t" + (int) (allocCount / (double) tStackAlloc1N) + "M/s");
-				System.out.println("tStackAlloc10N\t" + tStackAlloc10N + "us\t" + (int) (allocCount / (double) tStackAlloc10N) + "M/s");
-				System.out.println("tStackAllocArr\t" + tStackAllocArr + "us\t" + (int) (allocCount / (double) tStackAllocArr) + "M/s");
-				System.out.println("tMemoryAlloc\t" + tMemoryAlloc + "us\t" + (int) (allocCount / (double) tMemoryAlloc) + "M/s");
-				System.out.println("tMemoryAllocArr\t" + tMemoryAllocArr + "us\t" + (int) (allocCount / (double) tMemoryAllocArr) + "M/s");
+				System.out.println("tInstance1      \t" + tInstance1 + "us      \t" + (int) (allocCount / (double) tInstance1) + "M/s");
+				System.out.println("tStackAlloc1    \t" + tStackAlloc1 + "us    \t" + (int) (allocCount / (double) tStackAlloc1) + "M/s");
+				System.out.println("tStackAlloc1N   \t" + tStackAlloc1N + "us   \t" + (int) (allocCount / (double) tStackAlloc1N) + "M/s");
+				System.out.println("tStackAlloc10N  \t" + tStackAlloc10N + "us  \t" + (int) (allocCount / (double) tStackAlloc10N) + "M/s");
+				System.out.println("tStackAllocArr  \t" + tStackAllocArr + "us  \t" + (int) (allocCount / (double) tStackAllocArr) + "M/s");
+				System.out.println("tMemoryAllocAndFree    \t" + tMemoryAllocAndFree + "us    \t" + (int) (allocCount / (double) tMemoryAllocAndFree) + "M/s");
+				System.out.println("tMemoryAllocAndFreeArr \t" + tMemoryAllocAndFreeArr + "us \t" + (int) (allocCount / (double) tMemoryAllocAndFreeArr) + "M/s");
 			}
+		}
+
+		private static void instance() {
+			new NormalVec3(); // HotSpot might remove this
 		}
 
 		private static void stackAlloc1() {
@@ -147,10 +157,13 @@ public class StructTest {
 
 		private static void memoryAlloc() {
 			Vec3 vec = Struct.malloc(Vec3.class);
+			Struct.free(vec);
 		}
 
 		private static void memoryAllocArray(int n) {
 			Vec3[] arr = Struct.malloc(Vec3.class, n);
+			for(Vec3 vec : arr)
+				Struct.free(vec);
 		}
 	}
 
