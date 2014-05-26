@@ -84,6 +84,10 @@ public class Struct {
 		return null;
 	}
 
+	public static void discardStructAllocationStack(StructAllocationStack stack) {
+		throwFit();
+	}
+
 	public static <T> T stackAlloc(StructAllocationStack stack, Class<T> structType) {
 		throwFit();
 		return null;

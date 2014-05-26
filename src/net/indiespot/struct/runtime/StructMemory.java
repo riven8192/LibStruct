@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 public class StructMemory {
 	public static final boolean CHECK_ALLOC_OVERFLOW = false;
@@ -21,13 +22,14 @@ public class StructMemory {
 	public static int allocate(int sizeof, StructAllocationStack stack) {
 		int handle = stack.allocate(sizeof);
 
-		if (manually_fill_and_copy) {
+		if(manually_fill_and_copy) {
 			fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
-		} else {
+		}
+		else {
 			StructUnsafe.UNSAFE.setMemory(//
-			   handle2pointer(handle),//
-			   sizeof,//
-			   (byte) 0x00);
+					handle2pointer(handle),//
+					sizeof,//
+					(byte) 0x00);
 		}
 
 		return handle;
@@ -40,13 +42,14 @@ public class StructMemory {
 	public static int allocateCopy(int srcHandle, int sizeof) {
 		int dstHandle = StructThreadLocalStack.getStack().allocate(sizeof);
 
-		if (manually_fill_and_copy) {
+		if(manually_fill_and_copy) {
 			copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
-		} else {
+		}
+		else {
 			StructUnsafe.UNSAFE.copyMemory(//
-			   handle2pointer(srcHandle),//
-			   handle2pointer(dstHandle),//
-			   sizeof);
+					handle2pointer(srcHandle),//
+					handle2pointer(dstHandle),//
+					sizeof);
 		}
 
 		return dstHandle;
@@ -57,7 +60,7 @@ public class StructMemory {
 		int handle = stack.allocate(sizeof * length);
 		fillMemoryByWord(handle, sizeofWords * length, 0x00000000);
 		int[] arr = new int[length];
-		for (int i = 0; i < arr.length; i++)
+		for(int i = 0; i < arr.length; i++)
 			arr[i] = handle + i * sizeofWords;
 		return arr;
 	}
@@ -66,28 +69,28 @@ public class StructMemory {
 		int sizeofWords = bytes2words(sizeof);
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int count = bb.remaining() / sizeof;
-		if (count == 0)
+		if(count == 0)
 			throw new IllegalStateException("no usable space in buffer");
 		int handle = pointer2handle(addr);
 		int[] arr = new int[count];
-		for (int i = 0; i < arr.length; i++)
+		for(int i = 0; i < arr.length; i++)
 			arr[i] = handle + i * sizeofWords;
 		return arr;
 	}
 
 	public static int[] mapBuffer(int sizeof, ByteBuffer bb, int stride, int offset) {
-		if (offset < 0 || offset + sizeof > stride || (offset % 4) != 0 || (stride % 4) != 0)
+		if(offset < 0 || offset + sizeof > stride || (offset % 4) != 0 || (stride % 4) != 0)
 			throw new IllegalStateException();
 
 		int offsetWords = bytes2words(offset);
 		int strideWords = bytes2words(stride);
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int count = bb.remaining() / stride;
-		if (count == 0)
+		if(count == 0)
 			throw new IllegalStateException("no usable space in buffer");
 		int handle = pointer2handle(addr);
 		int[] arr = new int[count];
-		for (int i = 0; i < arr.length; i++)
+		for(int i = 0; i < arr.length; i++)
 			arr[i] = handle + offsetWords + i * strideWords;
 		return arr;
 	}
@@ -107,7 +110,7 @@ public class StructMemory {
 	public static long alignBufferToWord(ByteBuffer bb) {
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int error = (int) (addr & (4 - 1));
-		if (error != 0) {
+		if(error != 0) {
 			int advance = 4 - error;
 			bb.position(bb.position() + advance);
 			addr += advance;
@@ -118,7 +121,7 @@ public class StructMemory {
 	public static long alignBuffer(ByteBuffer bb, int alignment) {
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int error = (int) (addr % alignment);
-		if (error != 0) {
+		if(error != 0) {
 			int advance = alignment - error;
 			bb.position(bb.position() + advance);
 			addr += advance;
@@ -128,7 +131,7 @@ public class StructMemory {
 
 	private static final void fillMemoryByWord(int handle, int count, int value) {
 		long p = handle2pointer(handle);
-		for (int i = 0; i < count; i++) {
+		for(int i = 0; i < count; i++) {
 			int off = (i << 2);
 			StructUnsafe.UNSAFE.putInt(p + off, value);
 		}
@@ -137,7 +140,7 @@ public class StructMemory {
 	private static final void copyMemoryByWord(int src, int dst, int count) {
 		long pSrc = handle2pointer(src);
 		long pDst = handle2pointer(dst);
-		for (int i = 0; i < count; i++) {
+		for(int i = 0; i < count; i++) {
 			int off = (i << 2);
 			StructUnsafe.UNSAFE.putInt(pDst + off, StructUnsafe.UNSAFE.getInt(pSrc + off));
 		}
@@ -164,34 +167,66 @@ public class StructMemory {
 	}
 
 	public static int pointer2handle(long pointer) {
-		if (CHECK_POINTER_ALIGNMENT)
-			if (pointer < 0L || (pointer & 3) != 0)
+		if(CHECK_POINTER_ALIGNMENT)
+			if(pointer < 0L || (pointer & 3) != 0)
 				throw new IllegalStateException("pointer must be 32-bit aligned");
 		long handle = pointer >> 2;
-		if (handle > 0xFFFF_FFFFL)
+		if(handle > 0xFFFF_FFFFL)
 			throw new IllegalStateException("pointer too big to fit in compressed pointer (addressable memory is 16 GB)");
 		return (int) handle;
 	}
 
 	private static void checkHandle(int handle) {
-		if (CHECK_MEMORY_ACCESS_REGION) {
+		if(CHECK_MEMORY_ACCESS_REGION) {
 			StructAllocationStack stack = StructThreadLocalStack.getStack();
-			if (stack.isOnBlock(handle) && !stack.isOnStack(handle)) {
+			if(stack.isOnBlock(handle) && !stack.isOnStack(handle)) {
 				throw new IllegalStackAccessError();
 			}
 		}
 	}
 
-	private static final List<ByteBuffer> immortal = new ArrayList<>();
+	static class Holder {
+		private final ByteBuffer buffer;
+		private final StructAllocationStack stack;
+
+		public Holder(ByteBuffer buffer, StructAllocationStack stack) {
+			this.buffer = buffer;
+			this.stack = stack;
+		}
+
+		public ByteBuffer buffer() {
+			return buffer;
+		}
+
+		public StructAllocationStack stack() {
+			return stack;
+		}
+	}
+
+	private static final List<Holder> immortal = new ArrayList<>();
 
 	public static StructAllocationStack createStructAllocationStack(int bytes) {
 		ByteBuffer buffer = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
-		synchronized (immortal) {
-			immortal.add(buffer);
-		}
 		long addr = StructMemory.alignBufferToWord(buffer);
 		int handleOffset = StructMemory.pointer2handle(addr);
-		return new StructAllocationStack(handleOffset, buffer.remaining());
+		StructAllocationStack stack = new StructAllocationStack(handleOffset, buffer.remaining());
+		synchronized (immortal) {
+			immortal.add(new Holder(buffer, stack));
+		}
+		return stack;
+	}
+
+	public static void discardStructAllocationStack(StructAllocationStack stack) {
+		synchronized (immortal) {
+			for(int i = 0, len = immortal.size(); i < len; i++) {
+				if(immortal.get(i).stack == stack) {
+					immortal.remove(i);
+					return;
+				}
+			}
+		}
+
+		throw new NoSuchElementException();
 	}
 
 	// boolean (not supported by Unsafe, so we piggyback on putByte, getByte)
