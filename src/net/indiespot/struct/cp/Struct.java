@@ -44,6 +44,17 @@ public class Struct {
 
 	//
 
+	public static <T> void copy(Class<T> structType, T src, T dst) {
+		throwFit();
+	}
+
+	public static <T, A> A view(T struct, Class<A> asType, int offsetMultipleOf4) {
+		throwFit();
+		return null;
+	}
+
+	//
+
 	public static <T> T[] map(Class<T> structType, ByteBuffer bb) {
 		throwFit();
 		return null;
