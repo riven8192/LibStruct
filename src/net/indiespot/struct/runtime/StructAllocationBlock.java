@@ -5,10 +5,14 @@ public class StructAllocationBlock {
 	final int handleOffset;
 	protected int wordsAllocated;
 
-	public StructAllocationBlock(int handleOffset, int sizeof) {
+	StructAllocationBlock(int handleOffset, int sizeof) {
 		this.handleOffset = handleOffset;
 		this.wordSizeof = bytesToWords(sizeof);
 		this.wordsAllocated = 0;
+	}
+
+	public void reset() {
+		wordsAllocated = 0;
 	}
 
 	public int allocate(int sizeof) {

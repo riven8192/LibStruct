@@ -5,14 +5,14 @@ import java.util.Arrays;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
-import net.indiespot.struct.cp.ForceUninitializedMemory;
+import net.indiespot.struct.cp.Struct;
 import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.IllegalStackAccessError;
+import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
-import net.indiespot.struct.runtime.Struct;
 
 public class StructTest {
 	public static void main(String[] args) {
@@ -59,9 +59,11 @@ public class StructTest {
 			TestStructWithStructField.test();
 			TestStructAsObjectParam.test();
 			TestMalloc.test();
+
+			TestCustomStack.test();
 		}
 
-		TestStructList.test();
+		//TestStructList.test();
 
 		// ParticleTestStruct.main(args);
 		// TestMultiThreadedAllocation.test();
@@ -75,14 +77,40 @@ public class StructTest {
 		System.out.println("done");
 	}
 
+	public static class TestCustomStack {
+		public static void test() {
+			StructAllocationStack stack = Struct.createStructAllocationStack(1024);
+
+			stack.save();
+
+			Vec3 v1 = Struct.stackAlloc(stack, Vec3.class);
+			Vec3 v2 = Struct.stackAlloc(stack, Vec3.class);
+
+			stack.restore();
+
+			Vec3 v1b = Struct.stackAlloc(stack, Vec3.class);
+			Vec3 v2b = Struct.stackAlloc(stack, Vec3.class);
+
+			assert (v1 == v1b);
+			assert (v2 == v2b);
+		}
+	}
+
 	public static class TestAllocPerformance {
 		public static void test() {
 			final int allocCount = 10_000_000;
 
+			StructAllocationStack sas = Struct.createStructAllocationStack(allocCount * Struct.sizeof(Vec3.class) + 100);
+
 			for(int k = 0; k < 10; k++) {
-				long tm1 = System.nanoTime();
+				long tm2 = System.nanoTime();
 				for(int i = 0; i < allocCount; i++)
 					instance();
+				long tm1 = System.nanoTime();
+				sas.save();
+				for(int i = 0; i < allocCount; i++)
+					stackAlloc(sas);
+				sas.restore();
 				long t0 = System.nanoTime();
 				for(int i = 0; i < allocCount; i++)
 					stackAlloc1();
@@ -106,7 +134,8 @@ public class StructTest {
 					memoryAllocArrayBulkFree(100);
 				long t7 = System.nanoTime();
 
-				long tInstance1 = (t0 - tm1) / 1000L;
+				long tInstance1 = (tm1 - tm2) / 1000L;
+				long tStackAllocS = (t0 - tm1) / 1000L;
 				long tStackAlloc1 = (t1 - t0) / 1000L;
 				long tStackAlloc1N = (t2 - t1) / 1000L;
 				long tStackAlloc10N = (t3 - t2) / 1000L;
@@ -117,6 +146,7 @@ public class StructTest {
 
 				System.out.println();
 				System.out.println("tInstance1      \t" + tInstance1 / 1000 + "ms \t" + (int) (allocCount / (double) tInstance1) + "M/s");
+				System.out.println("tStackAllocS    \t" + tStackAllocS / 1000 + "ms \t" + (int) (allocCount / (double) tStackAllocS) + "M/s");
 				System.out.println("tStackAlloc1    \t" + tStackAlloc1 / 1000 + "ms \t" + (int) (allocCount / (double) tStackAlloc1) + "M/s");
 				System.out.println("tStackAlloc1N   \t" + tStackAlloc1N / 1000 + "ms   \t" + (int) (allocCount / (double) tStackAlloc1N) + "M/s");
 				System.out.println("tStackAlloc10N  \t" + tStackAlloc10N / 1000 + "ms  \t" + (int) (allocCount / (double) tStackAlloc10N) + "M/s");
@@ -129,6 +159,10 @@ public class StructTest {
 
 		private static void instance() {
 			new NormalVec3(); // HotSpot might remove this
+		}
+
+		private static void stackAlloc(StructAllocationStack stack) {
+			Struct.stackAlloc(stack, Vec3.class).set(0.0f, 0.0f, 0.0f);
 		}
 
 		@SuppressWarnings("unused")

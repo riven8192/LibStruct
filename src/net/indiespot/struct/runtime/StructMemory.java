@@ -1,6 +1,9 @@
 package net.indiespot.struct.runtime;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StructMemory {
 	public static final boolean CHECK_ALLOC_OVERFLOW = false;
@@ -171,6 +174,18 @@ public class StructMemory {
 				throw new IllegalStackAccessError();
 			}
 		}
+	}
+
+	private static final List<ByteBuffer> immortal = new ArrayList<>();
+
+	public static StructAllocationStack createStructAllocationStack(int bytes) {
+		ByteBuffer buffer = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
+		synchronized (immortal) {
+			immortal.add(buffer);
+		}
+		long addr = StructMemory.alignBufferToWord(buffer);
+		int handleOffset = StructMemory.pointer2handle(addr);
+		return new StructAllocationStack(handleOffset, buffer.remaining());
 	}
 
 	// boolean (not supported by Unsafe, so we piggyback on putByte, getByte)
