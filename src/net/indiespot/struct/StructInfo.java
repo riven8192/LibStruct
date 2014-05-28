@@ -41,7 +41,7 @@ public class StructInfo {
 	public void validate() {
 		if(sizeof == -1)
 			throw new IllegalStateException("unspecified [" + fqcn + "].sizeof");
-		if(field2type.isEmpty() || (field2type.size() != field2offset.size()))
+		if(field2type.size() != field2offset.size())
 			throw new IllegalStateException("unspecified [" + fqcn + "].fields");
 	}
 }

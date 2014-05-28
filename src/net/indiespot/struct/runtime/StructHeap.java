@@ -3,9 +3,11 @@ package net.indiespot.struct.runtime;
 import java.nio.ByteBuffer;
 
 import net.indiespot.struct.runtime.StructGC.IntList;
+import net.indiespot.struct.transform.StructEnv;
 
 public class StructHeap {
-	private static final boolean TRACK_EVERY_HANDLE = false;
+	@SuppressWarnings("unused")
+	private static final boolean TRACK_EVERY_HANDLE = StructEnv.SAFETY_FIRST || false;
 
 	final ByteBuffer buffer;
 
@@ -20,16 +22,16 @@ public class StructHeap {
 		this.buffer = buffer;
 		this.block = new StructAllocationBlock(handleOffset, buffer.remaining());
 
-		if (TRACK_EVERY_HANDLE) {
+		if(TRACK_EVERY_HANDLE) {
 			this.activeHandles = new IntList();
 		}
 	}
 
 	public int malloc(int sizeof) {
-		if (block.canAllocate(sizeof)) {
+		if(block.canAllocate(sizeof)) {
 			int handle = block.allocate(sizeof);
-			if (TRACK_EVERY_HANDLE) {
-				if (activeHandles.contains(handle))
+			if(TRACK_EVERY_HANDLE) {
+				if(activeHandles.contains(handle))
 					throw new IllegalStateException();
 				activeHandles.add(handle);
 			}
@@ -40,12 +42,12 @@ public class StructHeap {
 	}
 
 	public int malloc(int sizeof, int length) {
-		if (block.canAllocate(sizeof * length)) {
+		if(block.canAllocate(sizeof * length)) {
 			int offset = block.allocate(sizeof * length);
-			if (TRACK_EVERY_HANDLE) {
-				for (int i = 0; i < length; i++) {
+			if(TRACK_EVERY_HANDLE) {
+				for(int i = 0; i < length; i++) {
 					int handle = offset + i * StructMemory.bytes2words(sizeof);
-					if (activeHandles.contains(handle))
+					if(activeHandles.contains(handle))
 						throw new IllegalStateException();
 					activeHandles.add(handle);
 				}
@@ -57,12 +59,12 @@ public class StructHeap {
 	}
 
 	public boolean freeHandle(int handle) {
-		if (this.isOnHeap(handle)) {
-			if (TRACK_EVERY_HANDLE) {
-				if (!activeHandles.removeValue(handle))
+		if(this.isOnHeap(handle)) {
+			if(TRACK_EVERY_HANDLE) {
+				if(!activeHandles.removeValue(handle))
 					throw new IllegalStateException();
 			}
-			if (++freeCount == allocCount) {
+			if(++freeCount == allocCount) {
 				allocCount = 0;
 				freeCount = 0;
 				block.wordsAllocated = 0;
@@ -78,16 +80,16 @@ public class StructHeap {
 
 	public boolean isEmpty() {
 		boolean isEmpty = (allocCount == freeCount);
-		if (TRACK_EVERY_HANDLE)
-			if (isEmpty != activeHandles.isEmpty())
+		if(TRACK_EVERY_HANDLE)
+			if(isEmpty != activeHandles.isEmpty())
 				throw new IllegalStateException();
 		return isEmpty;
 	}
 
 	public int getHandleCount() {
 		int count = (allocCount - freeCount);
-		if (TRACK_EVERY_HANDLE)
-			if (count != activeHandles.size())
+		if(TRACK_EVERY_HANDLE)
+			if(count != activeHandles.size())
 				throw new IllegalStateException();
 		return count;
 	}

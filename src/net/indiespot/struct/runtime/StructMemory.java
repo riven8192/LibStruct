@@ -6,10 +6,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import net.indiespot.struct.transform.StructEnv;
+
 public class StructMemory {
-	public static final boolean CHECK_ALLOC_OVERFLOW = false;
-	public static final boolean CHECK_MEMORY_ACCESS_REGION = false;
-	public static final boolean CHECK_POINTER_ALIGNMENT = false;
+	public static final boolean CHECK_ALLOC_OVERFLOW = StructEnv.SAFETY_FIRST || false;
+	public static final boolean CHECK_MEMORY_ACCESS_REGION = StructEnv.SAFETY_FIRST || false;
+	public static final boolean CHECK_POINTER_ALIGNMENT = StructEnv.SAFETY_FIRST || false;
 
 	private static final boolean manually_fill_and_copy = true;
 
@@ -178,6 +180,8 @@ public class StructMemory {
 
 	private static void checkHandle(int handle) {
 		if(CHECK_MEMORY_ACCESS_REGION) {
+			if(handle == 0)
+				throw new NullPointerException("null struct");
 			StructAllocationStack stack = StructThreadLocalStack.getStack();
 			if(stack.isOnBlock(handle) && !stack.isOnStack(handle)) {
 				throw new IllegalStackAccessError();

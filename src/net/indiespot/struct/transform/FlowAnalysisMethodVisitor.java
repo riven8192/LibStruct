@@ -4,6 +4,7 @@ import static org.objectweb.asm.Opcodes.*;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -753,10 +754,19 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs);
 	}
 
-	Label[] labels = new Label[100];
-	VarStack[] stackAtLabel = new VarStack[100];
-	VarLocal[] localAtLabel = new VarLocal[100];
+	Label[] labels = new Label[8];
+	VarStack[] stackAtLabel = new VarStack[labels.length];
+	VarLocal[] localAtLabel = new VarLocal[labels.length];
 	int labelIndex = 0;
+
+	private void ensureLabelIndex() {
+		if(labelIndex == labels.length) {
+			final int len = labels.length * 2;
+			labels = Arrays.copyOf(labels, len);
+			stackAtLabel = Arrays.copyOf(stackAtLabel, len);
+			localAtLabel = Arrays.copyOf(localAtLabel, len);
+		}
+	}
 
 	@Override
 	public void visitJumpInsn(int opcode, Label label) {
@@ -843,6 +853,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 			if(index == -1)
 				index = labelIndex++;
+			this.ensureLabelIndex();
 			labels[index] = label;
 			stackAtLabel[index] = stack.copy();
 			localAtLabel[index] = local.copy();
@@ -890,6 +901,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			index = labelIndex++;
 			if(StructEnv.PRINT_LOG)
 				System.out.println("\t\t\tsaving label state [" + index + "] <= " + label);
+			this.ensureLabelIndex();
 			labels[index] = label;
 			stackAtLabel[index] = (stack == null) ? null : stack.copy();
 			localAtLabel[index] = (local == null) ? null : local.copy();

@@ -72,9 +72,9 @@ public class StructTest {
 
 		// TestMalloc.testMultiThreaded();
 
-		// TestAllocPerformance.test();
+		 TestAllocPerformance.test();
 
-		TestStructList.test();
+		//TestStructList.test();
 
 		System.out.println("done");
 	}

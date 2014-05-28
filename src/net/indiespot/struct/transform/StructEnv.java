@@ -30,7 +30,10 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
+	public static final boolean SAFETY_FIRST = false;
+
 	public static final boolean PRINT_LOG = false;
+
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
 	public static final String array_wrapped_struct_flag = "[L" + plain_struct_flag + ";";
