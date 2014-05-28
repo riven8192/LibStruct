@@ -72,7 +72,7 @@ public class StructTest {
 		// TestPerformance.test();
 		// TheAgentD.main(args);
 
-		TestMalloc.testMultiThreaded();
+		TestMalloc.testBlockingQueueProducerConsumer();
 
 		TestAllocPerformance.test();
 
@@ -326,11 +326,11 @@ public class StructTest {
 			}
 		}
 
-		private static class Vec3Queue {
+		private static class Vec3BlockingQueue {
 			private Vec3[] queue;
 			private int size;
 
-			public Vec3Queue(int cap) {
+			public Vec3BlockingQueue(int cap) {
 				queue = Struct.emptyArray(Vec3.class, cap);
 			}
 
@@ -388,14 +388,19 @@ public class StructTest {
 			}
 		}
 
-		public static void testMultiThreaded() {
-			Vec3Queue queue = new Vec3Queue(100_000);
+		public static void testBlockingQueueProducerConsumer() {
 
-			final int itemCount = 250_000_000;
+			int start = StructGC.getHandleCount();
+			//if(start != 0)
+			//	throw new IllegalStateException("StructGC.getHandleCount="+start);
+
+			Vec3BlockingQueue queue = new Vec3BlockingQueue(100_000);
+
+			final int itemCount = 250_000;
 			for(int i = 0; i < 8; i++)
 				createProducer(queue, itemCount);
 
-			final long pollTimeout = 20_000;
+			final long pollTimeout = 5_000;
 			for(int i = 0; i < 32; i++)
 				createConsumer(queue, pollTimeout);
 
@@ -409,7 +414,7 @@ public class StructTest {
 			});
 
 			try {
-				Thread.sleep(5_000);
+				Thread.sleep(pollTimeout);
 			}
 			catch (InterruptedException e) {
 				e.printStackTrace();
@@ -425,13 +430,13 @@ public class StructTest {
 
 				//System.out.println("gc:handle-count:" + StructGC.getHandleCount());
 			}
-			while (StructGC.getHandleCount() > 0);
+			while (StructGC.getHandleCount() > start);
 
 			System.out.println("done with perf bench");
 			System.exit(0);
 		}
 
-		private static void createProducer(final Vec3Queue queue, final int items) {
+		private static void createProducer(final Vec3BlockingQueue queue, final int items) {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
@@ -444,7 +449,7 @@ public class StructTest {
 			}).start();
 		}
 
-		private static void createConsumer(final Vec3Queue queue, final long pollTimeout) {
+		private static void createConsumer(final Vec3BlockingQueue queue, final long pollTimeout) {
 			new Thread(new Runnable() {
 				@Override
 				public void run() {

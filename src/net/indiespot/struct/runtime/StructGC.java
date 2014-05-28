@@ -7,17 +7,85 @@ import java.util.Arrays;
 import java.util.List;
 
 public class StructGC {
+	// TODO: cleanup empty Regions
 	private static volatile long gc_min_interval = 10;
 	private static volatile long gc_max_interval = 2500;
 	private static volatile float gc_inc_interval = 1.2f;
 	private static volatile float gc_dec_interval = 0.5f;
 	private static volatile long gc_max_micros = 1000;
-	private static final int heap_size = 16 * (4 * 1024); // 64K
-	private static final boolean gc_verbose = true;
+	private static final int gc_heap_size = 16 * (4 * 1024); // 64K
+	private static final int gc_region_size = gc_heap_size * 8; // 64K*8 = 512K
+	private static final int gc_max_empty_heap_pool = 1024; // 1024*64K = 64M
+	private static final boolean gc_verbose = false;
 	private static final int gc_min_region_collect_count = 2;
+	private static final List<StructHeap> sync_empty_heaps = new ArrayList<>();
+	public static FastThreadLocal<StructHeap> local_heaps;
+	private static final int gc_thread_priority = Thread.NORM_PRIORITY;
+	private static final Object sync = new Object();
+
+	static {
+		local_heaps = new FastThreadLocal<StructHeap>() {
+			@Override
+			public StructHeap initialValue() {
+				return newHeap();
+			}
+
+			@Override
+			public void onRelease(StructHeap heap) {
+				if(heap == null)
+					throw new NullPointerException();
+
+				synchronized (sync) {
+					if(heap.isEmpty())
+						onEmptyHeap(heap);
+					else
+						Memory.sync_heaps.add(heap);
+				}
+			}
+		};
+	}
+
+	public static void configureGarbageCollector(//
+			long minIntervalMillis, //
+			long maxIntervalMillis, //
+			float incIntervalFactor, //
+			long maxDurationMicros,//
+			int heapSize,//
+			int maxEmptyHeaps//
+	) {
+		if(minIntervalMillis < 0)
+			throw new IllegalArgumentException();
+		if(maxIntervalMillis < minIntervalMillis)
+			throw new IllegalArgumentException();
+		if(incIntervalFactor < 1.0f)
+			throw new IllegalArgumentException();
+		if(maxDurationMicros < 0)
+			throw new IllegalArgumentException();
+		if(maxEmptyHeaps < 0)
+			throw new IllegalArgumentException();
+
+		gc_min_interval = minIntervalMillis;
+		gc_max_interval = maxIntervalMillis;
+		gc_inc_interval = incIntervalFactor;
+		gc_max_micros = maxDurationMicros;
+	}
+
+	private static void onEmptyHeap(StructHeap heap) {
+		if(!heap.isEmpty())
+			throw new IllegalStateException();
+
+		synchronized (sync) {
+			if(sync_empty_heaps.size() < gc_max_empty_heap_pool) {
+				sync_empty_heaps.add(heap);
+			}
+			else {
+				System.out.println("LibStructGC discarded " + (gc_heap_size / 1024) + "KB heap!");
+			}
+		}
+	}
 
 	public static int malloc(int sizeof) {
-		if(sizeof > heap_size)
+		if(sizeof > gc_heap_size)
 			throw new IllegalArgumentException();
 
 		StructHeap localHeap = local_heaps.get();
@@ -37,7 +105,7 @@ public class StructGC {
 		if(length <= 0)
 			throw new IllegalArgumentException();
 
-		if(sizeof * length > heap_size) {
+		if(sizeof * length > gc_heap_size) {
 			int[] handles = new int[length];
 			for(int i = 0; i < length; i++)
 				handles[i] = malloc(sizeof);
@@ -118,13 +186,11 @@ public class StructGC {
 		return Memory.newHeap();
 	}
 
-	private static final Object sync = new Object();
-
-	private static class RegionTree {
+	private static class MemoryRegionSet {
 		private static boolean triple_check = false;
 		private final List<MemoryRegion> regions;
 
-		public RegionTree() {
+		public MemoryRegionSet() {
 			regions = new ArrayList<>();
 		}
 
@@ -192,9 +258,8 @@ public class StructGC {
 	private static class Memory {
 		private static final IntStack sync_frees = new IntStack();
 		private static final List<StructHeap> sync_heaps = new ArrayList<>();
-		private static final RegionTree sync_regions = new RegionTree();
-		private static final int region_size = heap_size * 8;
-		private static final RegionTree gc_regions = new RegionTree();
+		private static final MemoryRegionSet sync_regions = new MemoryRegionSet();
+		private static final MemoryRegionSet gc_regions = new MemoryRegionSet();
 
 		public static StructHeap newHeap() {
 			synchronized (sync) {
@@ -202,18 +267,18 @@ public class StructGC {
 
 				long addr1, addr2;
 				do {
-					bb = ByteBuffer.allocateDirect(heap_size);
+					bb = ByteBuffer.allocateDirect(gc_heap_size);
 					bb.order(ByteOrder.nativeOrder());
 					addr1 = StructUnsafe.getBufferBaseAddress(bb);
-					addr2 = addr1 + heap_size - 1;
+					addr2 = addr1 + gc_heap_size - 1;
 				}
-				while (addr1 / region_size != addr2 / region_size);
+				while (addr1 / gc_region_size != addr2 / gc_region_size);
 
 				StructHeap heap = new StructHeap(bb);
 				MemoryRegion region = getRegionFor(heap);
 				if(region == null) {
 					int minWord = calcRegionMinWordForHeap(heap);
-					int wordCount = StructMemory.bytes2words(region_size);
+					int wordCount = StructMemory.bytes2words(gc_region_size);
 					sync_regions.add(new MemoryRegion(minWord, wordCount));
 				}
 				return heap;
@@ -313,16 +378,16 @@ public class StructGC {
 
 	public static int calcRegionMinWordForHeap(StructHeap heap) {
 		long addr = StructUnsafe.getBufferBaseAddress(heap.buffer);
-		return StructMemory.bytes2words(addr / Memory.region_size * Memory.region_size);
+		return StructMemory.bytes2words(addr / gc_region_size * gc_region_size);
 	}
 
 	private static class MemoryRegion {
 		private final int minWord, wordCount;
 
 		public MemoryRegion(int minWord, int wordCount) {
-			if(minWord % (StructMemory.bytes2words(Memory.region_size)) != 0)
+			if(minWord % (StructMemory.bytes2words(gc_region_size)) != 0)
 				throw new IllegalStateException();
-			if(wordCount != StructMemory.bytes2words(Memory.region_size))
+			if(wordCount != StructMemory.bytes2words(gc_region_size))
 				throw new IllegalStateException();
 			this.minWord = minWord;
 			this.wordCount = wordCount;
@@ -364,10 +429,7 @@ public class StructGC {
 					if(heap.isEmpty()) {
 						if(gcHeaps.remove(i) != heap)
 							throw new IllegalStateException();
-
-						synchronized (sync) {
-							sync_empty_heaps.add(heap);
-						}
+						onEmptyHeap(heap);
 					}
 					continue outer;
 				}
@@ -386,55 +448,9 @@ public class StructGC {
 		}
 	}
 
-	private static final List<StructHeap> sync_empty_heaps = new ArrayList<>();
-	public static FastThreadLocal<StructHeap> local_heaps = new FastThreadLocal<StructHeap>() {
-		@Override
-		public StructHeap initialValue() {
-			return newHeap();
-		}
-
-		@Override
-		public void onRelease(StructHeap heap) {
-			if(heap == null)
-				throw new NullPointerException();
-			synchronized (sync) {
-				if(heap.isEmpty())
-					sync_empty_heaps.add(heap);
-				else
-					Memory.sync_heaps.add(heap);
-			}
-		}
-	};
-
-	public static void configureGarbageCollector(//
-			long minIntervalMillis, //
-			long maxIntervalMillis, //
-			float incIntervalFactor, //
-			long maxDurationMicros,//
-			int heapSize,//
-			int maxEmptyHeaps//
-	) {
-		if(minIntervalMillis < 0)
-			throw new IllegalArgumentException();
-		if(maxIntervalMillis < minIntervalMillis)
-			throw new IllegalArgumentException();
-		if(incIntervalFactor < 1.0f)
-			throw new IllegalArgumentException();
-		if(maxDurationMicros < 0)
-			throw new IllegalArgumentException();
-		if(maxEmptyHeaps < 0)
-			throw new IllegalArgumentException();
-
-		gc_min_interval = minIntervalMillis;
-		gc_max_interval = maxIntervalMillis;
-		gc_inc_interval = incIntervalFactor;
-		gc_max_micros = maxDurationMicros;
-	}
-
 	static {
 		Thread thread = new Thread(new Runnable() {
 			@Override
-			@SuppressWarnings("unused")
 			public void run() {
 				long sleep = (gc_min_interval + gc_max_interval) / 2;
 
@@ -465,7 +481,7 @@ public class StructGC {
 
 		thread.setName("LibStruct-Garbage-Collector");
 		thread.setDaemon(true);
-		thread.setPriority(Thread.NORM_PRIORITY);
+		thread.setPriority(gc_thread_priority);
 		thread.start();
 	}
 
