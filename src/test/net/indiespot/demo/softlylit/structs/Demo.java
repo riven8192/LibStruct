@@ -43,6 +43,13 @@ public class Demo {
 								}
 							}
 						}
+
+						try {
+							Thread.sleep(10);
+						}
+						catch (InterruptedException exc) {
+							// ignore
+						}
 					}
 				}
 			};

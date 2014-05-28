@@ -70,7 +70,8 @@ public class StructGC {
 		for(int i = 0; i < handles.length; i++) {
 			if(localHeap.freeHandle(handles[i])) {
 				handles[i] = 0x00;
-			} else {
+			}
+			else {
 				allFreedFromLocalHeap = false;
 			}
 		}
@@ -322,6 +323,7 @@ public class StructGC {
 	private static volatile float gc_dec_interval = 0.5f;
 	private static volatile long gc_max_micros = 1000;
 	private static final int heap_size = 16 * (4 * 1024); // 64K
+	private static final boolean gc_verbose = false;
 
 	public static void configureGarbageCollector(//
 			long minIntervalMillis, //
@@ -351,8 +353,9 @@ public class StructGC {
 	static {
 		Thread thread = new Thread(new Runnable() {
 			@Override
+			@SuppressWarnings("unused")
 			public void run() {
-				long sleep = gc_min_interval;
+				long sleep = (gc_min_interval + gc_max_interval) / 2;
 
 				while (true) {
 					try {
@@ -365,7 +368,7 @@ public class StructGC {
 					long tBegin = System.nanoTime();
 					int freed = Memory.gc(tBegin);
 					long took = System.nanoTime() - tBegin;
-					if(freed > 0)
+					if(freed > 0 && gc_verbose)
 						System.out.println("LibStructGC freed " + freed + " handles in " + (took / 1000) + "us");
 
 					if(freed == 0)
