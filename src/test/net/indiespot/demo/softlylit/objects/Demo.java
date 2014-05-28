@@ -123,7 +123,7 @@ public class Demo {
 				}
 			}
 
-			String msg = "SoftlyLit - structs - ";
+			String msg = "SoftlyLit - objects - ";
 			msg += "calc took: " + (took / 1_000_000L) + "ms";
 			msg += ", GC: [";
 			synchronized (GC_DURATIONS) {

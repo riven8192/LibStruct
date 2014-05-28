@@ -413,7 +413,7 @@ public class StructEnv {
 								// no-op
 							}
 							else if(strategy == ReturnValueStrategy.COPY) {
-								super.visitIntInsn(BIPUSH, struct2info.get(_returnsStructType).sizeof);
+								super.visitIntInsn(SIPUSH, struct2info.get(_returnsStructType).sizeof);
 								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateCopy", "(" + wrapped_struct_flag + "I)" + wrapped_struct_flag, false);
 							}
 							else {
@@ -450,7 +450,7 @@ public class StructEnv {
 					public void visitTypeInsn(int opcode, String type) {
 						if(opcode == NEW) {
 							if(struct2info.containsKey(type)) {
-								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
+								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
 								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
 								if(struct2info.get(type).skipZeroFill)
 									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateSkipZeroFill", "(IL" + StructEnv.jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag, false);
@@ -461,7 +461,7 @@ public class StructEnv {
 						}
 						else if(opcode == ANEWARRAY) {
 							if(struct2info.containsKey(type)) {
-								super.visitIntInsn(Opcodes.BIPUSH, struct2info.get(type).sizeof);
+								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
 								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
 								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(IIL" + jvmClassName(StructAllocationStack.class) + ";)" + array_wrapped_struct_flag, false);
 								flow.stack.popEQ(VarType.STRUCT_ARRAY);
@@ -501,7 +501,7 @@ public class StructEnv {
 									returnType = "V";
 								}
 
-								super.visitIntInsn(BIPUSH, offset);
+								super.visitIntInsn(SIPUSH, offset);
 								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + wrapped_struct_flag + paramType + "I)" + returnType, false);
 								return;
 							}
@@ -525,7 +525,7 @@ public class StructEnv {
 									returnType = type;
 								}
 
-								super.visitIntInsn(BIPUSH, offset);
+								super.visitIntInsn(SIPUSH, offset);
 								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + paramType + "I)" + returnType, false);
 								return;
 							}
@@ -795,7 +795,7 @@ public class StructEnv {
 					public void visitLdcInsn(Object cst) {
 						if(cst instanceof Type) {
 							if(plain_struct_types.contains(((Type) cst).getInternalName())) {
-								flow.visitIntInsn(Opcodes.BIPUSH, struct2info.get(((Type) cst).getInternalName()).sizeof);
+								flow.visitIntInsn(Opcodes.SIPUSH, struct2info.get(((Type) cst).getInternalName()).sizeof);
 								flow.stack.popEQ(VarType.INT);
 								flow.stack.push(VarType.STRUCT_TYPE);
 								return;
