@@ -46,13 +46,15 @@ public class StructTest {
 
 			TestInstanceMethod.test();
 			TestStructReturnType.test();
-			try {
-				TestStack.test();
-				// throw new IllegalStateException();
-			}
-			catch (IllegalStackAccessError expected) {
-				// ok!
-				expected.printStackTrace();
+
+			if(StructMemory.CHECK_MEMORY_ACCESS_REGION) {
+				try {
+					TestStack.test();
+					throw new IllegalStateException();
+				}
+				catch (IllegalStackAccessError expected) {
+					// okay!
+				}
 			}
 
 			TestStructField.test();
@@ -70,9 +72,9 @@ public class StructTest {
 		// TestPerformance.test();
 		// TheAgentD.main(args);
 
-		// TestMalloc.testMultiThreaded();
+		TestMalloc.testMultiThreaded();
 
-		 TestAllocPerformance.test();
+		TestAllocPerformance.test();
 
 		//TestStructList.test();
 
@@ -328,8 +330,8 @@ public class StructTest {
 			private Vec3[] queue;
 			private int size;
 
-			{
-				queue = Struct.emptyArray(Vec3.class, 1000);
+			public Vec3Queue(int cap) {
+				queue = Struct.emptyArray(Vec3.class, cap);
 			}
 
 			public synchronized void push(Vec3 vec) {
@@ -387,13 +389,13 @@ public class StructTest {
 		}
 
 		public static void testMultiThreaded() {
-			Vec3Queue queue = new Vec3Queue();
+			Vec3Queue queue = new Vec3Queue(100_000);
 
-			final int itemCount = 250_000;
+			final int itemCount = 250_000_000;
 			for(int i = 0; i < 8; i++)
 				createProducer(queue, itemCount);
 
-			final long pollTimeout = 2_000;
+			final long pollTimeout = 20_000;
 			for(int i = 0; i < 32; i++)
 				createConsumer(queue, pollTimeout);
 
@@ -406,6 +408,13 @@ public class StructTest {
 				}
 			});
 
+			try {
+				Thread.sleep(5_000);
+			}
+			catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
 			do {
 				try {
 					Thread.sleep(100);
@@ -413,8 +422,13 @@ public class StructTest {
 				catch (InterruptedException e) {
 					e.printStackTrace();
 				}
+
+				//System.out.println("gc:handle-count:" + StructGC.getHandleCount());
 			}
 			while (StructGC.getHandleCount() > 0);
+
+			System.out.println("done with perf bench");
+			System.exit(0);
 		}
 
 		private static void createProducer(final Vec3Queue queue, final int items) {

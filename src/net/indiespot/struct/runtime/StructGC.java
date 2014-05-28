@@ -7,6 +7,15 @@ import java.util.Arrays;
 import java.util.List;
 
 public class StructGC {
+	private static volatile long gc_min_interval = 10;
+	private static volatile long gc_max_interval = 2500;
+	private static volatile float gc_inc_interval = 1.2f;
+	private static volatile float gc_dec_interval = 0.5f;
+	private static volatile long gc_max_micros = 1000;
+	private static final int heap_size = 16 * (4 * 1024); // 64K
+	private static final boolean gc_verbose = true;
+	private static final int gc_min_region_collect_count = 2;
+
 	public static int malloc(int sizeof) {
 		if(sizeof > heap_size)
 			throw new IllegalArgumentException();
@@ -111,62 +120,138 @@ public class StructGC {
 
 	private static final Object sync = new Object();
 
+	private static class RegionTree {
+		private static boolean triple_check = false;
+		private final List<MemoryRegion> regions;
+
+		public RegionTree() {
+			regions = new ArrayList<>();
+		}
+
+		public void clear() {
+			regions.clear();
+		}
+
+		public void add(MemoryRegion region) {
+			int io = this.binarySearch(region.minWord);
+			if(io >= 0)
+				throw new IllegalStateException();
+			regions.add(-(io + 1), region);
+
+			if(triple_check) {
+				for(int i = 1; i < regions.size(); i++)
+					if(regions.get(i - 1).minWord >= regions.get(i - 0).minWord)
+						throw new IllegalStateException();
+			}
+		}
+
+		public MemoryRegion search(int handle) {
+			MemoryRegion found = null;
+			if(triple_check) {
+				for(MemoryRegion region : regions)
+					if(region.isInRegion(handle))
+						found = region;
+			}
+
+			int io = this.binarySearch(handle);
+			if(io < 0)
+				if(triple_check && found != null)
+					throw new IllegalStateException();
+				else
+					return null;
+
+			MemoryRegion region = regions.get(io);
+			if(!region.isInRegion(handle))
+				throw new IllegalStateException();
+			if(triple_check && found != region)
+				throw new IllegalStateException();
+			return region;
+		}
+
+		private int binarySearch(int handle) {
+			List<MemoryRegion> list = regions;
+
+			int lo = 0;
+			int hi = list.size() - 1;
+
+			while (lo <= hi) {
+				int midIdx = (lo + hi) >>> 1;
+				MemoryRegion mid = list.get(midIdx);
+
+				if(handle < mid.minWord)
+					hi = midIdx - 1;
+				else if(handle >= mid.minWord + mid.wordCount)
+					lo = midIdx + 1;
+				else
+					return midIdx;
+			}
+			return -(lo + 1);
+		}
+	}
+
 	private static class Memory {
 		private static final IntStack sync_frees = new IntStack();
 		private static final List<StructHeap> sync_heaps = new ArrayList<>();
-		private static final List<MemoryRegion> sync_regions = new ArrayList<>();
+		private static final RegionTree sync_regions = new RegionTree();
 		private static final int region_size = heap_size * 8;
-		private static final List<MemoryRegion> gc_regions = new ArrayList<>();
+		private static final RegionTree gc_regions = new RegionTree();
 
 		public static StructHeap newHeap() {
-			ByteBuffer bb;
+			synchronized (sync) {
+				ByteBuffer bb;
 
-			long addr1, addr2;
-			do {
-				bb = ByteBuffer.allocateDirect(heap_size);
-				bb.order(ByteOrder.nativeOrder());
-				addr1 = StructUnsafe.getBufferBaseAddress(bb);
-				addr2 = addr1 + heap_size - 1;
-			}
-			while (addr1 / region_size != addr2 / region_size);
+				long addr1, addr2;
+				do {
+					bb = ByteBuffer.allocateDirect(heap_size);
+					bb.order(ByteOrder.nativeOrder());
+					addr1 = StructUnsafe.getBufferBaseAddress(bb);
+					addr2 = addr1 + heap_size - 1;
+				}
+				while (addr1 / region_size != addr2 / region_size);
 
-			StructHeap heap = new StructHeap(bb);
-			MemoryRegion region = getRegionFor(heap);
-			if(region == null) {
-				int minWord = StructMemory.bytes2words(addr1 / region_size * region_size);
-				int wordCount = StructMemory.bytes2words(region_size);
-				synchronized (sync) {
+				StructHeap heap = new StructHeap(bb);
+				MemoryRegion region = getRegionFor(heap);
+				if(region == null) {
+					int minWord = calcRegionMinWordForHeap(heap);
+					int wordCount = StructMemory.bytes2words(region_size);
 					sync_regions.add(new MemoryRegion(minWord, wordCount));
 				}
+				return heap;
 			}
-			return heap;
 		}
 
 		public static MemoryRegion getRegionFor(int handle) {
-			for(int i = 0, size = gc_regions.size(); i < size; i++)
-				if(gc_regions.get(i).isInRegion(handle))
-					return gc_regions.get(i);
+			MemoryRegion region;
+
+			region = gc_regions.search(handle);
+			if(region != null)
+				return region;
+
 			synchronized (sync) {
-				for(int i = 0, size = sync_regions.size(); i < size; i++)
-					if(sync_regions.get(i).isInRegion(handle))
-						return sync_regions.get(i);
+				region = sync_regions.search(handle);
+				if(region != null)
+					return region;
 			}
 			return null;
 		}
 
 		public static MemoryRegion getRegionFor(StructHeap heap) {
-			for(int i = 0, size = gc_regions.size(); i < size; i++)
-				if(gc_regions.get(i).isInRegion(heap))
-					return gc_regions.get(i);
+			// is still brute-force
+			for(int i = 0, size = gc_regions.regions.size(); i < size; i++)
+				if(gc_regions.regions.get(i).isInRegion(heap))
+					return gc_regions.regions.get(i);
 			synchronized (sync) {
-				for(int i = 0, size = sync_regions.size(); i < size; i++)
-					if(sync_regions.get(i).isInRegion(heap))
-						return sync_regions.get(i);
+				for(int i = 0, size = sync_regions.regions.size(); i < size; i++)
+					if(sync_regions.regions.get(i).isInRegion(heap))
+						return sync_regions.regions.get(i);
 			}
 			return null;
 		}
 
+		private static int gc_run_id = 0;
+
 		public static int gc(long begin) {
+			gc_run_id++;
 			int freed = 0;
 
 			synchronized (sync) {
@@ -174,12 +259,23 @@ public class StructGC {
 					getRegionFor(heap).gcHeaps.add(heap);
 				sync_heaps.clear();
 
-				gc_regions.addAll(sync_regions);
+				if(!sync_regions.regions.isEmpty()) {
+					System.out.println("gc_regions: " + gc_regions.regions.size() + " <-- sync_regions: " + sync_regions.regions.size());
+				}
+
+				for(MemoryRegion region : sync_regions.regions)
+					gc_regions.add(region);
 				sync_regions.clear();
 			}
 
-			for(int i = 0, size = gc_regions.size(); i < size; i++)
-				freed += gc_regions.get(i).gc(begin);
+			for(int i = 0, size = gc_regions.regions.size(); i < size; i++) {
+				int idx = (i + gc_run_id) % size;
+				freed += gc_regions.regions.get(idx).gc(begin);
+
+				if(i > gc_min_region_collect_count && isExpired(begin)) {
+					break;
+				}
+			}
 
 			synchronized (sync) {
 				while (!Memory.sync_frees.isEmpty()) {
@@ -189,8 +285,8 @@ public class StructGC {
 			}
 
 			int handleCount = 0;
-			for(int i = 0, size = gc_regions.size(); i < size; i++)
-				handleCount += gc_regions.get(i).getHandleCount();
+			for(int i = 0, size = gc_regions.regions.size(); i < size; i++)
+				handleCount += gc_regions.regions.get(i).getHandleCount();
 			Memory.gcRegionsHandleCount = handleCount;
 
 			return freed;
@@ -201,8 +297,8 @@ public class StructGC {
 		public static int getHandleCount() {
 			int handleCount = gcRegionsHandleCount;
 			synchronized (sync) {
-				for(int i = 0, size = sync_regions.size(); i < size; i++)
-					handleCount += sync_regions.get(i).getHandleCount();
+				for(int i = 0, size = sync_regions.regions.size(); i < size; i++)
+					handleCount += sync_regions.regions.get(i).getHandleCount();
 			}
 			final int[] holder = new int[1];
 			local_heaps.visit(new FastThreadLocal.Visitor<StructHeap>() {
@@ -213,6 +309,11 @@ public class StructGC {
 			});
 			return handleCount + holder[0];
 		}
+	}
+
+	public static int calcRegionMinWordForHeap(StructHeap heap) {
+		long addr = StructUnsafe.getBufferBaseAddress(heap.buffer);
+		return StructMemory.bytes2words(addr / Memory.region_size * Memory.region_size);
 	}
 
 	private static class MemoryRegion {
@@ -236,9 +337,7 @@ public class StructGC {
 		}
 
 		public boolean isInRegion(StructHeap heap) {
-			long addr = StructUnsafe.getBufferBaseAddress(heap.buffer);
-			int minWord = StructMemory.bytes2words(addr / Memory.region_size * Memory.region_size);
-			return this.minWord == minWord;
+			return this.minWord == calcRegionMinWordForHeap(heap);
 		}
 
 		public void retryFailedHandles() {
@@ -248,21 +347,12 @@ public class StructGC {
 
 		public int gc(long begin) {
 			this.retryFailedHandles(); // FIXME
-
-			if(toFree.isEmpty() || isExpired(begin))
+			if(toFree.isEmpty())
 				return 0;
 
 			int originalToFree = toFree.size;
 
-			final int chunk = 100;
-			int counter = 0;
-
 			outer: while (!toFree.isEmpty()) {
-				if(counter++ % chunk == 0) {
-					if(isExpired(begin)) {
-						break;
-					}
-				}
 
 				int handle = toFree.pop();
 
@@ -271,7 +361,6 @@ public class StructGC {
 					if(!heap.freeHandle(handle))
 						continue;
 
-					// System.out.println("freed handle: " + handle);
 					if(heap.isEmpty()) {
 						if(gcHeaps.remove(i) != heap)
 							throw new IllegalStateException();
@@ -316,14 +405,6 @@ public class StructGC {
 			}
 		}
 	};
-
-	private static volatile long gc_min_interval = 10;
-	private static volatile long gc_max_interval = 2500;
-	private static volatile float gc_inc_interval = 1.2f;
-	private static volatile float gc_dec_interval = 0.5f;
-	private static volatile long gc_max_micros = 1000;
-	private static final int heap_size = 16 * (4 * 1024); // 64K
-	private static final boolean gc_verbose = false;
 
 	public static void configureGarbageCollector(//
 			long minIntervalMillis, //
@@ -384,7 +465,7 @@ public class StructGC {
 
 		thread.setName("LibStruct-Garbage-Collector");
 		thread.setDaemon(true);
-		thread.setPriority(Thread.MIN_PRIORITY);
+		thread.setPriority(Thread.NORM_PRIORITY);
 		thread.start();
 	}
 
