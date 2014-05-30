@@ -638,6 +638,30 @@ public class StructEnv {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
 							}
+							else if(name.equals("calloc") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
+								if(flow.stack.peek(0) == VarType.STRUCT_TYPE) {
+									flow.stack.set(0, VarType.INT);
+									// ...,sizeof
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "calloc";
+									desc = "(I)" + wrapped_struct_flag;
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							}
+							else if(name.equals("calloc") && desc.equals("(Ljava/lang/Class;I)[Ljava/lang/Object;")) {
+								if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+									flow.stack.set(1, VarType.INT);
+									// ...,sizeof,length
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "calloc";
+									desc = "(II)[" + wrapped_struct_flag;
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							}
 							else if(name.equals("free") && desc.equals("(Ljava/lang/Object;)V")) {
 								if(flow.stack.peek() == VarType.NULL) {
 									// ..., NULL

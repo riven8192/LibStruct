@@ -38,6 +38,7 @@ public class StructAgent {
 		}
 		for(StructInfo structInfo : fqcn2info.values())
 			StructEnv.addStruct(structInfo);
+		
 
 		System.out.println("StructAgent: initiating application...");
 

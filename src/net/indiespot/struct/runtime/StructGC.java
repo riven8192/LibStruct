@@ -5,6 +5,7 @@ import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class StructGC {
@@ -25,6 +26,7 @@ public class StructGC {
 	private static final List<StructHeap> sync_empty_heaps = new ArrayList<>();
 	public static FastThreadLocal<StructHeap> local_heaps;
 	private static final int gc_thread_priority = Thread.NORM_PRIORITY;
+	private static final boolean gc_scramble_new_heap_memory = true;
 	private static final Object sync = new Object();
 
 	static {
@@ -140,9 +142,24 @@ public class StructGC {
 				throw new IllegalStateException();
 		}
 
+		int words = StructMemory.bytes2words(sizeof);
 		int[] handles = new int[length];
 		for(int i = 0; i < length; i++)
-			handles[i] = handle + i * StructMemory.bytes2words(sizeof);
+			handles[i] = handle + i * words;
+		return handles;
+	}
+
+	public static int calloc(int sizeof) {
+		int handle = malloc(sizeof);
+		StructMemory.clearMemory(handle, sizeof);
+		return handle;
+	}
+
+	public static int[] calloc(int sizeof, int length) {
+		int[] handles = malloc(sizeof, length);
+		for(int handle : handles)
+			// not guaranteed to be continuous block of memory!
+			StructMemory.clearMemory(handle, sizeof);
 		return handles;
 	}
 
@@ -307,6 +324,14 @@ public class StructGC {
 
 				StructHeap heap = new StructHeap(bb);
 				in_use_heap_count.incrementAndGet();
+
+				if(gc_scramble_new_heap_memory) {
+					Random rndm = new Random();
+					for(int i = heap.buffer.position(), len = heap.buffer.limit(); i < len; i++) {
+						heap.buffer.put(i, (byte) rndm.nextInt());
+					}
+				}
+
 				MemoryRegion region = getRegionFor(heap);
 				if(region == null) {
 					int minWord = calcRegionMinWordForHeap(heap);
@@ -377,6 +402,7 @@ public class StructGC {
 
 			synchronized (sync) {
 				// clean up empty regions
+				if(false)
 				for(int i = gc_region_set.regions.size() - 1; i >= 0; i--) {
 					if(!gc_region_set.regions.get(i).gcHeaps.isEmpty())
 						continue;

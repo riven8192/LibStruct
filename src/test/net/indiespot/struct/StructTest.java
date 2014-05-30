@@ -19,6 +19,8 @@ public class StructTest {
 		TestStructEnv.test();
 
 		if(true) {
+			TestCalloc.test();
+
 			TestSizeof.test();
 			TestNull.test();
 			TestOneInstance.test();
@@ -79,6 +81,25 @@ public class StructTest {
 		//TestStructList.test();
 
 		System.out.println("done");
+	}
+
+	public static class TestCalloc {
+		public static void test() {
+			Vec3 a = Struct.malloc(Vec3.class);
+			Vec3 b = Struct.calloc(Vec3.class);
+
+			assert (a.x != 0.0f);
+			assert (a.y != 0.0f);
+			assert (a.z != 0.0f);
+
+			assert (b.x == 0.0f);
+			assert (b.y == 0.0f);
+			assert (b.z == 0.0f);
+			
+
+			Struct.free(a);
+			Struct.free(b);
+		}
 	}
 
 	public static class TestView {

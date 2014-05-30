@@ -131,6 +131,10 @@ public class StructMemory {
 		return addr;
 	}
 
+	public static final void clearMemory(int handle, int sizeof){
+		fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
+	}
+	
 	private static final void fillMemoryByWord(int handle, int count, int value) {
 		long p = handle2pointer(handle);
 		for(int i = 0; i < count; i++) {

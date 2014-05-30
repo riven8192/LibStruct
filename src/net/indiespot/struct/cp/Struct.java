@@ -29,7 +29,17 @@ public class Struct {
 		return null;
 	}
 
+	public static <T> T calloc(Class<T> structType) {
+		throwFit();
+		return null;
+	}
+
 	public static <T> T[] malloc(Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
+	public static <T> T[] calloc(Class<T> structType, int length) {
 		throwFit();
 		return null;
 	}
