@@ -14,12 +14,13 @@ public class StructGC {
 	private static volatile float gc_inc_interval = 1.2f;
 	private static volatile float gc_dec_interval = 0.5f;
 	private static volatile long gc_max_micros = 1000;
+	private static volatile long gc_stress_timeout = 100; // ms
+	private static volatile long gc_panic_timeout = 1000; // ms
 	private static final int gc_heap_size = 16 * (4 * 1024); // 64K
 	private static final int gc_region_size = gc_heap_size * 16; // 64K*16 = 1M
 	private static final int gc_max_empty_heap_pool = 1024; // 1024*64K = 64M
 	private static final int gc_max_heaps_in_use = (int) (((long) 1024 * 1024 * 1024) / gc_heap_size); // 1G, this is a rather hard cap... to protect the innocent
-	private static final boolean gc_verbose_warn = true;
-	private static final boolean gc_verbose_info = false;
+	private static final boolean gc_verbose = false;
 	private static final int gc_min_region_collect_count = 2;
 	private static final List<StructHeap> sync_empty_heaps = new ArrayList<>();
 	public static FastThreadLocal<StructHeap> local_heaps;
@@ -96,8 +97,6 @@ public class StructGC {
 			}
 			else {
 				Memory.in_use_heap_count.decrementAndGet();
-				if(gc_verbose_warn)
-					System.out.println("LibStructGC discarded " + (gc_heap_size / 1024) + "KB heap!");
 			}
 		}
 	}
@@ -266,6 +265,7 @@ public class StructGC {
 		private static final List<StructHeap> sync_heaps = new ArrayList<>();
 		private static final MemoryRegionSet sync_region_set = new MemoryRegionSet();
 		private static final MemoryRegionSet gc_region_set = new MemoryRegionSet();
+		private static volatile int gc_regions_handle_count;
 
 		public static StructHeap newHeap() {
 			for(int i = 0; in_use_heap_count.get() >= gc_max_heaps_in_use; i++) {
@@ -276,13 +276,19 @@ public class StructGC {
 					// ignore
 				}
 
-				if(i == 100) { // waited for 100ms :o(
-					if(gc_verbose_warn)
-						System.err.println("LibStructGC: ran out of memory... waiting for memory to be released");
+				if(i == gc_stress_timeout) {
+					synchronized (gc_info_callbacks) {
+						for(GcInfo callback : gc_info_callbacks) {
+							callback.onPanic();
+						}
+					}
 				}
-				else if(i % 1000 == 999) {
-					if(gc_verbose_warn)
-						System.err.println("LibStructGC: ran out of memory... " + Memory.gcRegionsHandleCount + " freed handles remaining");
+				else if(i % gc_panic_timeout == gc_panic_timeout - 1) {
+					synchronized (gc_info_callbacks) {
+						for(GcInfo callback : gc_info_callbacks) {
+							callback.onPanic();
+						}
+					}
 				}
 			}
 
@@ -351,7 +357,7 @@ public class StructGC {
 				sync_heaps.clear();
 
 				if(!sync_region_set.regions.isEmpty()) {
-					if(gc_verbose_warn)
+					if(gc_verbose)
 						System.out.println("LibStructGC gc_regions: " + gc_region_set.regions.size() + " <-- sync_regions: " + sync_region_set.regions.size());
 				}
 
@@ -371,14 +377,13 @@ public class StructGC {
 
 			synchronized (sync) {
 				// clean up empty regions
-				if(false)
-					for(int i = gc_region_set.regions.size() - 1; i >= 0; i--) {
-						if(!gc_region_set.regions.get(i).gcHeaps.isEmpty())
-							continue;
-						if(!gc_region_set.regions.get(i).toFree.isEmpty())
-							throw new IllegalStateException();
-						gc_region_set.regions.remove(i);
-					}
+				for(int i = gc_region_set.regions.size() - 1; i >= 0; i--) {
+					if(!gc_region_set.regions.get(i).gcHeaps.isEmpty())
+						continue;
+					if(!gc_region_set.regions.get(i).toFree.isEmpty())
+						continue;
+					gc_region_set.regions.remove(i);
+				}
 
 				// 
 				while (!Memory.sync_frees.isEmpty()) {
@@ -390,15 +395,13 @@ public class StructGC {
 			int handleCount = 0;
 			for(int i = 0, size = gc_region_set.regions.size(); i < size; i++)
 				handleCount += gc_region_set.regions.get(i).getHandleCount();
-			Memory.gcRegionsHandleCount = handleCount;
+			gc_regions_handle_count = handleCount;
 
 			return freed;
 		}
 
-		private static volatile int gcRegionsHandleCount;
-
 		public static int getHandleCount() {
-			int handleCount = gcRegionsHandleCount;
+			int handleCount = gc_regions_handle_count;
 			synchronized (sync) {
 				for(int i = 0, size = sync_region_set.regions.size(); i < size; i++)
 					handleCount += sync_region_set.regions.get(i).getHandleCount();
@@ -485,7 +488,6 @@ public class StructGC {
 
 	static {
 		Thread thread = new Thread(new Runnable() {
-			@SuppressWarnings("unused")
 			@Override
 			public void run() {
 				long sleep = (gc_min_interval + gc_max_interval) / 2;
@@ -501,9 +503,24 @@ public class StructGC {
 					long tBegin = System.nanoTime();
 					int freed = Memory.gc(tBegin);
 					long took = System.nanoTime() - tBegin;
-					if(freed > 0 && gc_verbose_info)
-						System.out.println("LibStructGC freed " + freed + " handles in " + (took / 1000) + "us");
+					if(freed > 0) {
+						int handleCount = Memory.gc_regions_handle_count;
 
+						int gcHeaps = 0;
+						for(MemoryRegion region : Memory.gc_region_set.regions)
+							gcHeaps += region.gcHeaps.size();
+
+						int emptyHeaps;
+						synchronized (sync) {
+							emptyHeaps = sync_empty_heaps.size();
+						}
+
+						synchronized (gc_info_callbacks) {
+							for(GcInfo callback : gc_info_callbacks) {
+								callback.onGC(freed, handleCount, gcHeaps, emptyHeaps, took);
+							}
+						}
+					}
 					if(freed == 0)
 						sleep = Math.round(sleep * gc_inc_interval);
 					else
@@ -537,7 +554,11 @@ public class StructGC {
 	}
 
 	public static interface GcInfo {
-		public void onGC(int gcHeaps, int idleHeaps, int freedHandles, int[] remainingHandles, long tookNanos);
+		public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos);
+
+		public void onStress();
+
+		public void onPanic();
 	}
 
 	public static class IntStack {

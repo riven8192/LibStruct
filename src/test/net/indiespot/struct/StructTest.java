@@ -115,6 +115,9 @@ public class StructTest {
 			Struct.copy(Vec3.class, a, b);
 			assert (a.x == 12.34f);
 			assert (b.x == 12.34f);
+
+			Struct.free(a);
+			Struct.free(b);
 		}
 	}
 
@@ -391,25 +394,38 @@ public class StructTest {
 		public static void testBlockingQueueProducerConsumer() {
 
 			int start = StructGC.getHandleCount();
-			//if(start != 0)
-			//	throw new IllegalStateException("StructGC.getHandleCount="+start);
+			if(start != 0)
+				throw new IllegalStateException("StructGC.getHandleCount=" + start);
 
-			Vec3BlockingQueue queue = new Vec3BlockingQueue(100_000);
-
-			final int itemCount = 250_000_000;
-			for(int i = 0; i < 8; i++)
-				createProducer(queue, itemCount);
-
+			final int itemCountPerProducer = 1_000_000;
 			final long pollTimeout = 5_000;
-			for(int i = 0; i < 32; i++)
-				createConsumer(queue, pollTimeout);
+			final int queueCount = 4;
+			for(int q = 0; q < queueCount; q++) {
+				Vec3BlockingQueue queue = new Vec3BlockingQueue(100_000);
+
+				for(int i = 0; i < 8; i++)
+					createProducer(queue, itemCountPerProducer);
+
+				for(int i = 0; i < 32; i++)
+					createConsumer(queue, pollTimeout);
+			}
 
 			StructGC.discardThreadLocal();
 
 			StructGC.addListener(new StructGC.GcInfo() {
 				@Override
-				public void onGC(int gcHeaps, int emptyHeaps, int freedHandles, int[] remainingHandles, long tookNanos) {
-					System.out.println("StructGC: heaps:" + gcHeaps + "/" + (gcHeaps + emptyHeaps) + ", freed:" + freedHandles + ", remaining:" + Arrays.toString(remainingHandles) + ", took:" + (tookNanos / 1_000) + "us");
+				public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos) {
+					System.out.println("StructGC: handles freed: " + (freedHandles / 1024) + "K/" + (freedHandles + remainingHandles) / 1024 + "K, empty heaps: " + emptyHeaps + "/" + (emptyHeaps + gcHeaps) + ", collection took: " + (tookNanos / 1_000) + "us");
+				}
+
+				@Override
+				public void onStress() {
+
+				}
+
+				@Override
+				public void onPanic() {
+
 				}
 			});
 
@@ -427,13 +443,8 @@ public class StructTest {
 				catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-
-				System.out.println("gc:handle-count:" + StructGC.getHandleCount());
 			}
 			while (StructGC.getHandleCount() > start);
-
-			System.out.println("done with perf bench");
-			System.exit(0);
 		}
 
 		private static void createProducer(final Vec3BlockingQueue queue, final int items) {
