@@ -396,7 +396,7 @@ public class StructTest {
 
 			Vec3BlockingQueue queue = new Vec3BlockingQueue(100_000);
 
-			final int itemCount = 250_000;
+			final int itemCount = 250_000_000;
 			for(int i = 0; i < 8; i++)
 				createProducer(queue, itemCount);
 
@@ -428,7 +428,7 @@ public class StructTest {
 					e.printStackTrace();
 				}
 
-				//System.out.println("gc:handle-count:" + StructGC.getHandleCount());
+				System.out.println("gc:handle-count:" + StructGC.getHandleCount());
 			}
 			while (StructGC.getHandleCount() > start);
 
