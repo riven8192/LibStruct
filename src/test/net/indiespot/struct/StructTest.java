@@ -17,7 +17,7 @@ public class StructTest {
 	public static void main(String[] args) {
 		TestStructEnv.test();
 
-		if(!true) {
+		if(true) {
 			TestCalloc.test();
 
 			TestSizeof.test();
@@ -124,6 +124,9 @@ public class StructTest {
 			// test double[]
 			{
 				double[] darr = ae.darr;
+				
+				System.out.println(darr[0]);
+				System.out.println(darr[1]);
 
 				assert darr[0] == 0.0;
 				assert darr[1] == 0.0;
@@ -1565,11 +1568,11 @@ public class StructTest {
 		}
 	}
 
-	@StructType(sizeof = 28)
+	@StructType(sizeof = 40)
 	public static class ArrayEmbed {
 		@StructField(offset = 0) public float[] farr;
 		@StructField(offset = 8) public int[] iarr;
-		@StructField(offset = 20) public double[] darr;
+		@StructField(offset = 24) public double[] darr;
 
 		@Override
 		public String toString() {
