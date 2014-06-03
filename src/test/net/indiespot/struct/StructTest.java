@@ -124,7 +124,7 @@ public class StructTest {
 			// test double[]
 			{
 				double[] darr = ae.darr;
-				
+
 				System.out.println(darr[0]);
 				System.out.println(darr[1]);
 
@@ -1570,9 +1570,9 @@ public class StructTest {
 
 	@StructType(sizeof = 40)
 	public static class ArrayEmbed {
-		@StructField(offset = 0) public float[] farr;
-		@StructField(offset = 8) public int[] iarr;
-		@StructField(offset = 24) public double[] darr;
+		@StructField(offset = 0, length = 2) public float[] farr;
+		@StructField(offset = 8, length = 4) public int[] iarr;
+		@StructField(offset = 24, length = 2) public double[] darr;
 
 		@Override
 		public String toString() {

@@ -106,9 +106,13 @@ public class StructAgent {
 					info.setSizeof(Integer.parseInt(parts[2]));
 				}
 				else if(prop.equals("FIELD")) {
-					if(parts.length != 5)
-						throw new IllegalStateException("FIELD must have 3 parameters: name, type, offset");
-					info.addField(parts[2], parts[3], Integer.parseInt(parts[4]));
+					if(parts.length == 5)
+						info.addField(parts[2], parts[3], Integer.parseInt(parts[4]), 1);
+					else if(parts.length == 6)
+						info.addField(parts[2], parts[3], Integer.parseInt(parts[4]), Integer.parseInt(parts[5]));
+					else
+						throw new IllegalStateException("FIELD must have 3 or 4 parameters: name, type, offset [, count]");
+
 				}
 				else if(prop.equals("SKIPZEROFILL")) {
 					if(parts.length != 2)
@@ -168,7 +172,10 @@ public class StructAgent {
 								return new AnnotationVisitor(Opcodes.ASM5, super.visitAnnotation(desc, visible)) {
 									public void visit(String name, Object value) {
 										if(name.equals("offset")) {
-											info.addField(fieldName, fieldDesc, (Integer) value);
+											info.addField(fieldName, fieldDesc, (Integer) value, 1);
+										}
+										else if(name.equals("length")) {
+											info.setFieldCount(fieldName, (Integer) value);
 										}
 										super.visit(name, value);
 									};

@@ -9,6 +9,7 @@ public class StructInfo {
 	public boolean skipZeroFill;
 
 	public Map<String, Integer> field2offset = new HashMap<>();
+	public Map<String, Integer> field2count = new HashMap<>();
 	public Map<String, String> field2type = new HashMap<>();
 
 	public StructInfo(String fqcn) {
@@ -29,13 +30,24 @@ public class StructInfo {
 		System.out.println("StructInfo[" + fqcn + "] skipZeroFill");
 	}
 
-	public void addField(String name, String type, int byteOffset) {
+	public void addField(String name, String type, int byteOffset, int elemCount) {
 		if(byteOffset < 0)
 			throw new IllegalArgumentException("field byte offset must not be negative");
+		if(elemCount <= 0)
+			throw new IllegalArgumentException("field element count must be positive");
 		field2type.put(name, type);
 		field2offset.put(name, byteOffset);
+		field2count.put(name, elemCount);
 
 		System.out.println("StructInfo[" + fqcn + "] field=" + name + " " + type + " @" + byteOffset);
+	}
+
+	public void setFieldCount(String name, int elemCount) {
+		if(elemCount <= 0)
+			throw new IllegalArgumentException("field element count must be positive");
+		if(!field2count.containsKey(name))
+			throw new IllegalStateException();
+		field2count.put(name, elemCount);
 	}
 
 	public void validate() {
@@ -49,16 +61,16 @@ public class StructInfo {
 		for(String field : field2offset.keySet()) {
 			int offset = field2offset.get(field);
 			String type = field2type.get(field);
-			int sizeof = sizeof(type);
+			int range = field2count.get(field).intValue() * sizeof(type);
 
 			int alignment = alignment(type);
 			if(offset % alignment != 0)
 				throw new IllegalStateException("struct field must be aligned to " + alignment + " bytes: " + fqcn + "." + field);
 
-			if(offset < 0 || offset + sizeof > this.sizeof)
+			if(offset < 0 || offset + range > sizeof)
 				throw new IllegalStateException("struct field exceeds struct bounds: " + fqcn + "." + field);
 
-			for(int i = 0; i < sizeof; i++) {
+			for(int i = 0; i < range; i++) {
 				if(usage[offset + i])
 					throw new IllegalStateException("struct field overlaps other field: " + fqcn + "." + field);
 				usage[offset + i] = true;
@@ -87,7 +99,7 @@ public class StructInfo {
 			throw new IllegalStateException();
 		if(type.length() == 2)
 			throw new IllegalStateException();
-		return 4;
+		return 4; // struct type
 	}
 
 	private static int sizeof(String type) {
@@ -103,6 +115,6 @@ public class StructInfo {
 			return sizeof(type.substring(1)); // unknown, but at least 1 element, or it wouldn't make sense to define the array
 		if(type.length() == 2)
 			throw new IllegalStateException();
-		return 4;
+		return 4; // struct type
 	}
 }
