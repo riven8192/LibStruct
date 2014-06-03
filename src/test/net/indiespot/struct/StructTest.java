@@ -78,6 +78,7 @@ public class StructTest {
 
 		//TestStructList.test();
 		TestEmbedArray.test();
+		TestEmbedArray.testPerf();
 
 		System.out.println("done");
 	}
@@ -137,6 +138,50 @@ public class StructTest {
 				darr[1] = 3.4;
 				assert darr[0] == 1.2;
 				assert darr[1] == 3.4;
+			}
+		}
+
+		public static void testPerf() {
+			ArrayEmbed fake = new ArrayEmbed();
+
+			int[] real = new int[16];
+
+			for(int i = 0; i < 1024; i++) {
+				long t0 = System.nanoTime();
+				testPerfReal(real);
+				long t1 = System.nanoTime();
+				testPerfFake(fake);
+				long t2 = System.nanoTime();
+
+				if(i % 10 == 10 - 1) {
+					System.out.println();
+					System.out.println("real: " + (t1 - t0) / 1000 + "us");
+					System.out.println("fake: " + (t2 - t1) / 1000 + "us");
+				}
+			}
+		}
+
+		private static void testPerfReal(int[] data) {
+			for(int k = 0; k < 256 * 1024; k++) {
+				for(int m = 1; m < 16; m++) {
+					data[m] += data[m - 1];
+					data[m] *= data[(m + 3) & 0xf];
+					data[m] -= data[m - 1];
+					data[m] *= data[(m + 7) & 0xf];
+				}
+			}
+		}
+
+		private static void testPerfFake(ArrayEmbed ae) {
+			int[] data = ae.iarr;
+
+			for(int k = 0; k < 256 * 1024; k++) {
+				for(int m = 1; m < 16; m++) {
+					data[m] += data[m - 1];
+					data[m] *= data[(m + 3) & 0xf];
+					data[m] -= data[m - 1];
+					data[m] *= data[(m + 7) & 0xf];
+				}
 			}
 		}
 	}
@@ -1568,11 +1613,11 @@ public class StructTest {
 		}
 	}
 
-	@StructType(sizeof = 40)
+	@StructType(sizeof = 88)
 	public static class ArrayEmbed {
 		@StructField(offset = 0, length = 2) public float[] farr;
-		@StructField(offset = 8, length = 4) public int[] iarr;
-		@StructField(offset = 24, length = 2) public double[] darr;
+		@StructField(offset = 8, length = 16) public int[] iarr;
+		@StructField(offset = 72, length = 2) public double[] darr;
 
 		@Override
 		public String toString() {
