@@ -2,3 +2,4 @@ test.net.indiespot.struct.StructTest$Vec3
 test.net.indiespot.struct.StructTest$Ship
 test.net.indiespot.struct.StructTest$PosVelRef
 test.net.indiespot.struct.StructTest$PosVelEmbed
+test.net.indiespot.struct.StructTest$ArrayEmbed

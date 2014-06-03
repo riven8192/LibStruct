@@ -1,7 +1,6 @@
 package test.net.indiespot.struct;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
@@ -18,7 +17,7 @@ public class StructTest {
 	public static void main(String[] args) {
 		TestStructEnv.test();
 
-		if(true) {
+		if(!true) {
 			TestCalloc.test();
 
 			TestSizeof.test();
@@ -67,20 +66,100 @@ public class StructTest {
 			TestCustomStack.test();
 			TestCopy.test();
 			TestView.test();
+			TestSwitch.test();
 		}
 
 		// ParticleTestStruct.main(args);
 		// TestMultiThreadedAllocation.test();
 		// TestPerformance.test();
 		// TheAgentD.main(args);
-
-		TestMalloc.testBlockingQueueProducerConsumer();
-
-		TestAllocPerformance.test();
+		//TestMalloc.testBlockingQueueProducerConsumer();
+		//TestAllocPerformance.test();
 
 		//TestStructList.test();
+		TestEmbedArray.test();
 
 		System.out.println("done");
+	}
+
+	public static class TestEmbedArray {
+		public static void test() {
+			ArrayEmbed ae = new ArrayEmbed();
+
+			// test float[]
+			{
+				float[] farr = ae.farr;
+
+				assert farr[0] == 0.0f;
+				assert farr[1] == 0.0f;
+
+				farr[0] = 1.2f;
+				assert farr[0] == 1.2f;
+
+				farr[1] = 3.4f;
+				assert farr[0] == 1.2f;
+				assert farr[1] == 3.4f;
+			}
+
+			// test int[]
+			{
+				int[] iarr = ae.iarr;
+
+				assert iarr[0] == 0;
+				assert iarr[1] == 0;
+
+				iarr[0] = 0;
+				assert iarr[0] == 0;
+
+				iarr[1] = 3;
+				assert iarr[0] == 0;
+				assert iarr[1] == 3;
+
+				iarr[2] = 5;
+				assert iarr[0] == 0;
+				assert iarr[1] == 3;
+				assert iarr[2] == 5;
+			}
+
+			// test double[]
+			{
+				double[] darr = ae.darr;
+
+				assert darr[0] == 0.0;
+				assert darr[1] == 0.0;
+
+				darr[0] = 1.2;
+				assert darr[0] == 1.2;
+
+				darr[1] = 3.4;
+				assert darr[0] == 1.2;
+				assert darr[1] == 3.4;
+			}
+		}
+	}
+
+	public static class TestSwitch {
+		public static void test() {
+			new Vec3();
+
+			switch (4) {
+			case 1:
+				break;
+			case 2:
+				break;
+			case 3:
+				break;
+			}
+
+			switch (4) {
+			case 1003:
+				break;
+			case 2003:
+				break;
+			case 3003:
+				break;
+			}
+		}
 	}
 
 	public static class TestCalloc {
@@ -95,7 +174,6 @@ public class StructTest {
 			assert (b.x == 0.0f);
 			assert (b.y == 0.0f);
 			assert (b.z == 0.0f);
-			
 
 			Struct.free(a);
 			Struct.free(b);
@@ -1484,6 +1562,18 @@ public class StructTest {
 		@Override
 		public String toString() {
 			return "PosVelEmbed[id=" + id + ", pos=" + pos().toString() + ", vel=" + vel().toString() + "]";
+		}
+	}
+
+	@StructType(sizeof = 28)
+	public static class ArrayEmbed {
+		@StructField(offset = 0) public float[] farr;
+		@StructField(offset = 8) public int[] iarr;
+		@StructField(offset = 20) public double[] darr;
+
+		@Override
+		public String toString() {
+			return "ArrayEmbed[]";
 		}
 	}
 }

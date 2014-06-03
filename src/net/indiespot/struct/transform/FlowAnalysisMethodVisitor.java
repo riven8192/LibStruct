@@ -73,8 +73,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	@Override
 	public void visitInsn(int opcode) {
 		if(StructEnv.PRINT_LOG)
-			if(StructEnv.PRINT_LOG)
-				System.out.println("\t1)\t" + opcodeToString(opcode));
+			System.out.println("\t1)\t" + opcodeToString(opcode));
 
 		switch (opcode) {
 		case ACONST_NULL:
@@ -505,8 +504,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ALOAD: {
-			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.STRUCT_TYPE, VarType.NULL));
-			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE) {
+			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.STRUCT_TYPE, VarType.NULL, VarType.EMBEDDED_ARRAY));
+			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
 				opcode = ILOAD;
 				if(StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
@@ -536,8 +535,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ASTORE: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL));
-			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE) {
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL, VarType.EMBEDDED_ARRAY));
+			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
 				opcode = ISTORE;
 				if(StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
@@ -862,6 +861,26 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		super.visitJumpInsn(opcode, label);
 	}
 
+	@Override
+	public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
+		if(StructEnv.PRINT_LOG)
+			System.out.println("\t\tTABLE_SWITCH");
+
+		stack.popEQ(VarType.INT);
+
+		super.visitTableSwitchInsn(min, max, dflt, labels);
+	}
+
+	@Override
+	public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
+		if(StructEnv.PRINT_LOG)
+			System.out.println("\t\tLOOKUP_SWITCH");
+
+		stack.popEQ(VarType.INT);
+
+		super.visitLookupSwitchInsn(dflt, keys, labels);
+	}
+
 	private static class TryCatchBlock {
 		public final Label start, end, handler;
 		public final String type;
@@ -981,16 +1000,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		local.getEQ(var, VarType.INT);
 
 		super.visitIincInsn(var, increment);
-	}
-
-	@Override
-	public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
-		super.visitTableSwitchInsn(min, max, dflt, labels);
-	}
-
-	@Override
-	public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
-		super.visitLookupSwitchInsn(dflt, keys, labels);
 	}
 
 	@Override

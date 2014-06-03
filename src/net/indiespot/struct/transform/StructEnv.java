@@ -27,6 +27,7 @@ import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
@@ -222,6 +223,26 @@ public class StructEnv {
 		}
 	}
 
+	private static final Map<Integer, String> _aload2type = new HashMap<>();
+	private static final Map<Integer, String> _astore2type = new HashMap<>();
+	static {
+		_aload2type.put(Opcodes.LALOAD, "J");
+		_aload2type.put(Opcodes.DALOAD, "D");
+		_aload2type.put(Opcodes.IALOAD, "I");
+		_aload2type.put(Opcodes.FALOAD, "F");
+		_aload2type.put(Opcodes.BALOAD, "B");
+		_aload2type.put(Opcodes.CALOAD, "C");
+		_aload2type.put(Opcodes.SALOAD, "S");
+
+		_astore2type.put(Opcodes.LASTORE, "J");
+		_astore2type.put(Opcodes.DASTORE, "D");
+		_astore2type.put(Opcodes.IASTORE, "I");
+		_astore2type.put(Opcodes.FASTORE, "F");
+		_astore2type.put(Opcodes.BASTORE, "B");
+		_astore2type.put(Opcodes.CASTORE, "C");
+		_astore2type.put(Opcodes.SASTORE, "S");
+	}
+
 	public static byte[] rewriteClass(final String fqcn, byte[] bytecode) {
 		is_rewriting = true;
 
@@ -229,6 +250,13 @@ public class StructEnv {
 		info.analyze(fqcn, bytecode);
 		if(!info.needsRewrite())
 			return null;
+
+		if(StructEnv.PRINT_LOG) {
+			System.out.println("StructEnv.rewrite INPUT [" + fqcn + "]:");
+			int flags = 0;
+			ClassReader cr = new ClassReader(bytecode);
+			cr.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(System.out)), flags);
+		}
 
 		final ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS) {
 			protected String getCommonSuperClass(String type1, String type2) {
@@ -402,6 +430,25 @@ public class StructEnv {
 							}
 						}
 
+						if(opcode >= 79 && opcode <= 86) { // Opcodes.*ASTORE
+							boolean isWide = (opcode == Opcodes.LASTORE || opcode == Opcodes.DASTORE);
+							if(_astore2type.containsKey(Integer.valueOf(opcode)) && flow.stack.peek(isWide ? 3 : 2) == VarType.EMBEDDED_ARRAY) {
+								flow.stack.set(isWide ? 3 : 2, VarType.INT);
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), _astore2type.get(opcode).toLowerCase() + "aput", "(II" + _astore2type.get(opcode) + ")V", false);
+								return;
+							}
+						}
+						if(opcode >= 46 && opcode <= 53) { // Opcodes.*ALOAD
+							if(_aload2type.containsKey(Integer.valueOf(opcode)) && flow.stack.peek(1) == VarType.EMBEDDED_ARRAY) {
+								flow.stack.set(1, VarType.INT);
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), _aload2type.get(opcode).toLowerCase() + "aget", "(II)" + _aload2type.get(opcode), false);
+								return;
+							}
+						}
+						if(opcode == ARRAYLENGTH && flow.stack.peek() == VarType.EMBEDDED_ARRAY) {
+							throw new IllegalStateException("cannot fetch length of embedded array, as the array does not exist");
+						}
+
 						if(opcode == ARETURN && flow.stack.peek() == VarType.STRUCT) {
 							if(strategy == null)
 								throw new IllegalStateException();
@@ -518,6 +565,17 @@ public class StructEnv {
 									methodName = "$get";
 									paramType = wrapped_struct_flag;
 									returnType = wrapped_struct_flag;
+								}
+								else if(type.startsWith("[") && type.length() == 2) { // primitive array
+									flow.stack.popEQ(VarType.STRUCT);
+									flow.stack.push(VarType.INT);
+
+									super.visitIntInsn(SIPUSH, StructMemory.bytes2words(offset));
+									super.visitInsn(IADD);
+
+									flow.stack.popEQ(VarType.INT);
+									flow.stack.push(VarType.EMBEDDED_ARRAY);
+									return;
 								}
 								else {
 									methodName = type.toLowerCase() + "get";
@@ -837,6 +895,10 @@ public class StructEnv {
 			}
 		};
 
+		if(StructEnv.PRINT_LOG) {
+			System.out.println("StructEnv.rewrite TRANSFORM [" + fqcn + "]:");
+		}
+
 		try {
 			new ClassReader(bytecode).accept(visitor, 0);
 		}
@@ -853,7 +915,16 @@ public class StructEnv {
 			throw new IllegalStateException(msg, cause);
 		}
 
-		return writer.toByteArray();
+		bytecode = writer.toByteArray();
+
+		if(StructEnv.PRINT_LOG) {
+			System.out.println("StructEnv.rewrite OUTPUT [" + fqcn + "]:");
+			int flags = 0;
+			ClassReader cr = new ClassReader(bytecode);
+			cr.accept(new TraceClassVisitor(null, new Textifier(), new PrintWriter(System.out)), flags);
+		}
+
+		return bytecode;
 	}
 
 	public static String jvmClassName(Class<?> type) {

@@ -131,10 +131,10 @@ public class StructMemory {
 		return addr;
 	}
 
-	public static final void clearMemory(int handle, int sizeof){
+	public static final void clearMemory(int handle, int sizeof) {
 		fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
 	}
-	
+
 	private static final void fillMemoryByWord(int handle, int count, int value) {
 		long p = handle2pointer(handle);
 		for(int i = 0; i < count; i++) {
@@ -341,5 +341,85 @@ public class StructMemory {
 	public static final int $get(int handle, int fieldOffset) {
 		checkHandle(handle);
 		return StructUnsafe.UNSAFE.getInt(handle2pointer(handle) + fieldOffset);
+	}
+
+	// boolean[]
+
+	public static final void zaput(int arrayHandle, int index, boolean value) {
+		zput(arrayHandle, value, (index << 0));
+	}
+
+	public static final boolean zaget(int arrayHandle, int index) {
+		return zget(arrayHandle, (index << 0));
+	}
+
+	// byte[]
+
+	public static final void baput(int arrayHandle, int index, byte value) {
+		bput(arrayHandle, value, (index << 0));
+	}
+
+	public static final byte baget(int arrayHandle, int index) {
+		return bget(arrayHandle, (index << 0));
+	}
+
+	// short[]
+
+	public static final void saput(int arrayHandle, int index, short value) {
+		sput(arrayHandle, value, (index << 1));
+	}
+
+	public static final short saget(int arrayHandle, int index) {
+		return sget(arrayHandle, (index << 1));
+	}
+
+	// char[]
+
+	public static final void caput(int arrayHandle, int index, char value) {
+		cput(arrayHandle, value, (index << 1));
+	}
+
+	public static final char caget(int arrayHandle, int index) {
+		return cget(arrayHandle, (index << 1));
+	}
+
+	// int[]
+
+	public static final void iaput(int arrayHandle, int index, int value) {
+		iput(arrayHandle, value, (index << 2));
+	}
+
+	public static final int iaget(int arrayHandle, int index) {
+		return iget(arrayHandle, (index << 2));
+	}
+
+	// float[]
+
+	public static final void faput(int arrayHandle, int index, float value) {
+		fput(arrayHandle, value, (index << 2));
+	}
+
+	public static final float faget(int arrayHandle, int index) {
+		return fget(arrayHandle, (index << 2));
+	}
+
+	// long[]
+
+	public static final void japut(int arrayHandle, int index, long value) {
+		jput(arrayHandle, value, (index << 3));
+	}
+
+	public static final long jaget(int arrayHandle, int index) {
+		return jget(arrayHandle, (index << 3));
+	}
+
+	// double[]
+
+	public static final void daput(int arrayHandle, int index, double value) {
+		dput(arrayHandle, value, (index << 3));
+	}
+
+	public static final double daget(int arrayHandle, int index) {
+		return dget(arrayHandle, (index << 3));
 	}
 }
