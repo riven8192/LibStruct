@@ -2,6 +2,7 @@ package net.indiespot.struct.runtime;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -326,9 +327,9 @@ public class StructGC {
 				in_use_heap_count.incrementAndGet();
 
 				if(gc_scramble_new_heap_memory) {
-					Random rndm = new Random();
-					for(int i = heap.buffer.position(), len = heap.buffer.limit(); i < len; i++) {
-						heap.buffer.put(i, (byte) rndm.nextInt());
+					IntBuffer ib = heap.buffer.asIntBuffer();
+					for(int i = ib.position(), len = ib.limit(); i < len; i++) {
+						ib.put(i, 0xCAFEBABE);
 					}
 				}
 
@@ -403,13 +404,13 @@ public class StructGC {
 			synchronized (sync) {
 				// clean up empty regions
 				if(false)
-				for(int i = gc_region_set.regions.size() - 1; i >= 0; i--) {
-					if(!gc_region_set.regions.get(i).gcHeaps.isEmpty())
-						continue;
-					if(!gc_region_set.regions.get(i).toFree.isEmpty())
-						continue;
-					gc_region_set.regions.remove(i);
-				}
+					for(int i = gc_region_set.regions.size() - 1; i >= 0; i--) {
+						if(!gc_region_set.regions.get(i).gcHeaps.isEmpty())
+							continue;
+						if(!gc_region_set.regions.get(i).toFree.isEmpty())
+							continue;
+						gc_region_set.regions.remove(i);
+					}
 
 				// 
 				while (!Memory.sync_frees.isEmpty()) {
