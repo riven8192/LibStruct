@@ -8,8 +8,6 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.IllegalClassFormatException;
 import java.lang.instrument.Instrumentation;
 import java.security.ProtectionDomain;
-import java.util.HashMap;
-import java.util.Map;
 
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
@@ -28,15 +26,14 @@ public class StructAgent {
 	public static void premain(String args, Instrumentation inst) {
 		System.out.println("StructAgent: reading struct-defs from resource: '" + args + "'");
 
-		Map<String, StructInfo> fqcn2info;
 		try (InputStream in = StructAgent.class.getClassLoader().getResourceAsStream(args)) {
-			fqcn2info = processStructDefinitionInfo(new BufferedReader(new InputStreamReader(in, "ASCII")));
+			processStructDefinitionInfo(new BufferedReader(new InputStreamReader(in, "ASCII")));
 		}
 		catch (Throwable cause) {
 			cause.printStackTrace();
 			return;
 		}
-		for(StructInfo structInfo : fqcn2info.values())
+		for(StructInfo structInfo : StructInfo.values())
 			StructEnv.addStruct(structInfo);
 
 		System.out.println("StructAgent: initiating application...");
@@ -64,8 +61,7 @@ public class StructAgent {
 		});
 	}
 
-	private static Map<String, StructInfo> processStructDefinitionInfo(BufferedReader br) throws IOException {
-		Map<String, StructInfo> fqcn2info = new HashMap<>();
+	private static void processStructDefinitionInfo(BufferedReader br) throws IOException {
 
 		while (true) {
 			String line = br.readLine();
@@ -81,7 +77,7 @@ public class StructAgent {
 
 			String fqcn = parts[0].replace('.', '/');
 
-			StructInfo info = fqcn2info.get(fqcn);
+			StructInfo info = StructInfo.lookup(fqcn);
 
 			if(parts.length == 1) {
 				InputStream bytecode = StructAgent.class.getClassLoader().getResourceAsStream(fqcn + ".class");
@@ -89,7 +85,7 @@ public class StructAgent {
 					throw new IllegalStateException("failed to find '" + fqcn + "' in classpath");
 				}
 				System.out.println("StructAgent: found struct in classpath: " + fqcn);
-				fqcn2info.put(fqcn, info = gatherStructInfo(fqcn, bytecode));
+				info = gatherStructInfo(fqcn, bytecode);
 			}
 			else {
 				if(parts.length < 1)
@@ -97,7 +93,7 @@ public class StructAgent {
 
 				String prop = parts[1];
 				if(info == null) {
-					fqcn2info.put(fqcn, info = new StructInfo(fqcn));
+					info = new StructInfo(fqcn);
 				}
 
 				if(prop.equals("SIZEOF")) {
@@ -106,13 +102,26 @@ public class StructAgent {
 					info.setSizeof(Integer.parseInt(parts[2]));
 				}
 				else if(prop.equals("FIELD")) {
-					if(parts.length == 5)
-						info.addField(parts[2], parts[3], Integer.parseInt(parts[4]), 1);
-					else if(parts.length == 6)
-						info.addField(parts[2], parts[3], Integer.parseInt(parts[4]), Integer.parseInt(parts[5]));
-					else
-						throw new IllegalStateException("FIELD must have 3 or 4 parameters: name, type, offset [, count]");
+					String name = parts[2];
+					String type = parts[3];
+					int sizeof;
+					int count = 1;
+					boolean embed = false;
 
+					switch (parts.length) {
+					case 7:
+						embed = Boolean.parseBoolean(parts[6]);
+						// fall through
+					case 6:
+						count = Integer.parseInt(parts[5]);
+						// fall through
+					case 5:
+						sizeof = Integer.parseInt(parts[4]);
+						break;
+					default:
+						throw new IllegalStateException("FIELD must have 3 or 4 parameters: name, type, offset [, count [, embed]]");
+					}
+					info.addField(name, type, sizeof, count, embed);
 				}
 				else if(prop.equals("SKIPZEROFILL")) {
 					if(parts.length != 2)
@@ -124,8 +133,6 @@ public class StructAgent {
 				}
 			}
 		}
-
-		return fqcn2info;
 	}
 
 	private static StructInfo gatherStructInfo(final String fqcn, final InputStream bytecode) throws IOException {
@@ -172,10 +179,13 @@ public class StructAgent {
 								return new AnnotationVisitor(Opcodes.ASM5, super.visitAnnotation(desc, visible)) {
 									public void visit(String name, Object value) {
 										if(name.equals("offset")) {
-											info.addField(fieldName, fieldDesc, (Integer) value, 1);
+											info.addField(fieldName, fieldDesc, (Integer) value, 1, false);
 										}
 										else if(name.equals("length")) {
 											info.setFieldCount(fieldName, (Integer) value);
+										}
+										else if(name.equals("embed")) {
+											info.setFieldEmbed(fieldName, (Boolean) value);
 										}
 										super.visit(name, value);
 									};

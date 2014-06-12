@@ -62,7 +62,10 @@ public class Demo {
 			fallers.add(faller);
 		}
 
-		final int lightDim = 64;
+		final int quality = 8; // 1..8
+		final int lightDim = (16 * quality);
+		final float diffuse = 0.16f / (quality * quality);
+		final float ambient = 0.25f;
 
 		final List<LightArea> areas = new ArrayList<>();
 		for(int i = 0; i < lightDim * lightDim; i++) {
@@ -80,9 +83,6 @@ public class Demo {
 		List<Triangle> tmp = new ArrayList<>();
 		List<Triangle> out = new ArrayList<>();
 		List<Line> occluders = new ArrayList<>();
-
-		final float diffuse = (float) 1 / 0xff;
-		final float ambient = 0.25f;
 
 		Display.setDisplayMode(new DisplayMode(512, 512));
 		Display.setTitle("Softly Lit - with objects");

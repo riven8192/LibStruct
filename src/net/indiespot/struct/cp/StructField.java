@@ -8,4 +8,6 @@ public @interface StructField {
 	int offset();
 
 	int length() default 1;
+
+	boolean embed() default false;
 }

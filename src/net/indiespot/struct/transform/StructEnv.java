@@ -11,6 +11,7 @@ import java.util.Set;
 import net.indiespot.struct.StructInfo;
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.Struct;
+import net.indiespot.struct.cp.StructConfig;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.StructAllocationStack;
@@ -31,9 +32,14 @@ import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
-	public static final boolean SAFETY_FIRST = false;
+	public static final boolean SAFETY_FIRST;
 
-	public static final boolean PRINT_LOG = false;
+	public static final boolean PRINT_LOG;
+
+	static {
+		SAFETY_FIRST = StructConfig.parseVmArg(StructEnv.class, "SAFETY_FIRST", 0, false) != 0L;
+		PRINT_LOG = StructConfig.parseVmArg(StructEnv.class, "PRINT_LOG", 0, false) != 0L;
+	}
 
 	public static final String plain_struct_flag = "$truct";
 	public static final String wrapped_struct_flag = "L" + plain_struct_flag + ";";
@@ -534,7 +540,12 @@ public class StructEnv {
 							if(struct2info.containsKey(owner)) {
 								StructInfo info = struct2info.get(owner);
 								int offset = info.field2offset.get(name).intValue();
+								boolean embed = info.field2embed.get(name).booleanValue();
 								String type = info.field2type.get(name);
+
+								if(embed) {
+									throw new IllegalStateException("cannot assign to embedded struct field");
+								}
 
 								String methodName, paramType, returnType;
 								if(wrapped_struct_types.contains(type)) {
@@ -552,13 +563,25 @@ public class StructEnv {
 								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), methodName, "(" + wrapped_struct_flag + paramType + "I)" + returnType, false);
 								return;
 							}
-
 						}
 						else if(opcode == GETFIELD) {
 							if(struct2info.containsKey(owner)) {
 								StructInfo info = struct2info.get(owner);
 								int offset = info.field2offset.get(name).intValue();
+								boolean embed = info.field2embed.get(name).booleanValue();
 								String type = info.field2type.get(name);
+
+								if(embed) {
+									flow.stack.popEQ(VarType.STRUCT);
+									flow.stack.push(VarType.INT);
+
+									super.visitIntInsn(SIPUSH, StructMemory.bytes2words(offset));
+									super.visitInsn(IADD);
+
+									flow.stack.popEQ(VarType.INT);
+									flow.stack.push(VarType.STRUCT);
+									return;
+								}
 
 								String methodName, paramType, returnType;
 								if(wrapped_struct_types.contains(type)) {

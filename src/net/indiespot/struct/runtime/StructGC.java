@@ -6,8 +6,9 @@ import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import net.indiespot.struct.cp.StructConfig;
 
 public class StructGC {
 
@@ -18,12 +19,27 @@ public class StructGC {
 	private static volatile long gc_max_micros = 1000;
 	private static volatile long gc_stress_timeout = 100; // ms
 	private static volatile long gc_panic_timeout = 1000; // ms
-	private static final int gc_heap_size = 16 * (4 * 1024); // 64K
-	private static final int gc_region_size = gc_heap_size * 16; // 64K*16 = 1M
-	private static final int gc_max_empty_heap_pool = 1024; // 1024*64K = 64M
-	private static final int gc_max_heaps_in_use = (int) (((long) 1024 * 1024 * 1024) / gc_heap_size); // 1G, this is a rather hard cap... to protect the innocent
-	private static final boolean gc_verbose = false;
-	private static final int gc_min_region_collect_count = 2;
+	private static final int gc_heap_size;
+	private static final int gc_region_size;
+	private static final int gc_max_empty_heap_pool;
+	private static final int gc_max_heaps_in_use;
+	private static final boolean gc_verbose;
+	private static final int gc_min_region_collect_count;
+
+	static {
+		final int pageSize = 4 * 1024;
+
+		gc_heap_size = (int) StructConfig.parseVmArg(StructGC.class, "HEAP_SIZE", 16 * pageSize, true);
+		gc_region_size = (int) StructConfig.parseVmArg(StructGC.class, "REGION_SIZE", gc_heap_size * 16, true);
+		gc_max_empty_heap_pool = (int) StructConfig.parseVmArg(StructGC.class, "MAX_EMPTY_HEAP_POOL", 1000, false);
+
+		long maxMemUse = StructConfig.parseVmArg(StructGC.class, "MAX_MEMORY_USE", 1024L * 1024L * 1024L, true);
+		gc_max_heaps_in_use = (int) (maxMemUse / gc_heap_size);
+
+		gc_verbose = StructConfig.parseVmArg(StructGC.class, "VERBOSE", 0L, true) != 0L;
+		gc_min_region_collect_count = (int) StructConfig.parseVmArg(StructGC.class, "MIN_REGION_COLLECT_COUNT", 2, false);
+	}
+
 	private static final List<StructHeap> sync_empty_heaps = new ArrayList<>();
 	public static FastThreadLocal<StructHeap> local_heaps;
 	private static final int gc_thread_priority = Thread.NORM_PRIORITY;
