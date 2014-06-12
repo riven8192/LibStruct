@@ -55,13 +55,17 @@ public class StructEnv {
 	private static volatile boolean is_rewriting = false;
 
 	public static void addStruct(StructInfo info) {
-		info.validate();
 		if(is_rewriting)
 			throw new IllegalStateException("cannot add struct definition when classes have been rewritten already");
 		struct2info.put(info.fqcn, info);
 		plain_struct_types.add(info.fqcn);
 		wrapped_struct_types.add("L" + info.fqcn + ";");
 		array_wrapped_struct_types.add("[L" + info.fqcn + ";");
+	}
+
+	public static void linkStructs() {
+		for(StructInfo info : struct2info.values())
+			info.validate();
 	}
 
 	private static enum ReturnValueStrategy {

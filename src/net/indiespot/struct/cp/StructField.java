@@ -5,7 +5,7 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.CLASS)
 public @interface StructField {
-	int offset();
+	int offset() default -1;
 
 	int length() default 1;
 

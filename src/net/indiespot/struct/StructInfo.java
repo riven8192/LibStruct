@@ -1,7 +1,9 @@
 package net.indiespot.struct;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 
@@ -22,6 +24,7 @@ public class StructInfo {
 	public int sizeof = -1;
 	public boolean skipZeroFill;
 
+	public List<String> fieldNames = new ArrayList<>();
 	public Map<String, Integer> field2offset = new HashMap<>();
 	public Map<String, Integer> field2count = new HashMap<>();
 	public Map<String, String> field2type = new HashMap<>();
@@ -35,6 +38,8 @@ public class StructInfo {
 	}
 
 	public void setSizeof(int sizeof) {
+		if(sizeof == -1)
+			return;
 		if(sizeof <= 0 || sizeof % 4 != 0)
 			throw new IllegalArgumentException("struct sizeof must be a multiple of 4");
 		this.sizeof = sizeof;
@@ -49,39 +54,68 @@ public class StructInfo {
 	}
 
 	public void addField(String name, String type, int byteOffset, int elemCount, boolean embed) {
-		if(byteOffset < 0)
+		if(byteOffset < -1)
 			throw new IllegalArgumentException("field byte offset must not be negative");
 		if(elemCount <= 0)
 			throw new IllegalArgumentException("field element count must be positive");
+
+		fieldNames.add(name);
 		field2type.put(name, type);
 		field2offset.put(name, byteOffset);
 		field2count.put(name, elemCount);
 		field2embed.put(name, embed);
-
-		System.out.println("StructInfo[" + fqcn + "] field=" + name + " " + type + " @" + byteOffset);
 	}
 
-	public void setFieldCount(String name, int elemCount) {
-		if(elemCount <= 0)
-			throw new IllegalArgumentException("field element count must be positive");
-		if(!field2count.containsKey(name))
+	public int calcSizeof() {
+		this.layout();
+		if(sizeof <= 0)
 			throw new IllegalStateException();
-		field2count.put(name, elemCount);
+		return sizeof;
 	}
 
-	public void setFieldEmbed(String name, boolean embed) {
-		if(!field2embed.containsKey(name))
-			throw new IllegalStateException();
-		field2embed.put(name, embed);
+	private boolean didLayout = false;
+
+	private void layout() {
+		if(didLayout)
+			return;
+		didLayout = true;
+
+		int calcSizeof = 0;
+
+		for(String field : fieldNames) {
+			int offset = field2offset.get(field).intValue();
+			boolean embed = field2embed.get(field).booleanValue();
+			String type = field2type.get(field);
+			int count = field2count.get(field).intValue();
+
+			if(offset == -1) {
+				offset = calcSizeof;
+
+				int alignment = alignment(type);
+				offset = align(offset, alignment);
+				field2offset.put(field, offset);
+			}
+			int fieldWidth = sizeof(type, embed) * count;
+
+			System.out.println("StructInfo[" + fqcn + "] field=" + field + ", type=" + type + ", offset=" + offset + ", sizeof=" + fieldWidth + ", alignment=" + alignment(type));
+
+			calcSizeof = Math.max(offset, calcSizeof) + fieldWidth;
+		}
+		calcSizeof = align(calcSizeof, 4);
+
+		if(sizeof == -1)
+			sizeof = calcSizeof;
+		else if(sizeof < calcSizeof)
+			throw new IllegalStateException("struct sizeof " + fqcn + " was defined as " + sizeof + ", while " + calcSizeof + " is required");
 	}
 
 	public void validate() {
-		if(sizeof == -1)
-			throw new IllegalStateException("unspecified [" + fqcn + "].sizeof");
 		if(field2type.size() != field2offset.size())
 			throw new IllegalStateException("unspecified [" + fqcn + "].fields");
 
-		boolean[] usage = new boolean[sizeof];
+		this.layout();
+
+		String[] usage = new String[sizeof];
 
 		for(String field : field2offset.keySet()) {
 			int offset = field2offset.get(field).intValue();
@@ -97,11 +131,17 @@ public class StructInfo {
 				throw new IllegalStateException("struct field exceeds struct bounds: " + fqcn + "." + field);
 
 			for(int i = 0; i < range; i++) {
-				if(usage[offset + i])
-					throw new IllegalStateException("struct field overlaps other field: " + fqcn + "." + field);
-				usage[offset + i] = true;
+				if(usage[offset + i] != null)
+					throw new IllegalStateException("struct field overlaps other field: " + fqcn + "." + field + " (." + usage[offset + i] + ")");
+				usage[offset + i] = field;
 			}
 		}
+	}
+
+	private int align(int offset, int alignment) {
+		while (offset % alignment != 0)
+			offset++;
+		return offset;
 	}
 
 	private static int alignment(String type) {
@@ -141,9 +181,10 @@ public class StructInfo {
 			return sizeof(type.substring(1), embed); // unknown, but at least 1 element, or it wouldn't make sense to define the array
 		if(type.length() == 2)
 			throw new IllegalStateException();
-		StructInfo info = lookup(type.substring(1, type.length()-1));
+
+		StructInfo info = lookup(type.substring(1, type.length() - 1));
 		if(info == null)
 			throw new NoSuchElementException("struct type not found: " + type);
-		return embed ? info.sizeof : 4; // struct type
+		return embed ? info.calcSizeof() : 4; // struct type
 	}
 }

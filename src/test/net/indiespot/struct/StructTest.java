@@ -78,7 +78,7 @@ public class StructTest {
 		//TestMalloc.testBlockingQueueProducerConsumer();
 		//TestAllocPerformance.test();
 
-		//TestStructList.test();
+		TestStructList.test();
 		TestEmbedArray.test();
 		//TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
@@ -90,10 +90,11 @@ public class StructTest {
 		public static void test() {
 			StructEmbed em1 = new StructEmbed();
 			StructEmbed em2 = new StructEmbed();
+			assert (Struct.getPointer(em2) - Struct.getPointer(em1)) == Struct.sizeof(StructEmbed.class);
 
 			assert (Struct.getPointer(em1) - Struct.getPointer(em1.pos)) == 0;
 			assert (Struct.getPointer(em1.vel) - Struct.getPointer(em1.pos)) == Struct.sizeof(Vec3.class);
-			
+
 			assert (Struct.getPointer(em2) - Struct.getPointer(em2.pos)) == 0;
 			assert (Struct.getPointer(em2.vel) - Struct.getPointer(em2.pos)) == Struct.sizeof(Vec3.class);
 		}
@@ -141,9 +142,6 @@ public class StructTest {
 			// test double[]
 			{
 				double[] darr = ae.darr;
-
-				System.out.println(darr[0]);
-				System.out.println(darr[1]);
 
 				assert darr[0] == 0.0;
 				assert darr[1] == 0.0;
@@ -345,9 +343,6 @@ public class StructTest {
 			PosVelEmbed embed = new PosVelEmbed();
 			embed.pos().set(19, 20, 21);
 			embed.vel().set(22, 23, 24);
-
-			System.out.println(ref.toString());
-			System.out.println(embed.toString());
 		}
 	}
 
@@ -558,28 +553,23 @@ public class StructTest {
 		public static void test() {
 			for(int i = 0; i < 4; i++) {
 				Vec3 vec1 = Struct.malloc(Vec3.class);
-				System.out.println(vec1);
-
 				Vec3 vec2 = Struct.malloc(Vec3.class);
-				System.out.println(vec2);
 
 				Struct.free(vec1);
 				Struct.free(vec2);
 			}
 
-			System.out.println();
-
 			Vec3[] vecs = Struct.malloc(Vec3.class, 7);
 			for(Vec3 vec : vecs) {
-				System.out.println(vec);
 				Struct.free(vec);
 			}
 
 			vecs = Struct.malloc(Vec3.class, 100_000);
 			for(Vec3 vec : vecs) {
-				// System.out.println(vec);
 				Struct.free(vec);
 			}
+
+			Struct.free(Struct.malloc(Vec3.class, 100_000));
 		}
 
 		private static class Vec3BlockingQueue {
@@ -748,10 +738,7 @@ public class StructTest {
 			assert (ship.pos == null);
 
 			ship.pos = new Vec3();
-			System.out.println(ship.pos);
 			assert (ship.pos != null);
-			System.out.println(ship.pos);
-			System.out.println(ship.pos.toString());
 		}
 	}
 
@@ -824,10 +811,6 @@ public class StructTest {
 	public static class TestStructAsObjectParam {
 		public static void test() {
 			Vec3 vec = new Vec3();
-			Object ref = new Vec3();
-
-			System.out.println("vec=" + vec);
-			System.out.println("ref=" + ref);
 
 			{
 				test(null);
@@ -918,12 +901,9 @@ public class StructTest {
 		public static void test() {
 			new Vec3();
 			Vec3 vec = null;
-			System.out.println(vec);
 			vec = new Vec3();
-			System.out.println(vec);
 			vec = null;
 			vec = new Vec3();
-			System.out.println(vec);
 
 			// if(Math.random() < 0.5)
 			// vec = new Vec3();
@@ -992,12 +972,6 @@ public class StructTest {
 			long p2 = Struct.getPointer(mapped[1]);
 			if(p2 - p1 != 12)
 				throw new IllegalStateException();
-
-			System.out.println(mapped.length);
-			for(int i = 0; i < mapped.length; i++) {
-				System.out.println(mapped[i].toString());
-			}
-			System.out.println("done:" + bb);
 		}
 	}
 
@@ -1028,17 +1002,6 @@ public class StructTest {
 				if(p2 - p1 != 12)
 					throw new IllegalStateException();
 			}
-
-			System.out.println(mapped1.length);
-			for(int i = 0; i < mapped1.length; i++) {
-				System.out.println(mapped1[i]);
-			}
-			System.out.println();
-			System.out.println(mapped2.length);
-			for(int i = 0; i < mapped2.length; i++) {
-				System.out.println(mapped2[i]);
-			}
-			System.out.println("done:" + bb);
 		}
 	}
 
@@ -1315,8 +1278,8 @@ public class StructTest {
 			Vec3 vec = new Vec3();
 			Object obj = new Object();
 
-			System.out.println("addr=" + Struct.getPointer(vec));
-			System.out.println("addr=" + Struct.getPointer(obj));
+			//System.out.println("addr=" + Struct.getPointer(vec));
+			//System.out.println("addr=" + Struct.getPointer(obj));
 		}
 	}
 
@@ -1350,20 +1313,12 @@ public class StructTest {
 			Vec3 vec2 = returnSelf(vec1);
 			Vec3 vec3 = returnCopy(vec1);
 
-			System.out.println(Struct.getPointer(vec1));
-			System.out.println(Struct.getPointer(vec2));
-			System.out.println(Struct.getPointer(vec3));
-
 			if(vec1 != vec2)
 				throw new IllegalStateException("vec1 != vec2");
 			if(vec1 == vec3)
 				throw new IllegalStateException("vec1 == vec3");
 
-			System.out.println(vec1.x);
-			System.out.println(vec2.x);
 			vec1.x = 73.31f;
-			System.out.println(vec1.x);
-			System.out.println(vec2.x);
 		}
 
 		@TakeStruct
@@ -1438,10 +1393,6 @@ public class StructTest {
 			b.x = 4.8f;
 			assert a.x == arr[0].x;
 			assert b.x == arr[1].x;
-
-			System.out.println(a.x);
-			System.out.println(b.x);
-			System.out.println(arr[arr.length - 1].x);
 		}
 	}
 
@@ -1599,22 +1550,22 @@ public class StructTest {
 	// ----------------
 
 	public static void echo(String v) {
-		System.out.println(v);
+		//System.out.println(v);
 	}
 
 	public static void echo(float v) {
-		System.out.println(v);
+		//System.out.println(v);
 	}
 
 	public static void echo(boolean v) {
-		System.out.println(v);
+		//System.out.println(v);
 	}
 
-	@StructType(sizeof = 12)
+	@StructType
 	public static class Vec3 {
-		@StructField(offset = 0) public float x;
-		@StructField(offset = 4) public float y;
-		@StructField(offset = 8) public float z;
+		@StructField public float x;
+		@StructField public float y;
+		@StructField public float z;
 		public static int aaaaaaah;
 
 		public Vec3() {
@@ -1661,7 +1612,7 @@ public class StructTest {
 		}
 
 		public static void noob() {
-			System.out.println("n00b!");
+			//System.out.println("n00b!");
 		}
 
 		@Override
@@ -1670,11 +1621,11 @@ public class StructTest {
 		}
 	}
 
-	@StructType(sizeof = 8)
+	@StructType
 	public static class Ship {
 		private static int id_gen = 100000;
-		@StructField(offset = 0) public int id;
-		@StructField(offset = 4) public Vec3 pos;
+		@StructField public int id;
+		@StructField public Vec3 pos;
 
 		public Ship() {
 			id = ++id_gen;// new Random().nextInt(); // FIXME
@@ -1687,11 +1638,11 @@ public class StructTest {
 		}
 	}
 
-	@StructType(sizeof = 12)
+	@StructType
 	public static class PosVelRef {
-		@StructField(offset = 0) public int id;
-		@StructField(offset = 4) public Vec3 pos;
-		@StructField(offset = 8) public Vec3 vel;
+		@StructField public int id;
+		@StructField public Vec3 pos;
+		@StructField public Vec3 vel;
 
 		@Override
 		public String toString() {
@@ -1699,9 +1650,9 @@ public class StructTest {
 		}
 	}
 
-	@StructType(sizeof = 28)
+	@StructType
 	public static class PosVelEmbed {
-		@StructField(offset = 0) public int id;
+		@StructField public int id;
 
 		@TakeStruct
 		public Vec3 pos() {
@@ -1719,11 +1670,11 @@ public class StructTest {
 		}
 	}
 
-	@StructType(sizeof = 88)
+	@StructType
 	public static class ArrayEmbed {
-		@StructField(offset = 0, length = 2) public float[] farr;
-		@StructField(offset = 8, length = 16) public int[] iarr;
-		@StructField(offset = 72, length = 2) public double[] darr;
+		@StructField(length = 2) public float[] farr;
+		@StructField(length = 15) public int[] iarr;
+		@StructField(length = 2) public double[] darr;
 
 		@Override
 		public String toString() {
@@ -1731,10 +1682,10 @@ public class StructTest {
 		}
 	}
 
-	@StructType(sizeof = 24)
+	@StructType
 	public static class StructEmbed {
-		@StructField(offset = 0, embed = true) public Vec3 pos;
-		@StructField(offset = 12, embed = true) public Vec3 vel;
+		@StructField(embed = true) public Vec3 pos;
+		@StructField(embed = true) public Vec3 vel;
 
 		@Override
 		public String toString() {

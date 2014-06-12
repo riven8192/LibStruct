@@ -35,6 +35,7 @@ public class StructAgent {
 		}
 		for(StructInfo structInfo : StructInfo.values())
 			StructEnv.addStruct(structInfo);
+		StructEnv.linkStructs();
 
 		System.out.println("StructAgent: initiating application...");
 
@@ -171,24 +172,36 @@ public class StructAgent {
 
 			// find fields.[name,offset]
 			@Override
-			public FieldVisitor visitField(int access, final String fieldName, final String fieldDesc, String signature, Object value) {
-				if((access & Opcodes.ACC_STATIC) == 0) {
-					return new FieldVisitor(Opcodes.ASM5, super.visitField(access, fieldName, fieldDesc, signature, value)) {
+			public FieldVisitor visitField(final int fieldAccess, final String fieldName, final String fieldDesc, String signature, Object value) {
+				if((fieldAccess & Opcodes.ACC_STATIC) == 0) {
+					return new FieldVisitor(Opcodes.ASM5, super.visitField(fieldAccess, fieldName, fieldDesc, signature, value)) {
 						public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 							if(desc.equals("L" + StructEnv.jvmClassName(StructField.class) + ";")) {
+
 								return new AnnotationVisitor(Opcodes.ASM5, super.visitAnnotation(desc, visible)) {
+									int offset = -1;
+									int length = 1;
+									boolean embed = false;
+
 									public void visit(String name, Object value) {
 										if(name.equals("offset")) {
-											info.addField(fieldName, fieldDesc, (Integer) value, 1, false);
+											offset = ((Integer) value).intValue();
 										}
 										else if(name.equals("length")) {
-											info.setFieldCount(fieldName, (Integer) value);
+											length = ((Integer) value).intValue();
 										}
 										else if(name.equals("embed")) {
-											info.setFieldEmbed(fieldName, (Boolean) value);
+											embed = ((Boolean) value).booleanValue();
 										}
 										super.visit(name, value);
 									};
+
+									@Override
+									public void visitEnd() {
+										info.addField(fieldName, fieldDesc, offset, length, embed);
+
+										super.visitEnd();
+									}
 								};
 							}
 							return super.visitAnnotation(desc, visible);
@@ -196,7 +209,7 @@ public class StructAgent {
 					};
 				}
 
-				return super.visitField(access, fieldName, fieldDesc, signature, value);
+				return super.visitField(fieldAccess, fieldName, fieldDesc, signature, value);
 			}
 		};
 		new ClassReader(bytecode).accept(visitor, 0);

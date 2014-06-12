@@ -5,5 +5,5 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.CLASS)
 public @interface StructType {
-	int sizeof();
+	int sizeof() default -1;
 }
