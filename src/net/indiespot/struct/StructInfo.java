@@ -107,6 +107,8 @@ public class StructInfo {
 			sizeof = calcSizeof;
 		else if(sizeof < calcSizeof)
 			throw new IllegalStateException("struct sizeof " + fqcn + " was defined as " + sizeof + ", while " + calcSizeof + " is required");
+
+		System.out.println("StructInfo[" + fqcn + "] struct sizeof=" + sizeof);
 	}
 
 	public void validate() {
