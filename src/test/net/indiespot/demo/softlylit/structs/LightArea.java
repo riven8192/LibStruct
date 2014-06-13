@@ -19,9 +19,9 @@ public class LightArea {
 			float angle2 = (i + 1) / (float) triangleCount * (float) Math.PI * 2.0f;
 
 			Triangle tri = Struct.stackAlloc(Demo.STACK, Triangle.class);
-			tri.a().load(origin);
-			Point b = tri.b();
-			Point c = tri.c();
+			tri.a.load(origin);
+			Point b = tri.b;
+			Point c = tri.c;
 			b.x = origin.x + (float) Math.cos(angle1) * radius;
 			b.y = origin.y + (float) Math.sin(angle1) * radius;
 			c.x = origin.x + (float) Math.cos(angle2) * radius;
@@ -44,8 +44,8 @@ public class LightArea {
 			float x = origin.x;
 			float y = origin.y;
 			float r = radius;
-			Point p1 = occluder.p1();
-			Point p2 = occluder.p2();
+			Point p1 = occluder.p1;
+			Point p2 = occluder.p2;
 			float dx = x - p1.x;
 			float dy = y - p1.y;
 			if(dx * dx + dy * dy > r * r) {
