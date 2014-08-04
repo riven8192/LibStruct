@@ -37,10 +37,10 @@ public class Faller {
 			origin.y -= 512 + m * 2;
 
 		Line occluder = Struct.stackAlloc(Demo.STACK, Line.class);
-		occluder.p1().x = origin.x + length * (float) Math.cos(angle);
-		occluder.p1().y = origin.y + length * (float) Math.sin(angle);
-		occluder.p2().x = origin.x + length * (float) Math.cos(angle + Math.PI);
-		occluder.p2().y = origin.y + length * (float) Math.sin(angle + Math.PI);
+		occluder.p1.x = origin.x + length * (float) Math.cos(angle);
+		occluder.p1.y = origin.y + length * (float) Math.sin(angle);
+		occluder.p2.x = origin.x + length * (float) Math.cos(angle + Math.PI);
+		occluder.p2.y = origin.y + length * (float) Math.sin(angle + Math.PI);
 		return occluder;
 	}
 }

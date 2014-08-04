@@ -1,56 +1,44 @@
 package test.net.indiespot.demo.softlylit.structs;
 
-import net.indiespot.struct.cp.Struct;
+import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 
-@StructType(sizeof = 72)
+@StructType
 public class Triangle {
-	@TakeStruct
-	public Point a() {
-		return Struct.view(this, Point.class, 0);
-	}
+	@StructField(embed = true)
+	public Point a;
 
-	@TakeStruct
-	public Point b() {
-		return Struct.view(this, Point.class, 8);
-	}
+	@StructField(embed = true)
+	public Point b;
 
-	@TakeStruct
-	public Point c() {
-		return Struct.view(this, Point.class, 16);
-	}
+	@StructField(embed = true)
+	public Point c;
 
-	@TakeStruct
-	public Line ab() {
-		return Struct.view(this, Line.class, 24);
-	}
+	@StructField(embed = true)
+	public Line ab;
 
-	@TakeStruct
-	public Line bc() {
-		return Struct.view(this, Line.class, 40);
-	}
+	@StructField(embed = true)
+	public Line bc;
 
-	@TakeStruct
-	public Line ca() {
-		return Struct.view(this, Line.class, 56);
-	}
+	@StructField(embed = true)
+	public Line ca;
 
 	private Triangle() {
 		// hide
 	}
-	
+
 	@TakeStruct
-	public Triangle load(Point a, Point b, Point c){
-		a().load(a);
-		b().load(b);
-		c().load(c);
+	public Triangle load(Point a, Point b, Point c) {
+		this.a.load(a);
+		this.b.load(b);
+		this.c.load(c);
 		return this;
 	}
 
 	public void sync() {
-		ab().load(a(), b());
-		bc().load(b(), c());
-		ca().load(c(), a());
+		ab.load(a, b);
+		bc.load(b, c);
+		ca.load(c, a);
 	}
 }

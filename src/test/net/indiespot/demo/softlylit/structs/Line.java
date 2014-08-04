@@ -1,21 +1,17 @@
 package test.net.indiespot.demo.softlylit.structs;
 
-import net.indiespot.struct.cp.Struct;
+import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 
-@StructType(sizeof = 16)
+@StructType
 public class Line {
 
-	@TakeStruct
-	public Point p1() {
-		return Struct.view(this, Point.class, 0);
-	}
+	@StructField(embed = true)
+	public Point p1;
 
-	@TakeStruct
-	public Point p2() {
-		return Struct.view(this, Point.class, 8);
-	}
+	@StructField(embed = true)
+	public Point p2;
 
 	private Line() {
 		// hide
@@ -23,24 +19,24 @@ public class Line {
 
 	@TakeStruct
 	public Line load(Point a, Point b) {
-		p1().load(a);
-		p2().load(b);
+		p1.load(a);
+		p2.load(b);
 		return this;
 	}
 
 	public float side(Point p) {
 		float x = p.x;
 		float y = p.y;
-		Point p1 = p1();
-		Point p2 = p2();
+		Point p1 = this.p1;
+		Point p2 = this.p2;
 		return (p2.x - p1.x) * (y - p1.y) - (p2.y - p1.y) * (x - p1.x);
 	}
 
 	public static boolean intersectSegment(Line a, Line b, Point intersection) {
-		Point ap1 = a.p1();
-		Point ap2 = a.p2();
-		Point bp1 = b.p1();
-		Point bp2 = b.p2();
+		Point ap1 = a.p1;
+		Point ap2 = a.p2;
+		Point bp1 = b.p1;
+		Point bp2 = b.p2;
 		float x1 = ap1.x, y1 = ap1.y, x2 = ap2.x, y2 = ap2.y;
 		float x3 = bp1.x, y3 = bp1.y, x4 = bp2.x, y4 = bp2.y;
 		float x1_x2 = x1 - x2;
@@ -49,7 +45,7 @@ public class Line {
 		float y3_y4 = y3 - y4;
 
 		float det = x1_x2 * y3_y4 - y1_y2 * x3_x4;
-		if(det == 0.0f) {
+		if (det == 0.0f) {
 			return false;
 		}
 
@@ -61,10 +57,10 @@ public class Line {
 
 		dx = px - (cx = (x1 + x2) * 0.5f);
 		dy = py - (cy = (y1 + y2) * 0.5f);
-		if((dx * dx) + (dy * dy) < (x1 - cx) * (x1 - cx) + (y1 - cy) * (y1 - cy)) {
+		if ((dx * dx) + (dy * dy) < (x1 - cx) * (x1 - cx) + (y1 - cy) * (y1 - cy)) {
 			dx = px - (cx = (x3 + x4) * 0.5f);
 			dy = py - (cy = (y3 + y4) * 0.5f);
-			if((dx * dx) + (dy * dy) < (x3 - cx) * (x3 - cx) + (y3 - cy) * (y3 - cy)) {
+			if ((dx * dx) + (dy * dy) < (x3 - cx) * (x3 - cx) + (y3 - cy) * (y3 - cy)) {
 				intersection.x = px;
 				intersection.y = py;
 				return true;
@@ -75,10 +71,10 @@ public class Line {
 	}
 
 	public static boolean intersectExtended(Line a, Line b, Point intersection) {
-		Point ap1 = a.p1();
-		Point ap2 = a.p2();
-		Point bp1 = b.p1();
-		Point bp2 = b.p2();
+		Point ap1 = a.p1;
+		Point ap2 = a.p2;
+		Point bp1 = b.p1;
+		Point bp2 = b.p2;
 		float x1 = ap1.x, y1 = ap1.y, x2 = ap2.x, y2 = ap2.y;
 		float x3 = bp1.x, y3 = bp1.y, x4 = bp2.x, y4 = bp2.y;
 		float x1_x2 = x1 - x2;
@@ -87,7 +83,7 @@ public class Line {
 		float y3_y4 = y3 - y4;
 
 		float det = x1_x2 * y3_y4 - y1_y2 * x3_x4;
-		if(det == 0.0f) {
+		if (det == 0.0f) {
 			return false;
 		}
 

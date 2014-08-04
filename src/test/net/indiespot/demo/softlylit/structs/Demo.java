@@ -43,10 +43,10 @@ public class Demo {
 					long[] dur = new long[gcBeans.size()];
 
 					while (true) {
-						for(int i = 0; i < dur.length; i++) {
+						for (int i = 0; i < dur.length; i++) {
 							long was = dur[i];
 							long now = dur[i] = gcBeans.get(i).getCollectionTime();
-							if(was < now) {
+							if (was < now) {
 								synchronized (GC_DURATIONS) {
 									GC_DURATIONS.add(Long.valueOf(now - was));
 								}
@@ -55,8 +55,7 @@ public class Demo {
 
 						try {
 							Thread.sleep(10);
-						}
-						catch (InterruptedException exc) {
+						} catch (InterruptedException exc) {
 							// ignore
 						}
 					}
@@ -76,14 +75,14 @@ public class Demo {
 		STACK = Struct.createStructAllocationStack((quality * quality) * 8 * 1024 * 1024);
 
 		final List<Faller> fallers = new ArrayList<>();
-		for(int i = 0; i < 64; i++) {
+		for (int i = 0; i < 64; i++) {
 			Faller faller = new Faller();
 			faller.init();
 			fallers.add(faller);
 		}
 
 		final List<LightArea> areas = new ArrayList<>();
-		for(int i = 0; i < lightDim * lightDim; i++) {
+		for (int i = 0; i < lightDim * lightDim; i++) {
 			LightArea area = new LightArea();
 			area.radius = 64.0f;
 			area.origin = Struct.stackAlloc(STACK, Point.class);
@@ -150,7 +149,7 @@ public class Demo {
 
 			glBindFramebuffer(GL_FRAMEBUFFER, fboId);
 			long took = 0;
-			if(true) {
+			if (true) {
 				glViewport(0, 0, texDim, texDim);
 
 				glMatrixMode(GL_PROJECTION);
@@ -168,64 +167,45 @@ public class Demo {
 
 				glColor3f(diffuse, 0, 0);
 
+				Random rndm = new Random();
+
 				glBegin(GL_TRIANGLES);
 				{
 					tmp.clear();
 					out.clear();
 					occluders.clear();
 
-					for(Faller faller : fallers) {
+					for (Faller faller : fallers) {
 						occluders.add(faller.tick());
 					}
 
-					if(true)
-						for(LightArea area : areas) {
-							area.sync();
-							area.clear();
+					for (LightArea area : areas) {
+						area.sync();
+						area.clear();
 
-							took -= System.nanoTime();
-							for(int i = 0, len = occluders.size(); i < len; i++) {
-								tmp = area.occlude(occluders.get(i), tmp, out);
-							}
-							took += System.nanoTime();
+						took -= System.nanoTime();
+						for (int i = 0, len = occluders.size(); i < len; i++) {
+							final Line occluder = occluders.get(i);
+							float dx = rndm.nextFloat() - 0.5f;
+							float dy = rndm.nextFloat() - 0.5f;
 
-							for(int i = 0, len = area.litArea.size(); i < len; i++) {
-								Triangle tri = area.litArea.get(i);
-								glVertex2f(tri.a().x, tri.a().y);
-								glVertex2f(tri.b().x, tri.b().y);
-								glVertex2f(tri.c().x, tri.c().y);
-							}
+							occluder.p1.add(dx, dy);
+							occluder.p2.add(dx, dy);
+
+							tmp = area.occlude(occluder, tmp, out);
+
+							occluder.p1.add(-dx, -dy);
+							occluder.p2.add(-dx, -dy);
 						}
-					else
-						for(LightArea area : areas) {
+						took += System.nanoTime();
 
-							Line ray = Struct.stackAlloc(STACK, Line.class);
-							ray.p1().load(area.origin);
-
-							pl.clear();
-
-							for(int i = 0, len = area.circleTris.size(); i < len; i++) {
-								took -= System.nanoTime();
-
-								ray.p2().load(area.circleTris.get(i).b());
-								for(int k = 0, len2 = occluders.size(); k < len2; k++) {
-									Line.intersectSegment(ray, occluders.get(k), ray.p2());
-								}
-								Point pt = Struct.stackAlloc(STACK, Point.class);
-								Struct.copy(Point.class, ray.p2(), pt);
-								pl.add(pt);
-
-								took += System.nanoTime();
-							}
-
-							for(int k = 1, len2 = pl.size(); k < len2; k++) {
-								Point p2 = pl.get(k - 1);
-								Point p3 = pl.get(k - 0);
-								glVertex2f(ray.p1().x, ray.p1().y);
-								glVertex2f(p2.x, p2.y);
-								glVertex2f(p3.x, p3.y);
-							}
+						for (int i = 0, len = area.litArea.size(); i < len; i++) {
+							Triangle tri = area.litArea.get(i);
+							glVertex2f(tri.a.x, tri.a.y);
+							glVertex2f(tri.b.x, tri.b.y);
+							glVertex2f(tri.c.x, tri.c.y);
 						}
+					}
 				}
 
 				glEnd();
@@ -271,7 +251,7 @@ public class Demo {
 			msg += ", GC: [";
 			synchronized (GC_DURATIONS) {
 				msg += "#" + GC_DURATIONS.size() + ": ";
-				for(int i = GC_DURATIONS.size() - 1; i >= Math.max(0, GC_DURATIONS.size() - 5); i--) {
+				for (int i = GC_DURATIONS.size() - 1; i >= Math.max(0, GC_DURATIONS.size() - 5); i--) {
 					msg += GC_DURATIONS.get(i).longValue() + "ms,";
 				}
 			}
@@ -290,16 +270,16 @@ public class Demo {
 
 		out.clear();
 
-		Point op1 = occluder.p1();
-		Point op2 = occluder.p2();
+		Point op1 = occluder.p1;
+		Point op2 = occluder.p2;
 
-		Point litA = litArea.a();
-		Point litB = litArea.b();
-		Point litC = litArea.c();
+		Point litA = litArea.a;
+		Point litB = litArea.b;
+		Point litC = litArea.c;
 
-		Line lAB = litArea.ab();
-		Line lBC = litArea.bc();
-		Line lCA = litArea.ca();
+		Line lAB = litArea.ab;
+		Line lBC = litArea.bc;
+		Line lCA = litArea.ca;
 
 		Point abIntersection = Struct.stackAlloc(STACK, Point.class);
 		Point bcIntersection = Struct.stackAlloc(STACK, Point.class);
@@ -316,88 +296,86 @@ public class Demo {
 		boolean inside = abSide == bcSide && bcSide == caSide;
 
 		switch (bits) {
-		case 0b000: {
-			if(inside) {
-				Line l1 = Struct.stackAlloc(STACK, Line.class).load(litA, op1);
-				Line l2 = Struct.stackAlloc(STACK, Line.class).load(litA, op2);
+			case 0b000: {
+				if (inside) {
+					Line l1 = Struct.stackAlloc(STACK, Line.class).load(litA, op1);
+					Line l2 = Struct.stackAlloc(STACK, Line.class).load(litA, op2);
 
-				Point intersectionBCl = Struct.stackAlloc(STACK, Point.class);
-				Point intersectionBCr = Struct.stackAlloc(STACK, Point.class);
-				Line.intersectExtended(lBC, l1, intersectionBCl);
-				Line.intersectExtended(lBC, l2, intersectionBCr);
+					Point intersectionBCl = Struct.stackAlloc(STACK, Point.class);
+					Point intersectionBCr = Struct.stackAlloc(STACK, Point.class);
+					Line.intersectExtended(lBC, l1, intersectionBCl);
+					Line.intersectExtended(lBC, l2, intersectionBCr);
+
+					boolean swap = false;
+					swap ^= lAB.side(op1) < 0.0f;
+					swap ^= occluder.side(litA) < 0.0f;
+					if (swap) {
+						Point tmp = intersectionBCl;
+						intersectionBCl = intersectionBCr;
+						intersectionBCr = tmp;
+					}
+
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, intersectionBCl));
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, op1, op2));
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, intersectionBCr, litC));
+				} else {
+					out.add(litArea);
+				}
+				break;
+			}
+			case 0b101: {
+				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, abIntersection, caIntersection));
+				break;
+			}
+			case 0b100: {
+				Line center = Struct.stackAlloc(STACK, Line.class);
+				center.load(litA, inside ? op1 : op2);
+				Line.intersectExtended(lBC, center, bcIntersection);
+
+				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, abIntersection, center.p2));
+				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, litC));
+				break;
+			}
+			case 0b001: {
+				Line center = Struct.stackAlloc(STACK, Line.class).load(litA, inside ? op1 : op2);
+				Line.intersectExtended(lBC, center, bcIntersection);
+
+				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, bcIntersection));
+				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, center.p2, caIntersection));
+				break;
+			}
+			case 0b010: {
+				Line center = Struct.stackAlloc(STACK, Line.class).load(litA, inside ? op1 : op2);
+				Point bcIntersection2 = Struct.stackAlloc(STACK, Point.class);
+				Line.intersectExtended(lBC, center, bcIntersection2);
 
 				boolean swap = false;
-				swap ^= lAB.side(op1) < 0.0f;
 				swap ^= occluder.side(litA) < 0.0f;
-				if(swap) {
-					Point tmp = intersectionBCl;
-					intersectionBCl = intersectionBCr;
-					intersectionBCr = tmp;
+				swap ^= occluder.side(litB) > 0.0f;
+				if (swap) {
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, bcIntersection));
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, center.p2));
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection2, litC));
+				} else {
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, bcIntersection2));
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, litC));
+					out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, center.p2, bcIntersection));
 				}
-
-				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, intersectionBCl));
-				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, op1, op2));
-				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, intersectionBCr, litC));
+				break;
 			}
-			else {
-				out.add(litArea);
-			}
-			break;
-		}
-		case 0b101: {
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, abIntersection, caIntersection));
-			break;
-		}
-		case 0b100: {
-			Line center = Struct.stackAlloc(STACK, Line.class);
-			center.load(litA, inside ? op1 : op2);
-			Line.intersectExtended(lBC, center, bcIntersection);
-
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, abIntersection, center.p2()));
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, litC));
-			break;
-		}
-		case 0b001: {
-			Line center = Struct.stackAlloc(STACK, Line.class).load(litA, inside ? op1 : op2);
-			Line.intersectExtended(lBC, center, bcIntersection);
-
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, bcIntersection));
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, center.p2(), caIntersection));
-			break;
-		}
-		case 0b010: {
-			Line center = Struct.stackAlloc(STACK, Line.class).load(litA, inside ? op1 : op2);
-			Point bcIntersection2 = Struct.stackAlloc(STACK, Point.class);
-			Line.intersectExtended(lBC, center, bcIntersection2);
-
-			boolean swap = false;
-			swap ^= occluder.side(litA) < 0.0f;
-			swap ^= occluder.side(litB) > 0.0f;
-			if(swap) {
+			case 0b011: {
+				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, caIntersection));
 				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, bcIntersection));
-				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, center.p2()));
-				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection2, litC));
+				break;
 			}
-			else {
-				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, bcIntersection2));
+			case 0b110: {
+				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, abIntersection, bcIntersection));
 				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, litC));
-				out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, center.p2(), bcIntersection));
+				break;
 			}
-			break;
-		}
-		case 0b011: {
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, caIntersection));
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, litB, bcIntersection));
-			break;
-		}
-		case 0b110: {
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, abIntersection, bcIntersection));
-			out.add(Struct.stackAlloc(STACK, Triangle.class).load(litA, bcIntersection, litC));
-			break;
-		}
-		default: {
-			//System.err.println("occluder cannot intersect all sides of triangle");
-		}
+			default: {
+				// System.err.println("occluder cannot intersect all sides of triangle");
+			}
 		}
 	}
 }

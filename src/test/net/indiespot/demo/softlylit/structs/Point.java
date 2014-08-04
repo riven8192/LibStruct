@@ -3,10 +3,12 @@ package test.net.indiespot.demo.softlylit.structs;
 import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
 
-@StructType(sizeof = 8)
+@StructType
 public class Point {
-	@StructField(offset = 0) public float x;
-	@StructField(offset = 4) public float y;
+	@StructField
+	public float x;
+	@StructField
+	public float y;
 
 	private Point() {
 		// hide
@@ -15,6 +17,11 @@ public class Point {
 	public void load(Point src) {
 		x = src.x;
 		y = src.y;
+	}
+
+	public void add(float dx, float dy) {
+		x += dx;
+		y += dy;
 	}
 
 	@Override
