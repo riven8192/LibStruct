@@ -728,7 +728,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			}
 
 			for(int i = arr.length - 1; i >= 0; i--) {
-				popDescType(stack, descToType(arr[i]));
+				try {
+					popDescType(stack, descToType(arr[i]));
+				}
+				catch (Exception exc) {
+					throw new IllegalStateException("failed to pop parameter: " + arr[i], exc);
+				}
 			}
 
 			if(opcode != INVOKESTATIC) {

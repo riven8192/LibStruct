@@ -109,6 +109,10 @@ public class StructMemory {
 		return srcHandle + bytes2words(offset);
 	}
 
+	public static int sibling(int srcHandle, int sizeof, int count) {
+		return srcHandle + bytes2words(sizeof) * count;
+	}
+
 	public static String toString(int handle) {
 		return "<struct@" + handle2pointer(handle) + ">";
 	}

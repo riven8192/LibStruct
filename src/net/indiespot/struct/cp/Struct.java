@@ -67,6 +67,11 @@ public class Struct {
 		return null;
 	}
 
+	public static <T, A> A sibling(T struct, Class<A> asType, int move) {
+		throwFit();
+		return null;
+	}
+
 	//
 
 	public static <T> T[] map(Class<T> structType, ByteBuffer bb) {

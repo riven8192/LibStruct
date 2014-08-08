@@ -18,7 +18,7 @@ import net.indiespot.struct.runtime.StructUnsafe;
 public class StructTest {
 	public static void main(String[] args) {
 		if(true) {
-			TestSwap.test();
+			TestSibling.test();
 			return;
 		}
 
@@ -26,6 +26,7 @@ public class StructTest {
 
 		if(true) {
 			TestCalloc.test();
+			TestSwap.test();
 
 			TestSizeof.test();
 			TestNull.test();
@@ -101,6 +102,45 @@ public class StructTest {
 			Struct.swap(Vec3.class, a, b);
 			//System.out.println(a.toString());
 			//System.out.println(b.toString());
+		}
+	}
+
+	public static class TestSibling {
+		public static void test() {
+			Vec3[] arr = new Vec3[123];
+
+			arr[0].set(1.20f, 2.30f, 3.40f);
+			arr[1].set(1.02f, 2.03f, 3.04f);
+
+			assert Struct.sibling(arr[1], Vec3.class, -1) == arr[0];
+			assert Struct.sibling(arr[1], Vec3.class, +1) == arr[2];
+
+			/*
+			Vec3 base = arr[0];
+			for(int m = 0; m < 256; m++) {
+				long t0 = System.nanoTime();
+				float siblingSum = 0.0f;
+				for(int k = 0; k < 1024; k++) {
+					for(int i = 0; i < 123; i++) {
+						Vec3 at = Struct.sibling(base, Vec3.class, i);
+						siblingSum += at.x;
+					}
+				}
+				long t1 = System.nanoTime();
+				float arrayElemSum = 0.0f;
+				for(int k = 0; k < 1024; k++) {
+					for(int i = 0; i < 123; i++) {
+						Vec3 at = arr[i];
+						arrayElemSum += at.x;
+					}
+				}
+				long t2 = System.nanoTime();
+
+				System.out.println("siblingSum=" + siblingSum + " (took: " + (t1 - t0) / 1000 + "us)");
+				System.out.println("arrayElemSum=" + arrayElemSum + " (took: " + (t2 - t1) / 1000 + "us)");
+				System.out.println();
+			}
+			*/
 		}
 	}
 

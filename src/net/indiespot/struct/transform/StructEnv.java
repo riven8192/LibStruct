@@ -806,14 +806,26 @@ public class StructEnv {
 							else if(name.equals("view") && desc.equals("(Ljava/lang/Object;Ljava/lang/Class;I)Ljava/lang/Object;")) {
 								if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
 									flow.stack.set(1, VarType.INT);
-									// ...,this,as,offset
+									// ...,this,asType,offset
 									super.visitInsn(Opcodes.SWAP);
-									// ...,this,offset,as
+									// ...,this,offset,asType
 									super.visitInsn(Opcodes.POP);
 									// ...,this,offset
 									owner = StructEnv.jvmClassName(StructMemory.class);
 									name = "view";
 									desc = "(" + wrapped_struct_flag + "I)" + wrapped_struct_flag;
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek(2));
+								}
+							}
+							else if(name.equals("sibling") && desc.equals("(Ljava/lang/Object;Ljava/lang/Class;I)Ljava/lang/Object;")) {
+								if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+									flow.stack.set(1, VarType.INT);
+									// ...,address,sizeof,index
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "sibling";
+									desc = "(" + wrapped_struct_flag + "II)" + wrapped_struct_flag;
 								}
 								else {
 									throw new IllegalStateException("peek: " + flow.stack.peek(2));
