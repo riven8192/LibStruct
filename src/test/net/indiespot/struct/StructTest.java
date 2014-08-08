@@ -17,6 +17,11 @@ import net.indiespot.struct.runtime.StructUnsafe;
 
 public class StructTest {
 	public static void main(String[] args) {
+		if(true) {
+			TestSwap.test();
+			return;
+		}
+
 		TestStructEnv.test();
 
 		if(true) {
@@ -84,6 +89,19 @@ public class StructTest {
 		TestEmbedStruct.test();
 
 		System.out.println("done");
+	}
+
+	public static class TestSwap {
+		public static void test() {
+			Vec3 a = new Vec3(1.20f, 2.30f, 3.40f);
+			Vec3 b = new Vec3(1.02f, 2.03f, 3.04f);
+			//	System.out.println(a.toString());
+			//System.out.println(b.toString());
+
+			Struct.swap(Vec3.class, a, b);
+			//System.out.println(a.toString());
+			//System.out.println(b.toString());
+		}
 	}
 
 	public static class TestEmbedStruct {

@@ -791,6 +791,18 @@ public class StructEnv {
 									throw new IllegalStateException("peek: " + flow.stack.peek(2));
 								}
 							}
+							else if(name.equals("swap") && desc.equals("(Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/Object;)V")) {
+								if(flow.stack.peek(2) == VarType.STRUCT_TYPE) {
+									flow.stack.set(2, VarType.INT);
+									// ...,sizeof,src,dst
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "swap";
+									desc = "(I" + wrapped_struct_flag + "" + wrapped_struct_flag + ")V";
+								}
+								else {
+									throw new IllegalStateException("peek: " + flow.stack.peek(2));
+								}
+							}
 							else if(name.equals("view") && desc.equals("(Ljava/lang/Object;Ljava/lang/Class;I)Ljava/lang/Object;")) {
 								if(flow.stack.peek(1) == VarType.STRUCT_TYPE) {
 									flow.stack.set(1, VarType.INT);

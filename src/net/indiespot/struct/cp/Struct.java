@@ -58,6 +58,10 @@ public class Struct {
 		throwFit();
 	}
 
+	public static <T> void swap(Class<T> structType, T src, T dst) {
+		throwFit();
+	}
+
 	public static <T, A> A view(T struct, Class<A> asType, int offsetMultipleOf4) {
 		throwFit();
 		return null;

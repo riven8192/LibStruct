@@ -101,6 +101,10 @@ public class StructMemory {
 		copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
 	}
 
+	public static void swap(int sizeof, int srcHandle, int dstHandle) {
+		swapMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
+	}
+
 	public static int view(int srcHandle, int offset) {
 		return srcHandle + bytes2words(offset);
 	}
@@ -149,6 +153,17 @@ public class StructMemory {
 		for(int i = 0; i < count; i++) {
 			int off = (i << 2);
 			StructUnsafe.UNSAFE.putInt(pDst + off, StructUnsafe.UNSAFE.getInt(pSrc + off));
+		}
+	}
+
+	private static final void swapMemoryByWord(int src, int dst, int count) {
+		long pSrc = handle2pointer(src);
+		long pDst = handle2pointer(dst);
+		for(int i = 0; i < count; i++) {
+			int off = (i << 2);
+			int t = StructUnsafe.UNSAFE.getInt(pSrc + off);
+			StructUnsafe.UNSAFE.putInt(pSrc + off, StructUnsafe.UNSAFE.getInt(pDst + off));
+			StructUnsafe.UNSAFE.putInt(pDst + off, t);
 		}
 	}
 
