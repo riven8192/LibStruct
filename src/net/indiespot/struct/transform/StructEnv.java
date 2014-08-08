@@ -628,8 +628,8 @@ public class StructEnv {
 
 					@Override
 					public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-						for(String structType : struct2info.keySet()) {
-							desc = desc.replace(structType, plain_struct_flag); // FIXME?
+						for(String wrapped_struct_type : wrapped_struct_types) {
+							desc = desc.replace(wrapped_struct_type, wrapped_struct_flag);
 						}
 
 						if(struct2info.containsKey(fqcn) && _methodName.equals(RENAMED_CONSTRUCTOR_NAME)) {
