@@ -945,17 +945,15 @@ public class StructEnv {
 		}
 
 		for (Entry<String, Set<String>> entry : final2origMethods.entrySet()) {
-			System.out.println(fqcn + " " + entry);
 			if (entry.getValue().size() > 1) {
 				String msg = "LibStruct failed to rewrite classpath:\n";
 				msg += "\tLast entered class: \n";
 				msg += "\t\tfqcn: " + fqcn + "\n";
 				msg += "\n";
 				msg += "\tThe following methods collide after transformation: \n";
-				for (String m : entry.getValue()) {
+				for (String m : entry.getValue())
 					msg += "\t\t" + m + "\n";
-				}
-				msg += "\tdue to shared name and description: \n";
+				msg += "\tdue to shared name and description: (struct references are rewritten to ints)\n";
 				msg += "\t\t" + entry.getKey() + "\n";
 				if (!StructEnv.PRINT_LOG)
 					msg += "\n\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
