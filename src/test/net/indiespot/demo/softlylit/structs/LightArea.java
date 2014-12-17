@@ -1,6 +1,5 @@
 package test.net.indiespot.demo.softlylit.structs;
 
-import test.net.indiespot.demo.softlylit.structs.support.TriangleList;
 import net.indiespot.struct.cp.Struct;
 
 public class LightArea {

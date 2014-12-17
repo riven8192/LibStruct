@@ -1,0 +1,85 @@
+import net.indiespot.struct.cp.Struct;
+import net.indiespot.struct.cp.TakeStruct;
+
+public class List<T> {
+
+	private T[] arr;
+	private int size, cap;
+	
+	public List() {
+		this(10);
+	}
+
+	public List(int cap) {
+		if (cap <= 0)
+			throw new IllegalArgumentException();
+		this.expandTo(cap);
+	}
+
+	public void clear() {
+		size = 0;
+	}
+
+	public void add(T elem) {
+		if (size == cap)
+			this.expandTo(-1);
+		arr[size++] = elem;
+	}
+
+	public void addRange(List<T> list, int off, int len) {
+		if (len < 0)
+			throw new IllegalArgumentException();
+		if (off + len > list.size)
+			throw new IllegalArgumentException();
+		for (int i = 0; i < len; i++) {
+			this.add(list.arr[off + i]);
+		}
+	}
+
+	public void addAll(List<T> list) {
+		for (int i = 0, len = list.size; i < len; i++) {
+			this.add(list.arr[i]);
+		}
+	}
+
+	@TakeStruct
+	public T get(int index) {
+		if (index < 0 || index >= size)
+			throw new ArrayIndexOutOfBoundsException(index);
+		return arr[index];
+	}
+
+	@TakeStruct
+	public T remove(int index) {
+		if (index < 0 || index >= size)
+			throw new ArrayIndexOutOfBoundsException(index);
+		T got = arr[index];
+		System.arraycopy(arr, index + 1, arr, index, --size - index);
+		return got;
+	}
+
+	@TakeStruct
+	public T removeMoveLast(int index) {
+		if (index < 0 || index >= size)
+			throw new ArrayIndexOutOfBoundsException(index);
+		T got = arr[index];
+		arr[index] = arr[--size];
+		return got;
+	}
+
+	public int size() {
+		return size;
+	}
+
+	public void expandTo(int minSize) {
+		T[] arr2 = Struct.emptyArray((Class<T>)Object.class, Math.max(minSize, cap * 2));
+		for (int i = 0; i < size; i++)
+			arr2[i] = arr[i];
+		arr = arr2;
+		cap = arr.length;
+	}
+	
+	public List<T> self() {
+		return new List<T>();
+	}
+}

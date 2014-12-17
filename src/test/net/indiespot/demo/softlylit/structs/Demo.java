@@ -16,10 +16,7 @@ import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.DisplayMode;
 import org.lwjgl.opengl.PixelFormat;
 
-import test.net.indiespot.demo.softlylit.structs.support.LineList;
 import test.net.indiespot.demo.softlylit.structs.support.OpenGL;
-import test.net.indiespot.demo.softlylit.structs.support.PointList;
-import test.net.indiespot.demo.softlylit.structs.support.TriangleList;
 import static org.lwjgl.opengl.ARBShaderObjects.glUseProgramObjectARB;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL12.*;
