@@ -695,9 +695,26 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 							this.visitInsn(POP);
 							// ...,string,b,a
 						}
+						else if(i == arr.length - 4) {
+							// ...,struct,c,b,a
+							this.visitInsn(DUP2_X2);
+							// ...,b,a,struct,c,b,a
+							this.visitInsn(POP2);
+							// ...,b,a,struct,c
+							this.visitInsn(SWAP);
+							// ...,b,a,c,struct
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;", itf);
+							// ...,b,a,c,string
+							this.visitInsn(SWAP);
+							// ...,b,a,string,c
+							this.visitInsn(DUP2_X2);
+							// ...,string,c,b,a,string,c
+							this.visitInsn(POP2);
+							// ...,string,c,b,a
+						}
 						else {
 							String msg = "cannot stringify struct @ method parameter " + (i + 1) + "/" + arr.length + ": " + //
-									"struct stringification is limited to the last 3 parameters of a method";
+									"struct stringification is limited to the last 4 parameters of a method";
 
 							VarStack args = new VarStack();
 							for(int k = 0; k < arr.length; k++)
@@ -705,7 +722,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 							throw new UnsupportedCallsiteException(msg, //
 									callsiteDescription, // callsite
-									owner + "." + name + "" + desc,// target
+									owner + "." + name + "" + desc, // target
 									args.topToString(arr.length), //
 									stack.topToString(arr.length));
 						}
