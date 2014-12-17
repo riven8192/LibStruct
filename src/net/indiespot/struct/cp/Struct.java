@@ -86,6 +86,11 @@ public class Struct {
 
 	//
 
+	public static <T> T fromPointer(long pointer) {
+		throwFit();
+		return null;
+	}
+	
 	public static long getPointer(Object struct) {
 		throwFit();
 		return 0L;

@@ -823,6 +823,14 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek(2));
 								}
+							} else if (name.equals("fromPointer") && desc.equals("(J)Ljava/lang/Object;")) {
+								if (flow.stack.peek() == VarType.MISC) {
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "pointer2handle";
+									desc = "(J)" + wrapped_struct_flag;
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
 							} else if (name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
 								if (flow.stack.peek() == VarType.NULL) {
 									// ..., NULL

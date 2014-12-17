@@ -19,11 +19,6 @@ import net.indiespot.struct.runtime.SuspiciousFieldAssignmentError;
 public class StructTest {
 	public static void main(String[] args) {
 		TestStructEnv.test();
-		
-		if(true){
-			TestDuplicateOverloadedMethod.test();
-			return;
-		}
 
 		if (true) {
 			TestCalloc.test();
@@ -90,15 +85,41 @@ public class StructTest {
 		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
 		TestSuspiciousFieldAssignment.test();
-		
-		
+		TestFromPointer.test();
 
 		System.out.println("done");
+
+		if (false)
+			TestDuplicateOverloadedMethod.test();
+	}
+
+	public static class TestFromPointer {
+		public static void test() {
+			ByteBuffer bb = ByteBuffer.allocateDirect(234);
+			long addr = StructUnsafe.getBufferBaseAddress(bb);
+			Vec3 v1 = Struct.fromPointer(addr + 0 * Struct.sizeof(Vec3.class));
+			Vec3 v2 = Struct.fromPointer(addr + 1 * Struct.sizeof(Vec3.class));
+			assert Struct.getPointer(v1) == (addr + 0 * Struct.sizeof(Vec3.class));
+			assert Struct.getPointer(v2) == (addr + 1 * Struct.sizeof(Vec3.class));
+			bb.clear(); // prevent untimely GC
+		}
+	}
+
+	public static class TestNull2 {
+		public static void test() {
+			Ship ship = new Ship();
+			// ship = null;
+			// ship = Struct.typedNull(Ship.class);
+			ship.id = 0;
+			ship.pos = new Vec3();
+		}
 	}
 
 	public static class TestDuplicateOverloadedMethod {
 		public static void test() {
-
+			test(1);
+			test(new Vec3());
+			test(new Ship());
 		}
 
 		public static void test(int val) {
