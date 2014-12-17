@@ -6,7 +6,6 @@ import net.indiespot.struct.runtime.StructGC.IntList;
 import net.indiespot.struct.transform.StructEnv;
 
 public class StructHeap {
-	@SuppressWarnings("unused")
 	private static final boolean TRACK_EVERY_HANDLE = StructEnv.SAFETY_FIRST || false;
 
 	final ByteBuffer buffer;
