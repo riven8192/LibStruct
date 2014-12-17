@@ -6,7 +6,9 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeSet;
 
 import net.indiespot.struct.StructInfo;
 import net.indiespot.struct.cp.CopyStruct;
@@ -276,6 +278,8 @@ public class StructEnv {
 			}
 		};
 
+		final Map<String, Set<String>> final2origMethods = new HashMap<>();
+
 		final String[] currentMethodName = new String[1];
 		final String[] currentMethodDesc = new String[1];
 
@@ -370,6 +374,15 @@ public class StructEnv {
 
 				String finalMethodName = methodName.replace(wrapped_struct_flag, "I");
 				String finalMethodDesc = methodDesc.replace(wrapped_struct_flag, "I");
+
+				{
+					String key = finalMethodName + " " + finalMethodDesc;
+					Set<String> origMethods = final2origMethods.get(key);
+					if (origMethods == null)
+						final2origMethods.put(key, origMethods = new TreeSet<>());
+					origMethods.add(origMethodName + " " + origMethodDesc);
+				}
+
 				final MethodVisitor mv = super.visitMethod(access, finalMethodName, finalMethodDesc, signature, exceptions);
 
 				if (struct_rewrite_early_out) {
@@ -927,8 +940,27 @@ public class StructEnv {
 			msg += "\t\tname: " + currentMethodName[0] + "\n";
 			msg += "\t\tdesc: " + currentMethodDesc[0] + "\n";
 			if (!StructEnv.PRINT_LOG)
-				msg += "\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
+				msg += "\n\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
 			throw new IllegalStateException(msg, cause);
+		}
+
+		for (Entry<String, Set<String>> entry : final2origMethods.entrySet()) {
+			System.out.println(fqcn + " " + entry);
+			if (entry.getValue().size() > 1) {
+				String msg = "LibStruct failed to rewrite classpath:\n";
+				msg += "\tLast entered class: \n";
+				msg += "\t\tfqcn: " + fqcn + "\n";
+				msg += "\n";
+				msg += "\tThe following methods collide after transformation: \n";
+				for (String m : entry.getValue()) {
+					msg += "\t\t" + m + "\n";
+				}
+				msg += "\tdue to shared name and description: \n";
+				msg += "\t\t" + entry.getKey() + "\n";
+				if (!StructEnv.PRINT_LOG)
+					msg += "\n\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
+				throw new IllegalStateException(msg);
+			}
 		}
 
 		bytecode = writer.toByteArray();

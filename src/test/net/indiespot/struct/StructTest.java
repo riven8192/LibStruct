@@ -19,6 +19,11 @@ import net.indiespot.struct.runtime.SuspiciousFieldAssignmentError;
 public class StructTest {
 	public static void main(String[] args) {
 		TestStructEnv.test();
+		
+		if(true){
+			TestDuplicateOverloadedMethod.test();
+			return;
+		}
 
 		if (true) {
 			TestCalloc.test();
@@ -85,8 +90,28 @@ public class StructTest {
 		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
 		TestSuspiciousFieldAssignment.test();
+		
+		
 
 		System.out.println("done");
+	}
+
+	public static class TestDuplicateOverloadedMethod {
+		public static void test() {
+
+		}
+
+		public static void test(int val) {
+
+		}
+
+		public static void test(Vec3 vec3) {
+
+		}
+
+		public static void test(Ship ship) {
+
+		}
 	}
 
 	public static class TestSuspiciousFieldAssignment {
@@ -105,7 +130,7 @@ public class StructTest {
 			Ship ship = new Ship();
 			ship.pos = field;
 			ship.pos = new Vec3();
-			
+
 			ship = Struct.calloc(Ship.class);
 			ship.pos = field;
 			try {
