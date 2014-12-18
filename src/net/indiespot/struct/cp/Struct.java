@@ -58,7 +58,16 @@ public class Struct {
 		throwFit();
 	}
 
+	public static <T> void swap(Class<T> structType, T src, T dst) {
+		throwFit();
+	}
+
 	public static <T, A> A view(T struct, Class<A> asType, int offsetMultipleOf4) {
+		throwFit();
+		return null;
+	}
+
+	public static <T, A> A sibling(T struct, Class<A> asType, int move) {
 		throwFit();
 		return null;
 	}
@@ -77,6 +86,11 @@ public class Struct {
 
 	//
 
+	public static <T> T fromPointer(long pointer) {
+		throwFit();
+		return null;
+	}
+	
 	public static long getPointer(Object struct) {
 		throwFit();
 		return 0L;

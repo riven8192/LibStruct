@@ -32,10 +32,10 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		String params = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
 		int slot = 0;
-		if((access & Opcodes.ACC_STATIC) == 0) {
+		if ((access & Opcodes.ACC_STATIC) == 0) {
 			local.set(slot++, VarType.REFERENCE); // 'this'
 		}
-		for(String d : splitDescArray(params)) {
+		for (String d : splitDescArray(params)) {
 			slot = setDescType(local, slot, descToType(d));
 		}
 	}
@@ -72,7 +72,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitInsn(int opcode) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t1)\t" + opcodeToString(opcode));
 
 		switch (opcode) {
@@ -177,10 +177,10 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case AASTORE: {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT)); // value
-			if(got == VarType.STRUCT)
+			if (got == VarType.STRUCT)
 				opcode = IASTORE;
 			stack.popEQ(VarType.INT); // index
-			if(got == VarType.STRUCT)
+			if (got == VarType.STRUCT)
 				stack.popEQ(VarType.STRUCT_ARRAY); // array
 			else
 				stack.popEQ(VarType.REFERENCE); // array
@@ -419,7 +419,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case ARETURN: {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
-			if(got == VarType.STRUCT)
+			if (got == VarType.STRUCT)
 				opcode = IRETURN;
 			stack.eqEmpty();
 			stack = null;
@@ -451,14 +451,14 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t2)\t" + opcodeToString(opcode));
 		super.visitInsn(opcode);
 	}
 
 	@Override
 	public void visitIntInsn(int opcode, int operand) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t" + opcodeToString(opcode) + " " + operand);
 
 		switch (opcode) {
@@ -481,7 +481,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitVarInsn(int opcode, int var) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t" + opcodeToString(opcode) + " " + var);
 
 		switch (opcode) {
@@ -505,9 +505,9 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case ALOAD: {
 			VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.STRUCT_TYPE, VarType.NULL, VarType.EMBEDDED_ARRAY));
-			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
+			if (got == VarType.STRUCT || got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
 				opcode = ILOAD;
-				if(StructEnv.PRINT_LOG)
+				if (StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
 			}
 			stack.push(got);
@@ -536,9 +536,9 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case ASTORE: {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL, VarType.EMBEDDED_ARRAY));
-			if(got == VarType.STRUCT || got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
+			if (got == VarType.STRUCT || got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
 				opcode = ISTORE;
-				if(StructEnv.PRINT_LOG)
+				if (StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
 			}
 			local.set(var, got);
@@ -557,12 +557,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitTypeInsn(int opcode, String type) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t" + opcodeToString(opcode) + " " + type);
 
 		switch (opcode) {
 		case NEW:
-			if(type.equals(StructEnv.plain_struct_flag))
+			if (type.equals(StructEnv.plain_struct_flag))
 				stack.push(VarType.STRUCT);
 			else
 				stack.push(VarType.REFERENCE);
@@ -570,7 +570,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case ANEWARRAY:
 			stack.popEQ(VarType.INT); // length
-			if(type.equals(StructEnv.plain_struct_flag))
+			if (type.equals(StructEnv.plain_struct_flag))
 				stack.push(VarType.STRUCT_ARRAY);
 			else
 				stack.push(VarType.REFERENCE);
@@ -581,7 +581,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case INSTANCEOF: {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
-			if(got == VarType.STRUCT) {
+			if (got == VarType.STRUCT) {
 				super.visitInsn(POP); // discard REF
 				super.visitInsn(ICONST_0); // false (struct is never instanceof
 											// any type)
@@ -601,11 +601,11 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 
-		if(opcode == GETFIELD || opcode == GETSTATIC) {
-			if(opcode == GETFIELD) {
+		if (opcode == GETFIELD || opcode == GETSTATIC) {
+			if (opcode == GETFIELD) {
 				stack.popEQ(VarType.REFERENCE);
 			}
 
@@ -621,8 +621,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			default:
 				break;
 			}
-		}
-		else if(opcode == PUTSTATIC || opcode == PUTFIELD) {
+		} else if (opcode == PUTSTATIC || opcode == PUTFIELD) {
 			switch (popDescType(stack, descToType(desc))) {
 			case STRUCT:
 				desc = "I";
@@ -636,11 +635,10 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				break;
 			}
 
-			if(opcode == PUTFIELD) {
+			if (opcode == PUTFIELD) {
 				stack.popEQ(VarType.REFERENCE);
 			}
-		}
-		else {
+		} else {
 			throw new IllegalStateException();
 		}
 
@@ -665,39 +663,54 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 					if(descToType(arr[i]) == A_REFERENCE) {
 						// RFC from TheAgentD: stringify
 						// - passing STRUCT argument to REFERENCE parameter... :o(
-						// - supports rewriting up to 3 parameters
+						// - supports rewriting up to 4 parameters
 
 						arr[i] = "Ljava/lang/String;";
-						if(i == arr.length - 1) {
-							// ...,struct
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;", itf);
-							// ...,string
-						}
-						else if(i == arr.length - 2) {
-							// ...,struct,a
-							this.visitInsn(SWAP);
-							// ...,a,struct
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;", itf);
-							// ...,a,string
-							this.visitInsn(SWAP);
-							// ...,string,a
-						}
-						else if(i == arr.length - 3) {
-							// ...,struct,b,a
-							this.visitInsn(DUP2_X1);
-							// ...,b,a,struct,b,a
-							this.visitInsn(POP2);
+						if(i == arr.length - 1 || i == arr.length - 3) {
+							if(i == arr.length - 3){
+								// ...,struct,b,a
+								this.visitInsn(DUP2_X1);
+								// ...,b,a,struct,b,a
+								this.visitInsn(POP2);
+							}
+							
 							// ...,b,a,struct
-							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")Ljava/lang/String;", itf);
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")"+arr[i], itf);
 							// ...,b,a,string
-							this.visitInsn(DUP_X2);
-							// ...,string,b,a,string
-							this.visitInsn(POP);
-							// ...,string,b,a
+							
+							if(i == arr.length - 3){
+								this.visitInsn(DUP_X2);
+								// ...,string,b,a,string
+								this.visitInsn(POP);
+								// ...,string,b,a
+							}
+						}
+						else if(i == arr.length - 2 || i == arr.length - 4) {
+							if(i == arr.length - 4) {
+								// ...,struct,c,b,a
+								this.visitInsn(DUP2_X2);
+								// ...,b,a,struct,c,b,a
+								this.visitInsn(POP2);
+							}
+							
+							// ...,b,a,struct,c
+							this.visitInsn(SWAP);
+							// ...,b,a,c,struct
+							this.visitMethodInsn(INVOKESTATIC, StructMemory.class.getName().replace('.', '/'), "toString", "(" + StructEnv.wrapped_struct_flag + ")"+arr[i], itf);
+							// ...,b,a,c,string
+							this.visitInsn(SWAP);
+							// ...,b,a,string,c
+							
+							if(i == arr.length - 4) {
+								this.visitInsn(DUP2_X2);
+								// ...,string,c,b,a,string,c
+								this.visitInsn(POP2);
+								// ...,string,c,b,a
+							}
 						}
 						else {
 							String msg = "cannot stringify struct @ method parameter " + (i + 1) + "/" + arr.length + ": " + //
-									"struct stringification is limited to the last 3 parameters of a method";
+									"struct stringification is limited to the last 4 parameters of a method";
 
 							VarStack args = new VarStack();
 							for(int k = 0; k < arr.length; k++)
@@ -705,7 +718,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 							throw new UnsupportedCallsiteException(msg, //
 									callsiteDescription, // callsite
-									owner + "." + name + "" + desc,// target
+									owner + "." + name + "" + desc, // target
 									args.topToString(arr.length), //
 									stack.topToString(arr.length));
 						}
@@ -728,7 +741,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			}
 
 			for(int i = arr.length - 1; i >= 0; i--) {
-				popDescType(stack, descToType(arr[i]));
+				try {
+					popDescType(stack, descToType(arr[i]));
+				}
+				catch (Exception exc) {
+					throw new IllegalStateException("failed to pop parameter: " + arr[i], exc);
+				}
 			}
 
 			if(opcode != INVOKESTATIC) {
@@ -759,7 +777,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	int labelIndex = 0;
 
 	private void ensureLabelIndex() {
-		if(labelIndex == labels.length) {
+		if (labelIndex == labels.length) {
 			final int len = labels.length * 2;
 			labels = Arrays.copyOf(labels, len);
 			stackAtLabel = Arrays.copyOf(stackAtLabel, len);
@@ -769,7 +787,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitJumpInsn(int opcode, Label label) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t" + opcodeToString(opcode));
 
 		switch (opcode) {
@@ -794,18 +812,18 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case IF_ACMPEQ: {
 			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL)));
-			if(got == VarType.STRUCT) {
+			if (got == VarType.STRUCT) {
 				opcode = IF_ICMPEQ;
-				if(StructEnv.PRINT_LOG)
+				if (StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
 		}
 		case IF_ACMPNE: {
 			VarType got = stack.popEQ(stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL)));
-			if(got == VarType.STRUCT) {
+			if (got == VarType.STRUCT) {
 				opcode = IF_ICMPNE;
-				if(StructEnv.PRINT_LOG)
+				if (StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
@@ -813,18 +831,18 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case IFNULL: {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
-			if(got == VarType.STRUCT) {
+			if (got == VarType.STRUCT) {
 				opcode = IFEQ;
-				if(StructEnv.PRINT_LOG)
+				if (StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
 		}
 		case IFNONNULL: {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT, VarType.STRUCT_ARRAY, VarType.NULL));
-			if(got == VarType.STRUCT) {
+			if (got == VarType.STRUCT) {
 				opcode = IFNE;
-				if(StructEnv.PRINT_LOG)
+				if (StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode));
 			}
 			break;
@@ -840,17 +858,18 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
-		// whatever we're jumping to, will have the same stack/local as we currently have
+		// whatever we're jumping to, will have the same stack/local as we
+		// currently have
 		{
 			int index = -1;
-			for(int i = 0; i < labelIndex; i++)
-				if(labels[i] == label)
+			for (int i = 0; i < labelIndex; i++)
+				if (labels[i] == label)
 					index = i;
 
-			if(StructEnv.PRINT_LOG)
+			if (StructEnv.PRINT_LOG)
 				System.out.println("\t\t\t\t" + opcodeToString(opcode) + " label[" + index + "] jump to " + label);
 
-			if(index == -1)
+			if (index == -1)
 				index = labelIndex++;
 			this.ensureLabelIndex();
 			labels[index] = label;
@@ -863,7 +882,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\tTABLE_SWITCH");
 
 		stack.popEQ(VarType.INT);
@@ -873,7 +892,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\tLOOKUP_SWITCH");
 
 		stack.popEQ(VarType.INT);
@@ -903,7 +922,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	@Override
 	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
 		TryCatchBlock tryCatchBlock = new TryCatchBlock(start, end, handler, type);
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t_TRYCATCH " + tryCatchBlock);
 		tryCatchBlocks.add(tryCatchBlock);
 
@@ -912,13 +931,13 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	private boolean saveOrRestoreStateAtLabel(Label label) {
 		int index = -1;
-		for(int i = 0; i < labelIndex; i++)
-			if(labels[i] == label)
+		for (int i = 0; i < labelIndex; i++)
+			if (labels[i] == label)
 				index = i;
 
-		if(index == -1) {
+		if (index == -1) {
 			index = labelIndex++;
-			if(StructEnv.PRINT_LOG)
+			if (StructEnv.PRINT_LOG)
 				System.out.println("\t\t\tsaving label state [" + index + "] <= " + label);
 			this.ensureLabelIndex();
 			labels[index] = label;
@@ -929,24 +948,24 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		stack = stackAtLabel[index];
 		local = localAtLabel[index];
-		if(stack == null || local == null)
+		if (stack == null || local == null)
 			throw new IllegalStateException();
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t\trestored label state [" + index + "] <= " + label);
 		return true;
 	}
 
 	@Override
 	public void visitLabel(Label label) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t_LABEL <= " + label);
 
 		this.saveOrRestoreStateAtLabel(label);
 
-		for(TryCatchBlock tryCatchBlock : tryCatchBlocks) {
-			if(tryCatchBlock.handler == label) {
-				if(stack == null) {
-					if(!this.saveOrRestoreStateAtLabel(tryCatchBlock.start)) {
+		for (TryCatchBlock tryCatchBlock : tryCatchBlocks) {
+			if (tryCatchBlock.handler == label) {
+				if (stack == null) {
+					if (!this.saveOrRestoreStateAtLabel(tryCatchBlock.start)) {
 						throw new IllegalStateException("failed to find state at [start] of TryCatchBlock: " + tryCatchBlock);
 					}
 				}
@@ -959,27 +978,22 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitLdcInsn(Object cst) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\tLDC " + cst);
 
-		if(cst instanceof Integer) {
+		if (cst instanceof Integer) {
 			stack.push(VarType.INT);
-		}
-		else if(cst instanceof Float) {
+		} else if (cst instanceof Float) {
 			stack.push(VarType.MISC);
-		}
-		else if(cst instanceof Long) {
+		} else if (cst instanceof Long) {
 			stack.push(VarType.MISC);
 			stack.push(VarType.MISC);
-		}
-		else if(cst instanceof Double) {
+		} else if (cst instanceof Double) {
 			stack.push(VarType.MISC);
 			stack.push(VarType.MISC);
-		}
-		else if(cst instanceof String) {
+		} else if (cst instanceof String) {
 			stack.push(VarType.REFERENCE);
-		}
-		else if(cst instanceof Type) {
+		} else if (cst instanceof Type) {
 			stack.push(VarType.REFERENCE);
 		}
 		// else if(cst instanceof Object[]) { // FIXME
@@ -994,7 +1008,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitIincInsn(int var, int increment) {
-		if(StructEnv.PRINT_LOG)
+		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\tIINC");
 
 		local.getEQ(var, VarType.INT);
@@ -1029,59 +1043,58 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	public static String opcodeToString(int opcode) {
 		try {
-			for(Field field : Opcodes.class.getFields()) {
+			for (Field field : Opcodes.class.getFields()) {
 				int i = ((Integer) field.get(null)).intValue();
-				if(i != opcode)
+				if (i != opcode)
 					continue;
-				if(field.getName().startsWith("ACC_"))
+				if (field.getName().startsWith("ACC_"))
 					continue;
-				if(field.getName().startsWith("H_"))
+				if (field.getName().startsWith("H_"))
 					continue;
-				if(field.getName().startsWith("F_"))
+				if (field.getName().startsWith("F_"))
 					continue;
-				if(field.getName().startsWith("T_"))
+				if (field.getName().startsWith("T_"))
 					continue;
-				if(field.getName().startsWith("V1_"))
+				if (field.getName().startsWith("V1_"))
 					continue;
-				if(field.getName().equals("INTEGER"))
+				if (field.getName().equals("INTEGER"))
 					continue;
-				if(field.getName().equals("LONG"))
+				if (field.getName().equals("LONG"))
 					continue;
-				if(field.getName().equals("FLOAT"))
+				if (field.getName().equals("FLOAT"))
 					continue;
-				if(field.getName().equals("DOUBLE"))
+				if (field.getName().equals("DOUBLE"))
 					continue;
 				return field.getName();
 			}
 			return null;
-		}
-		catch (IllegalArgumentException | IllegalAccessException e) {
+		} catch (IllegalArgumentException | IllegalAccessException e) {
 			throw new IllegalStateException(e);
 		}
 	}
 
 	private static VarType pushDescType(VarStack stack, int descType) {
-		if(descType == NO_WORD) {
+		if (descType == NO_WORD) {
 			// no-op
 			return null;
 		}
-		if(descType == A_FLOAT) {
+		if (descType == A_FLOAT) {
 			return stack.push(VarType.MISC);
 		}
-		if(descType == A_LONG_OR_DOUBLE) {
+		if (descType == A_LONG_OR_DOUBLE) {
 			stack.push(VarType.MISC);
 			return stack.push(VarType.MISC);
 		}
-		if(descType == AN_INT) {
+		if (descType == AN_INT) {
 			return stack.push(VarType.INT);
 		}
-		if(descType == A_STRUCT) {
+		if (descType == A_STRUCT) {
 			return stack.push(VarType.STRUCT);
 		}
-		if(descType == A_STRUCT_ARRAY) {
+		if (descType == A_STRUCT_ARRAY) {
 			return stack.push(VarType.STRUCT_ARRAY);
 		}
-		if(descType == A_REFERENCE) {
+		if (descType == A_REFERENCE) {
 			return stack.push(VarType.REFERENCE);
 		}
 
@@ -1089,28 +1102,29 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	}
 
 	private static VarType popDescType(VarStack stack, int descType) {
-		if(descType == NO_WORD) {
+		if (descType == NO_WORD) {
 			// no-op
 			return null;
 		}
-		if(descType == A_FLOAT) {
+		if (descType == A_FLOAT) {
 			return stack.popEQ(EnumSet.of(VarType.MISC, VarType.INT));
 		}
-		if(descType == A_LONG_OR_DOUBLE) {
+		if (descType == A_LONG_OR_DOUBLE) {
 			stack.popEQ(VarType.MISC);
 			return stack.popEQ(VarType.MISC);
 		}
-		if(descType == AN_INT) {
+		if (descType == AN_INT) {
 			return stack.popEQ(VarType.INT);
 		}
-		if(descType == A_REFERENCE) {
+		if (descType == A_REFERENCE) {
 			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY, VarType.NULL));
 		}
-		if(descType == A_STRUCT) {
-			// return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT));
+		if (descType == A_STRUCT) {
+			// return stack.popEQ(EnumSet.of(VarType.REFERENCE,
+			// VarType.STRUCT));
 			return stack.popEQ(VarType.STRUCT);
 		}
-		if(descType == A_STRUCT_ARRAY) {
+		if (descType == A_STRUCT_ARRAY) {
 			return stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY));
 		}
 
@@ -1119,29 +1133,22 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	}
 
 	private static int setDescType(VarLocal local, int slot, int descType) {
-		if(descType == NO_WORD) {
+		if (descType == NO_WORD) {
 			// no-op
-		}
-		else if(descType == A_FLOAT) {
+		} else if (descType == A_FLOAT) {
 			local.set(slot++, VarType.MISC);
-		}
-		else if(descType == A_LONG_OR_DOUBLE) {
+		} else if (descType == A_LONG_OR_DOUBLE) {
 			local.set(slot++, VarType.MISC);
 			local.set(slot++, VarType.MISC);
-		}
-		else if(descType == AN_INT) {
+		} else if (descType == AN_INT) {
 			local.set(slot++, VarType.INT);
-		}
-		else if(descType == A_STRUCT) {
+		} else if (descType == A_STRUCT) {
 			local.set(slot++, VarType.STRUCT);
-		}
-		else if(descType == A_STRUCT_ARRAY) {
+		} else if (descType == A_STRUCT_ARRAY) {
 			local.set(slot++, VarType.STRUCT_ARRAY);
-		}
-		else if(descType == A_REFERENCE) {
+		} else if (descType == A_REFERENCE) {
 			local.set(slot++, VarType.REFERENCE);
-		}
-		else {
+		} else {
 			throw new IllegalStateException();
 		}
 		return slot;
@@ -1157,8 +1164,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				desc = desc.substring(type.length());
 				parts.add(type);
 			}
-		}
-		catch (Exception exc) {
+		} catch (Exception exc) {
 			throw new IllegalStateException(orig, exc);
 		}
 
@@ -1168,17 +1174,17 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	private String getFirstType(String desc) {
 		String c = desc.substring(0, 1);
 		int type = descToType(c);
-		if(type != A_REFERENCE) {
+		if (type != A_REFERENCE) {
 			return c;
 		}
 
-		if(c.equals("[")) {
+		if (c.equals("[")) {
 			return "[" + getFirstType(desc.substring(1));
 		}
 
-		if(c.equals("L")) {
+		if (c.equals("L")) {
 			int io = desc.indexOf(';');
-			if(io == -1)
+			if (io == -1)
 				throw new IllegalStateException();
 			return desc.substring(0, io + 1);
 		}
@@ -1195,31 +1201,31 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	private static int A_REFERENCE = 17;
 
 	private int descToType(String desc) {
-		if(desc.equals("V"))
+		if (desc.equals("V"))
 			return NO_WORD; // void
-		if(desc.equals("Z"))
+		if (desc.equals("Z"))
 			return AN_INT;
-		if(desc.equals("B"))
+		if (desc.equals("B"))
 			return AN_INT;
-		if(desc.equals("C"))
+		if (desc.equals("C"))
 			return AN_INT;
-		if(desc.equals("S"))
+		if (desc.equals("S"))
 			return AN_INT;
-		if(desc.equals("I"))
+		if (desc.equals("I"))
 			return AN_INT; //
-		if(desc.equals("F"))
+		if (desc.equals("F"))
 			return A_FLOAT;
-		if(desc.equals("J"))
+		if (desc.equals("J"))
 			return A_LONG_OR_DOUBLE;
-		if(desc.equals("D"))
+		if (desc.equals("D"))
 			return A_LONG_OR_DOUBLE;
-		if(desc.equals(StructEnv.wrapped_struct_flag))
+		if (desc.equals(StructEnv.wrapped_struct_flag))
 			return A_STRUCT;
-		if(desc.equals("[" + StructEnv.wrapped_struct_flag))
+		if (desc.equals("[" + StructEnv.wrapped_struct_flag))
 			return A_STRUCT_ARRAY;
-		if(desc.startsWith("L"))
+		if (desc.startsWith("L"))
 			return A_REFERENCE; // type
-		if(desc.startsWith("["))
+		if (desc.startsWith("["))
 			return A_REFERENCE; // array
 		throw new UnsupportedOperationException("unexpected desc: " + desc);
 	}
