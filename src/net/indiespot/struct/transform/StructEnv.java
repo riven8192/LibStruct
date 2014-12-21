@@ -396,7 +396,7 @@ public class StructEnv {
 				final boolean hasStructCreation = info.methodsWithStructCreation.contains(origMethodName + origMethodDesc);
 
 				final String _methodName = methodName;
-
+				final int _access = access;
 				final FlowAnalysisMethodVisitor flow = new FlowAnalysisMethodVisitor(mv, access, fqcn, methodName, methodDesc, signature, exceptions);
 				return new MethodVisitor(Opcodes.ASM5, flow) {
 					private ReturnValueStrategy strategy;
@@ -418,12 +418,20 @@ public class StructEnv {
 					@Override
 					public void visitCode() {
 						if (_returnsStructType != null) {
-							String msg = "";
-							msg += "must define how struct return values are handled: ";
-							msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
-
-							if (strategy == null)
+							if (strategy == null) {
+								if((_access & ACC_SYNTHETIC) != 0) {
+									strategy = ReturnValueStrategy.PASS;
+									if (PRINT_LOG)
+										System.out.println("\t\t\twith struct return value, using fallback Pass strategy due to synthetic method");
+								}
+							}
+							if (strategy == null) {								
+								String msg = "";
+								msg += "must define how struct return values are handled: ";
+								msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
+								
 								throw new IllegalStateException(msg);
+							}
 						}
 
 						super.visitCode();
