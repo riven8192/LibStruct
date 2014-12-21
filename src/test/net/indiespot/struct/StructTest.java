@@ -1,7 +1,9 @@
 package test.net.indiespot.struct;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
@@ -85,13 +87,22 @@ public class StructTest {
 		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
 		TestSuspiciousFieldAssignment.test();
+		if (false)
+			TestDuplicateOverloadedMethod.test();
 		TestFromPointer.test();
+		TestCollectionAPI.test();
 
 		System.out.println("done");
 
-		if (false)
-			TestDuplicateOverloadedMethod.test();
 	}
+	
+	public static class TestCollectionAPI {
+		public static void test() {
+			List<Vec3> vectors = new ArrayList<>();
+			vectors.add(new Vec3());
+		}
+	}
+
 
 	public static class TestFromPointer {
 		public static void test() {
@@ -105,6 +116,8 @@ public class StructTest {
 		}
 	}
 
+
+	
 	public static class TestNull2 {
 		public static void test() {
 			Ship ship = new Ship();

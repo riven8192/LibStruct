@@ -13,6 +13,7 @@ public class StructMemory {
 	public static final boolean CHECK_MEMORY_ACCESS_REGION = StructEnv.SAFETY_FIRST || false;
 	public static final boolean CHECK_POINTER_ALIGNMENT = StructEnv.SAFETY_FIRST || false;
 	public static final boolean CHECK_FIELD_ASSIGNMENT = StructEnv.SAFETY_FIRST || false;
+	public static final boolean CHECK_SOURCECODE = StructEnv.SAFETY_FIRST || true;
 
 	private static final boolean manually_fill_and_copy = true;
 
