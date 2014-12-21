@@ -468,7 +468,16 @@ public class StructEnv {
 
 					@Override
 					public void visitCode() {
-						if (_returnsStructType != null) {
+						if (_returnsStructType == null) {
+							if (strategy != null) {								
+								String msg = "";
+								msg += "@CopyStruct and @TakeStruct must only be used with struct return values";
+								msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
+								
+								throw new IllegalStateException(msg);
+							}
+						}
+						else {
 							if (strategy == null) {
 								if((_access & ACC_SYNTHETIC) != 0) {
 									strategy = ReturnValueStrategy.PASS;

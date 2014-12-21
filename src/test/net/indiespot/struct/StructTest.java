@@ -98,8 +98,9 @@ public class StructTest {
 	
 	public static class TestCollectionAPI {
 		public static void test() {
-			List<Vec3> vectors = new ArrayList<>();
-			vectors.add(new Vec3());
+			//List< Vec3 > vectors = new ArrayList<>();
+			//List<Object> vectors = new ArrayList<>();
+			//vectors.add(new Vec3());
 		}
 	}
 
