@@ -2,6 +2,11 @@ package net.indiespot.struct.transform;
 
 import static org.objectweb.asm.Opcodes.*;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -277,6 +282,52 @@ public class StructEnv {
 				return type3;
 			}
 		};
+		
+		if(StructMemory.CHECK_SOURCECODE)
+		{
+			File srcDir = new File("./src/");
+			if(srcDir.exists()) {
+				String relpath = fqcn;
+				if(relpath.indexOf('$') != -1)
+					relpath = relpath.substring(0, relpath.indexOf('$'));
+				File srcFile = new File(srcDir, relpath+".java");
+				if(srcFile.exists()) {
+					try {
+						InputStream fis = new FileInputStream(srcFile);
+						ByteArrayOutputStream baos = new ByteArrayOutputStream();
+						byte[] tmp = new byte[4*1024];
+						while(true) {
+							int got = fis.read(tmp,0,tmp.length);
+							if(got==-1)
+								break;
+							baos.write(tmp,  0, got);
+						}
+						String src = new String(baos.toByteArray(), "UTF-8");					
+						
+						for(String struct: plain_struct_types) {
+							struct = struct.substring(struct.lastIndexOf('/')+1);
+							struct = struct.substring(struct.indexOf('$')+1);
+							if(src.contains("<"+struct+">")) {
+								int io = src.indexOf("<"+struct+">");
+								int io2 = -1;
+								for(char c: " \t(".toCharArray()) {
+									int lio = src.substring(0,io).lastIndexOf(c);
+									if(lio != -1)
+										io2 = Math.max(io2, lio);
+								}
+								throw new UnsupportedOperationException(
+									"Cannot use generics with structs.\n"+//
+									"Found: "+src.substring(io2==-1?io:io2+1,io)+"<"+struct+"> in: "+relpath+".java");
+							}
+						}
+					}
+					catch(IOException exc) {
+						// ignore
+						exc.printStackTrace();
+					}
+				}
+			}
+		}
 
 		final Map<String, Set<String>> final2origMethods = new HashMap<>();
 
@@ -396,7 +447,7 @@ public class StructEnv {
 				final boolean hasStructCreation = info.methodsWithStructCreation.contains(origMethodName + origMethodDesc);
 
 				final String _methodName = methodName;
-
+				final int _access = access;
 				final FlowAnalysisMethodVisitor flow = new FlowAnalysisMethodVisitor(mv, access, fqcn, methodName, methodDesc, signature, exceptions);
 				return new MethodVisitor(Opcodes.ASM5, flow) {
 					private ReturnValueStrategy strategy;
@@ -417,13 +468,30 @@ public class StructEnv {
 
 					@Override
 					public void visitCode() {
-						if (_returnsStructType != null) {
-							String msg = "";
-							msg += "must define how struct return values are handled: ";
-							msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
-
-							if (strategy == null)
+						if (_returnsStructType == null) {
+							if (strategy != null) {								
+								String msg = "";
+								msg += "@CopyStruct and @TakeStruct must only be used with struct return values";
+								msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
+								
 								throw new IllegalStateException(msg);
+							}
+						}
+						else {
+							if (strategy == null) {
+								if((_access & ACC_SYNTHETIC) != 0) {
+									strategy = ReturnValueStrategy.PASS;
+									if (PRINT_LOG)
+										System.out.println("\t\t\twith struct return value, using fallback Pass strategy due to synthetic method");
+								}
+							}
+							if (strategy == null) {								
+								String msg = "";
+								msg += "must define how struct return values are handled: ";
+								msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
+								
+								throw new IllegalStateException(msg);
+							}
 						}
 
 						super.visitCode();

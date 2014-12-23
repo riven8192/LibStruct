@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
+import net.indiespot.struct.codegen.StructGenericsSourcecodeGenerator;
 import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.UnsupportedCallsiteException;
 
@@ -674,6 +675,17 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				
 				if(stack.peek(ii) == VarType.STRUCT) {
 					if(descToType(arr[i]) == A_REFERENCE) {
+						if(owner.startsWith("java/util/")) {							
+							if(owner.endsWith("List") || //
+								owner.endsWith("Set") || //
+								owner.endsWith("Map") || //
+								owner.endsWith("Collection")) {
+								throw new UnsupportedOperationException(owner+"."+name+desc+//
+									"\nCannot use structs with the Java Collection API and/or generics in general."+//
+									"\nYou can generate struct-backed collection-classes using: "+StructGenericsSourcecodeGenerator.class.getSimpleName());
+							}
+						}
+						
 						// RFC from TheAgentD: stringify
 						// - passing STRUCT argument to REFERENCE parameter... :o(
 						// - supports rewriting up to 4 parameters

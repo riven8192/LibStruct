@@ -1,7 +1,9 @@
 package test.net.indiespot.struct;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
@@ -86,6 +88,7 @@ public class StructTest {
 		TestEmbedStruct.test();
 		TestSuspiciousFieldAssignment.test();
 		TestFromPointer.test();
+		TestCollectionAPI.test();
 
 		TestEmbeddedArrayUsage.test();
 
@@ -93,6 +96,14 @@ public class StructTest {
 
 		if (false)
 			TestDuplicateOverloadedMethod.test();
+	}
+	
+	public static class TestCollectionAPI {
+		public static void test() {
+			//List< Vec3 > vectors = new ArrayList<>();
+			//List<Object> vectors = new ArrayList<>();
+			//vectors.add(new Vec3());
+		}
 	}
 
 	public static class TestEmbeddedArrayUsage {
@@ -295,140 +306,6 @@ public class StructTest {
 				assert darr[1] == 3.4;
 			}
 		}
-//
-//		public static void testPerf() {
-//			ArrayEmbed fake = new ArrayEmbed();
-//			ByteBuffer bb = ByteBuffer.allocateDirect(16 * 4);
-//
-//			int[] real = new int[16];
-//			long address = StructUnsafe.getBufferBaseAddress(bb);
-//			int handle = (int) (address >>> 2);
-//
-//			for (int i = 0; i < 100; i++) {
-//				long t0 = System.nanoTime();
-//				testPerfReal(real);
-//				long t1 = System.nanoTime();
-//				testPerfFake(fake);
-//				long t2 = System.nanoTime();
-//				testPerfUnsf32(handle);
-//				long t3 = System.nanoTime();
-//				testPerfUnsf32iA(handle);
-//				long t4 = System.nanoTime();
-//				testPerfUnsf32iB(handle);
-//				long t5 = System.nanoTime();
-//				testPerfUnsf64(address);
-//				long t6 = System.nanoTime();
-//
-//				if (i % 10 == 10 - 1) {
-//					System.out.println();
-//					System.out.println("real int[]: " + (t1 - t0) / 1000 + "us");
-//					System.out.println("fake int[]: " + (t2 - t1) / 1000 + "us");
-//					System.out.println("unsf32:     " + (t3 - t2) / 1000 + "us");
-//					System.out.println("unsf32iA:   " + (t4 - t3) / 1000 + "us");
-//					System.out.println("unsf32iB:   " + (t5 - t4) / 1000 + "us");
-//					System.out.println("unsf64:     " + (t6 - t5) / 1000 + "us");
-//				}
-//			}
-//
-//			System.out.println();
-//			System.out.println(bb); // keep the ByteBuffer around
-//		}
-//
-//		private static void testPerfReal(int[] data) {
-//			if (true) {
-//				for (int k = 0; k < 16 * 256 * 1024; k++) {
-//					data[k & 0xf] += data[(k * 13) & 0xf];
-//				}
-//				return;
-//			}
-//			Arrays.fill(data, 0);
-//			data[0] = 122;
-//			data[1] = 23;
-//			data[2] = 34;
-//			data[3] = 45;
-//			data[4] = 56;
-//			data[5] = 67;
-//			data[6] = 78;
-//			data[7] = 89;
-//			data[8] = 910;
-//
-//			for (int k = 0; k < 16 * 256 * 1024; k++)
-//				data[k & 0xf] += data[(k * 13) & 0xf];
-//
-//			System.out.println(data[(16 * 256 * 1024 - 1) & 0xf]);
-//
-//			// for(int k = 0; k < 256 * 1024; k++) {
-//			// for(int m = 1; m < 16; m++) {
-//			// data[m] = data[(m * 13) & 0xf];
-//			// data[m] = data[(m - 1) & 0xf];
-//			// data[m] = data[(m + 1) & 0xf];
-//
-//			// data[m] = data[(m * 13) & 0xf];
-//			// data[m] = data[(m - 1) & 0xf];
-//			// data[m] = data[(m + 1) & 0xf];
-//			// }
-//			// }
-//		}
-//
-//		private static void testPerfFake(ArrayEmbed ae) {
-//			int[] data = ae.iarr;
-//
-//			for (int k = 0; k < 16 * 256 * 1024; k++) {
-//				data[k & 0xf] += data[(k * 13) & 0xf];
-//			}
-//		}
-//
-//		private static void testPerfUnsf64(long data) {
-//			for (int k = 0; k < 16 * 256 * 1024; k++) {
-//				long src, dst;
-//
-//				src = data + (((k * 13) & 0xf) << 2);
-//				dst = data + ((k & 0xf) << 2);
-//				StructUnsafe.UNSAFE.putInt(dst, StructUnsafe.UNSAFE.getInt(src) + StructUnsafe.UNSAFE.getInt(dst));
-//			}
-//		}
-//
-//		private static void testPerfUnsf32(int data) {
-//			for (int k = 0; k < 16 * 256 * 1024; k++) {
-//				long src, dst;
-//
-//				src = data + (((k * 13) & 0xf) << 2);
-//				dst = data + ((k & 0xf) << 2);
-//				StructUnsafe.UNSAFE.putInt(dst, StructUnsafe.UNSAFE.getInt(src) + StructUnsafe.UNSAFE.getInt(dst));
-//			}
-//		}
-//
-//		private static void testPerfUnsf32iA(int data) {
-//			for (int k = 0; k < 16 * 256 * 1024; k++) {
-//				iputA(data, k & 0xf, igetA(data, (k * 13) & 0xf) + igetA(data, k & 0xf));
-//			}
-//		}
-//
-//		private static void testPerfUnsf32iB(int data) {
-//			for (int k = 0; k < 16 * 256 * 1024; k++) {
-//				iputB(data, k & 0xf, igetB(data, (k * 13) & 0xf) + igetB(data, k & 0xf));
-//			}
-//		}
-//
-//		private static long handle2pointer(int handle) {
-//			return (handle & 0xFFFF_FFFFL) << 2;
-//		}
-//
-//		private static void iputA(int handle, int idx, int val) {
-//			StructUnsafe.UNSAFE.putInt(handle2pointer(handle + idx), val);
-//		}
-//
-//		private static int igetA(int handle, int idx) {
-//			return StructUnsafe.UNSAFE.getInt(handle2pointer(handle + idx));
-//		}
-//
-//		private static void iputB(int handle, int idx, int val) {
-//			StructUnsafe.UNSAFE.putInt(handle2pointer(handle) + handle2pointer(idx), val);
-//		}
-//
-//		private static int igetB(int handle, int idx) {
-//			return StructUnsafe.UNSAFE.getInt(handle2pointer(handle) + handle2pointer(idx));
-//		}
 	}
 
 	public static class TestSwitch {

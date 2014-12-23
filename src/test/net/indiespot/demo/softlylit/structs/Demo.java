@@ -166,6 +166,7 @@ public class Demo {
 
 				Random rndm = new Random();
 
+				int tris=0;
 				glBegin(GL_TRIANGLES);
 				{
 					tmp.clear();
@@ -202,11 +203,13 @@ public class Demo {
 							glVertex2f(tri.b.x, tri.b.y);
 							glVertex2f(tri.c.x, tri.c.y);
 						}
+						tris+=area. litArea.size();
 					}
 				}
 
 				glEnd();
 				glDisable(GL_BLEND);
+				System.out.println(tris);
 			}
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
