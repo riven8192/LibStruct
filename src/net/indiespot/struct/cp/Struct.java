@@ -44,6 +44,11 @@ public class Struct {
 		return null;
 	}
 
+	public static <T> T[] realloc(Class<T> structType, T[] currentArray, int newLength) {
+		throwFit();
+		return null;
+	}
+
 	public static <T> void free(T struct) {
 		throwFit();
 	}
@@ -90,7 +95,7 @@ public class Struct {
 		throwFit();
 		return null;
 	}
-	
+
 	public static long getPointer(Object struct) {
 		throwFit();
 		return 0L;

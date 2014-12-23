@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import net.indiespot.struct.cp.StructConfig;
+import net.indiespot.struct.transform.StructEnv;
 
 public class StructGC {
 
@@ -178,6 +179,22 @@ public class StructGC {
 			// not guaranteed to be continuous block of memory!
 			StructMemory.clearMemory(handle, sizeof);
 		return handles;
+	}
+	
+	public static int[] realloc(int sizeof, int[] src, int newLength) {
+		if(StructEnv.SAFETY_FIRST)
+			for(int i=0; i<src.length; i++)
+				if(src[i] == 0)
+					throw new NullPointerException("index="+i);
+		
+		int[] dst = malloc(sizeof, newLength);
+		int min = Math.min(src.length, newLength);
+		for(int i=0; i<min; i++)
+			// not guaranteed to be continuous block of memory!
+			StructMemory.copy(sizeof, src[i], dst[i]);	
+		 
+		freeHandles(src);
+		return dst;
 	}
 
 	public static void freeHandle(int handle) {

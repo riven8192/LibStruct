@@ -816,6 +816,16 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
+							} else if (name.equals("realloc") && desc.equals("(Ljava/lang/Class;[Ljava/lang/Object;I)[Ljava/lang/Object;")) {
+								if (flow.stack.peek(2) == VarType.STRUCT_TYPE) {
+									flow.stack.set(2, VarType.INT);
+									// ...,sizeof,struct[],length
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "realloc";
+									desc = "(I["+wrapped_struct_flag+"I)[" + wrapped_struct_flag;
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
 							} else if (name.equals("free") && desc.equals("(Ljava/lang/Object;)V")) {
 								if (flow.stack.peek() == VarType.NULL) {
 									// ..., NULL

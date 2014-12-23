@@ -91,11 +91,35 @@ public class StructTest {
 		TestCollectionAPI.test();
 
 		TestEmbeddedArrayUsage.test();
+		TestRealloc.test();
 
 		System.out.println("done");
 
 		if (false)
 			TestDuplicateOverloadedMethod.test();
+	}
+	
+	public static class TestRealloc {
+		public static void test() {
+			Vec3[] arr = Struct.malloc(Vec3.class, 13);
+			assert arr.length == 13;
+			
+			arr[4].x = 13.14f;
+			arr[7].y = 17.13f;
+			
+			arr = Struct.realloc(Vec3.class, arr, 13);
+			assert arr.length == 13;
+			assert arr[4].x == 13.14f;
+			assert arr[7].y == 17.13f;
+			
+			arr = Struct.realloc(Vec3.class, arr, 5);
+			assert arr.length == 5;
+			assert arr[4].x == 13.14f;
+			
+			arr = Struct.realloc(Vec3.class, arr, 8);
+			assert arr.length == 8;
+			assert arr[4].x == 13.14f;
+		}
 	}
 	
 	public static class TestCollectionAPI {
