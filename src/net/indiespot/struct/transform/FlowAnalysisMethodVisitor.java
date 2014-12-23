@@ -659,6 +659,19 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				opcode == INVOKESPECIAL) {
 			String[] arr = splitDescArray(params);
 			for(int i = arr.length - 1, ii = 0; i >= 0; i--, ii++) {
+				if(stack.peek(ii) == VarType.EMBEDDED_ARRAY)
+				{
+					VarStack args = new VarStack();
+					for(int k = 0; k < arr.length; k++)
+						pushDescType(args, descToType(arr[k]));
+					
+					throw new UnsupportedCallsiteException("cannot pass embedded array to a method, as the array doesn't exist", //
+							callsiteDescription, //
+							owner + "." + name + "" + desc, // target
+							args.topToString(arr.length), //
+							stack.topToString(arr.length));
+				}
+				
 				if(stack.peek(ii) == VarType.STRUCT) {
 					if(descToType(arr[i]) == A_REFERENCE) {
 						// RFC from TheAgentD: stringify

@@ -189,6 +189,7 @@ public class StructAgentDelegate {
 										}
 										else if(name.equals("length")) {
 											length = ((Integer) value).intValue();
+											embed = true;
 										}
 										else if(name.equals("embed")) {
 											embed = ((Boolean) value).booleanValue();

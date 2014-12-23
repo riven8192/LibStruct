@@ -15,7 +15,7 @@ public class StructThreadLocalStack {
 	public static final StructAllocationStack getStack() {
 		int id = (int) Thread.currentThread().getId();
 		StructAllocationStack stack = threadid2stack[id];
-		if(stack == null)
+		if (stack == null)
 			threadid2stack[id] = stack = createThreadLocalStack();
 		return stack;
 	}
@@ -23,12 +23,12 @@ public class StructThreadLocalStack {
 	private static final StructAllocationStack createThreadLocalStack() {
 		ByteBuffer buffer = null;
 		synchronized (buffer_mutex) {
-			if(!discarded_buffers.isEmpty()) {
+			if (!discarded_buffers.isEmpty()) {
 				buffer = discarded_buffers.remove(discarded_buffers.size() - 1);
 				buffer.clear();
 			}
 		}
-		if(buffer == null) {
+		if (buffer == null) {
 			buffer = ByteBuffer.allocateDirect(threadlocal_stacksize).order(ByteOrder.nativeOrder());
 		}
 
@@ -59,7 +59,9 @@ public class StructThreadLocalStack {
 			@Override
 			public void onThreadDeath(long threadId) {
 				ByteBuffer buffer = threadid2buffer[(int) threadId];
-				if(buffer != null) {
+				threadid2buffer[(int) threadId] = null;
+				
+				if (buffer != null) {
 					synchronized (buffer_mutex) {
 						discarded_buffers.add(buffer);
 					}

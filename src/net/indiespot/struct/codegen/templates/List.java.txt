@@ -78,8 +78,4 @@ public class List<T> {
 		arr = arr2;
 		cap = arr.length;
 	}
-	
-	public List<T> self() {
-		return new List<T>();
-	}
 }

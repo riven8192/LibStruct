@@ -471,6 +471,10 @@ public class StructEnv {
 							throw new IllegalStateException("cannot fetch length of embedded array, as the array does not exist");
 						}
 
+						if (opcode == ARETURN && flow.stack.peek() == VarType.EMBEDDED_ARRAY) {
+							throw new IllegalStateException("cannot return embedded array, as the array does not exist");
+						}
+						
 						if (opcode == ARETURN && flow.stack.peek() == VarType.STRUCT) {
 							if (strategy == null)
 								throw new IllegalStateException();
@@ -603,7 +607,11 @@ public class StructEnv {
 									super.visitInsn(IADD);
 
 									flow.stack.popEQ(VarType.INT);
-									flow.stack.push(VarType.STRUCT);
+									
+									if (type.startsWith("[") && type.length() == 2)
+										flow.stack.push(VarType.EMBEDDED_ARRAY);
+									else
+										flow.stack.push(VarType.STRUCT);
 									return;
 								}
 
@@ -612,17 +620,6 @@ public class StructEnv {
 									methodName = "$get";
 									paramType = wrapped_struct_flag;
 									returnType = wrapped_struct_flag;
-								} else if (type.startsWith("[") && type.length() == 2) { // primitive
-																							// array
-									flow.stack.popEQ(VarType.STRUCT);
-									flow.stack.push(VarType.INT);
-
-									super.visitIntInsn(SIPUSH, StructMemory.bytes2words(offset));
-									super.visitInsn(IADD);
-
-									flow.stack.popEQ(VarType.INT);
-									flow.stack.push(VarType.EMBEDDED_ARRAY);
-									return;
 								} else {
 									methodName = type.toLowerCase() + "get";
 									paramType = wrapped_struct_flag;
@@ -948,7 +945,7 @@ public class StructEnv {
 			msg += "\t\tname: " + currentMethodName[0] + "\n";
 			msg += "\t\tdesc: " + currentMethodDesc[0] + "\n";
 			if (!StructEnv.PRINT_LOG)
-				msg += "\n\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
+				msg += "\n\t\tfor more information set: -DLibStruct.PRINT_LOG=true";
 			throw new IllegalStateException(msg, cause);
 		}
 
@@ -964,7 +961,7 @@ public class StructEnv {
 				msg += "\tdue to shared name and description: (struct references are rewritten to ints)\n";
 				msg += "\t\t" + entry.getKey() + "\n";
 				if (!StructEnv.PRINT_LOG)
-					msg += "\n\t\tfor more information set StructEnv.PRINT_LOG to 'true'";
+					msg += "\n\t\tfor more information set: -DLibStruct.PRINT_LOG=true";
 				throw new IllegalStateException(msg);
 			}
 		}
