@@ -94,10 +94,17 @@ public class StructTest {
 		TestRealloc.test();
 		TestLargeAlloc.test();
 
-		System.out.println("done");
 
 		if (false)
 			TestDuplicateOverloadedMethod.test();
+		
+
+		System.out.println("awaiting gc...");
+		while(StructGC.getHandleCount() != 0) {
+			Thread.yield();
+		}		
+
+		System.out.println("done");
 	}
 	
 	public static class TestLargeAlloc{
@@ -132,6 +139,8 @@ public class StructTest {
 			arr = Struct.realloc(Vec3.class, arr, 8);
 			assert arr.length == 8;
 			assert arr[4].x == 13.14f;
+			
+			Struct.free(arr);
 		}
 	}
 	
@@ -232,6 +241,9 @@ public class StructTest {
 			} catch (SuspiciousFieldAssignmentError err) {
 				assert true;
 			}
+			
+			Struct.free(field);
+			Struct.free(ship);
 		}
 	}
 

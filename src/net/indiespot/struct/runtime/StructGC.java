@@ -235,16 +235,6 @@ public class StructGC {
 			synchronized (sync) {
 				Memory.sync_frees.push(handle);
 			}
-			
-			synchronized (large_mallocs) {
-				for(LargeMalloc largeMalloc: large_mallocs) {
-					if(largeMalloc.freeHandle(handle)) {
-						if(largeMalloc.unfreedHandles == 0)
-							large_mallocs.remove(largeMalloc);
-						break;
-					}
-				}
-			}
 		}
 	}
 
@@ -261,22 +251,7 @@ public class StructGC {
 			}
 		}
 
-		if(!allFreedFromLocalHeap) {
-			synchronized (large_mallocs) {
-				for(int i = 0; i < handles.length; i++) {
-					if(handles[i] != 0x00) {
-						for(LargeMalloc largeMalloc: large_mallocs) {
-							if(largeMalloc.freeHandle(handles[i])) {
-								handles[i] = 0x00;
-								if(largeMalloc.unfreedHandles == 0)
-									large_mallocs.remove(largeMalloc);
-								break;
-							}
-						}
-					}
-				}
-			}
-			
+		if(!allFreedFromLocalHeap) {			
 			synchronized (sync) {
 				for(int i = 0; i < handles.length; i++) {
 					if(handles[i] != 0x00) {
@@ -501,8 +476,17 @@ public class StructGC {
 					}
 
 				// 
-				while (!Memory.sync_frees.isEmpty()) {
-					int handle = Memory.sync_frees.pop();
+				outer: while (!Memory.sync_frees.isEmpty()) {
+					int handle = Memory.sync_frees.pop();					
+
+					for(LargeMalloc largeMalloc: large_mallocs) {
+						if(largeMalloc.freeHandle(handle)) {
+							if(largeMalloc.unfreedHandles == 0)
+								large_mallocs.remove(largeMalloc);
+							continue outer;
+						}
+					}			
+					
 					getRegionFor(handle).toFree.push(handle);
 				}
 			}
@@ -520,6 +504,8 @@ public class StructGC {
 			synchronized (sync) {
 				for(int i = 0, size = sync_region_set.regions.size(); i < size; i++)
 					handleCount += sync_region_set.regions.get(i).getHandleCount();
+				for(int i = 0, size = large_mallocs.size(); i < size; i++)
+					handleCount += large_mallocs.get(i).unfreedHandles;
 			}
 			final int[] holder = new int[1];
 			local_heaps.visit(new FastThreadLocal.Visitor<StructHeap>() {
