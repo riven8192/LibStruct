@@ -92,11 +92,24 @@ public class StructTest {
 
 		TestEmbeddedArrayUsage.test();
 		TestRealloc.test();
+		TestLargeAlloc.test();
 
 		System.out.println("done");
 
 		if (false)
 			TestDuplicateOverloadedMethod.test();
+	}
+	
+	public static class TestLargeAlloc{
+		public static void test(){
+			Vec3[] vecs = Struct.malloc(Vec3.class, 1*1024*1024);
+			for(int i=1; i<vecs.length; i++) {
+				long p1 = Struct.getPointer(vecs[i - 1]);
+				long p2 = Struct.getPointer(vecs[i - 0]);
+				assert (p2-p1) == Struct.sizeof(Vec3.class);
+			}
+			Struct.free(vecs);
+		}
 	}
 	
 	public static class TestRealloc {

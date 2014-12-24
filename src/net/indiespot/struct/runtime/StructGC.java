@@ -137,33 +137,66 @@ public class StructGC {
 		}
 		return handle;
 	}
+	
+	private static class LargeMalloc
+	{		
+		private final long base;
+		public final long addr;
+		public final long sizeof;
+		public int unfreedHandles;
+		
+		public LargeMalloc(long sizeof, int handles) {
+			this.base = StructUnsafe.UNSAFE.allocateMemory(sizeof + 4L /* word-size */);
+			this.addr = StructMemory.alignAddressToWord(base);
+			this.sizeof = sizeof;
+			this.unfreedHandles = handles;
+		}
+		
+		public boolean freeHandle(int handle) {
+			long pntr = StructMemory.handle2pointer(handle);
+			if(pntr >= addr && pntr < addr + sizeof) {
+				if(unfreedHandles <= 0)
+					throw new IllegalStateException();
+				if(--unfreedHandles == 0)
+					StructUnsafe.UNSAFE.freeMemory(base);
+				return true;
+			}
+			return false;
+		}
+	}
+	
+	private static List<LargeMalloc> large_mallocs = new ArrayList<>();
 
 	public static int[] malloc(int sizeof, int length) {
 		if(length <= 0)
 			throw new IllegalArgumentException();
+		
+		final int words = StructMemory.bytes2words(sizeof);
+		int baseHandle;
 
 		if(sizeof * length > gc_heap_size) {
-			int[] handles = new int[length];
-			for(int i = 0; i < length; i++)
-				handles[i] = malloc(sizeof);
-			return handles;
+			LargeMalloc largeMalloc = new LargeMalloc(sizeof * length, length);
+			synchronized (large_mallocs) {
+				large_mallocs.add(largeMalloc);
+			}
+			baseHandle = StructMemory.pointer2handle(largeMalloc.addr);
+		}
+		else {
+			StructHeap localHeap = local_heaps.get();
+			baseHandle = localHeap.malloc(sizeof, length);
+			if(baseHandle == 0) {
+				// try again with a new heap
+				local_heaps.set(newHeap());
+				localHeap = local_heaps.get();
+				baseHandle = localHeap.malloc(sizeof, length);
+				if(baseHandle == 0)
+					throw new IllegalStateException();
+			}
 		}
 
-		StructHeap localHeap = local_heaps.get();
-		int handle = localHeap.malloc(sizeof, length);
-		if(handle == 0) {
-			// try again with a new heap
-			local_heaps.set(newHeap());
-			localHeap = local_heaps.get();
-			handle = localHeap.malloc(sizeof, length);
-			if(handle == 0)
-				throw new IllegalStateException();
-		}
-
-		int words = StructMemory.bytes2words(sizeof);
 		int[] handles = new int[length];
 		for(int i = 0; i < length; i++)
-			handles[i] = handle + i * words;
+			handles[i] = baseHandle + i * words;
 		return handles;
 	}
 
@@ -175,22 +208,19 @@ public class StructGC {
 
 	public static int[] calloc(int sizeof, int length) {
 		int[] handles = malloc(sizeof, length);
-		for(int handle : handles)
-			// not guaranteed to be continuous block of memory!
-			StructMemory.clearMemory(handle, sizeof);
+		StructMemory.clearMemory(handles[0], sizeof * length);
 		return handles;
 	}
 	
 	public static int[] realloc(int sizeof, int[] src, int newLength) {
 		if(StructEnv.SAFETY_FIRST)
 			for(int i=0; i<src.length; i++)
-				if(src[i] == 0)
-					throw new NullPointerException("index="+i);
+				if(src[i] == 0x00)
+					throw new NullPointerException("index=" + i);
 		
 		int[] dst = malloc(sizeof, newLength);
 		int min = Math.min(src.length, newLength);
 		for(int i=0; i<min; i++)
-			// not guaranteed to be continuous block of memory!
 			StructMemory.copy(sizeof, src[i], dst[i]);	
 		 
 		freeHandles(src);
@@ -204,6 +234,16 @@ public class StructGC {
 		if(!freedFromLocalHeap) {
 			synchronized (sync) {
 				Memory.sync_frees.push(handle);
+			}
+			
+			synchronized (large_mallocs) {
+				for(LargeMalloc largeMalloc: large_mallocs) {
+					if(largeMalloc.freeHandle(handle)) {
+						if(largeMalloc.unfreedHandles == 0)
+							large_mallocs.remove(largeMalloc);
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -222,6 +262,21 @@ public class StructGC {
 		}
 
 		if(!allFreedFromLocalHeap) {
+			synchronized (large_mallocs) {
+				for(int i = 0; i < handles.length; i++) {
+					if(handles[i] != 0x00) {
+						for(LargeMalloc largeMalloc: large_mallocs) {
+							if(largeMalloc.freeHandle(handles[i])) {
+								handles[i] = 0x00;
+								if(largeMalloc.unfreedHandles == 0)
+									large_mallocs.remove(largeMalloc);
+								break;
+							}
+						}
+					}
+				}
+			}
+			
 			synchronized (sync) {
 				for(int i = 0; i < handles.length; i++) {
 					if(handles[i] != 0x00) {

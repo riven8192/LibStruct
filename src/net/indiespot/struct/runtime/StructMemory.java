@@ -119,12 +119,16 @@ public class StructMemory {
 
 	public static long alignBufferToWord(ByteBuffer bb) {
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
+		long aligned = alignAddressToWord(addr);
+		if(addr != aligned)
+			bb.position(bb.position() + (int)(aligned-addr));
+		return addr;
+	}
+	
+	public static long alignAddressToWord(long addr) {
 		int error = (int) (addr & (4 - 1));
-		if (error != 0) {
-			int advance = 4 - error;
-			bb.position(bb.position() + advance);
-			addr += advance;
-		}
+		if (error != 0)
+			addr += (4 - error);
 		return addr;
 	}
 
