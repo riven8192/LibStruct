@@ -155,7 +155,7 @@ public class StructGC {
 		public boolean freeHandle(int handle) {
 			long pntr = StructMemory.handle2pointer(handle);
 			if(pntr >= addr && pntr < addr + sizeof) {
-				if(unfreedHandles <= 0)
+				if(StructEnv.SAFETY_FIRST && unfreedHandles <= 0)
 					throw new IllegalStateException();
 				if(--unfreedHandles == 0)
 					StructUnsafe.UNSAFE.freeMemory(base);
@@ -174,8 +174,8 @@ public class StructGC {
 		final int words = StructMemory.bytes2words(sizeof);
 		int baseHandle;
 
-		if(sizeof * length > gc_heap_size) {
-			LargeMalloc largeMalloc = new LargeMalloc(sizeof * length, length);
+		if((long)sizeof * length > gc_heap_size) {
+			LargeMalloc largeMalloc = new LargeMalloc((long)sizeof * length, length);
 			synchronized (large_mallocs) {
 				large_mallocs.add(largeMalloc);
 			}

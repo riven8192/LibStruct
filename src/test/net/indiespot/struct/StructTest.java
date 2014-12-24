@@ -94,15 +94,13 @@ public class StructTest {
 		TestRealloc.test();
 		TestLargeAlloc.test();
 
-
 		if (false)
-			TestDuplicateOverloadedMethod.test();
-		
+			TestDuplicateOverloadedMethod.test();		
 
 		System.out.println("awaiting gc...");
 		while(StructGC.getHandleCount() != 0) {
 			Thread.yield();
-		}		
+		}
 
 		System.out.println("done");
 	}
