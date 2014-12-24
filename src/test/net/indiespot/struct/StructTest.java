@@ -1,9 +1,6 @@
 package test.net.indiespot.struct;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
@@ -20,6 +17,26 @@ import net.indiespot.struct.runtime.SuspiciousFieldAssignmentError;
 
 public class StructTest {
 	public static void main(String[] args) {
+
+		StructGC.addListener(new StructGC.GcInfo() {
+
+			@Override
+			public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos) {
+				System.out.println("LibStruct GC: freed="+freedHandles/1024+"K, remaining="+remainingHandles/1024+"K, took: "+tookNanos/1000/1000+"ms");
+			}
+
+			@Override
+			public void onStress() {
+				// 
+			}
+
+			@Override
+			public void onPanic() {
+				// 
+			}
+
+		});
+
 		TestStructEnv.test();
 
 		if (true) {
@@ -95,58 +112,58 @@ public class StructTest {
 		TestLargeAlloc.test();
 
 		if (false)
-			TestDuplicateOverloadedMethod.test();		
+			TestDuplicateOverloadedMethod.test();
 
 		System.out.println("awaiting gc...");
-		while(StructGC.getHandleCount() != 0) {
+		while (StructGC.getHandleCount() != 0) {
 			Thread.yield();
 		}
 
 		System.out.println("done");
 	}
-	
-	public static class TestLargeAlloc{
-		public static void test(){
-			Vec3[] vecs = Struct.malloc(Vec3.class, 1*1024*1024);
-			for(int i=1; i<vecs.length; i++) {
+
+	public static class TestLargeAlloc {
+		public static void test() {
+			Vec3[] vecs = Struct.malloc(Vec3.class, Integer.MAX_VALUE / (Struct.sizeof(Vec3.class) - 2));
+			for (int i = 1; i < vecs.length; i++) {
 				long p1 = Struct.getPointer(vecs[i - 1]);
 				long p2 = Struct.getPointer(vecs[i - 0]);
-				assert (p2-p1) == Struct.sizeof(Vec3.class);
+				assert (p2 - p1) == Struct.sizeof(Vec3.class);
 			}
-			Struct.free(vecs);
+			Struct.free(vecs); // blocks when GC is flooded (>10M handles to free)
 		}
 	}
-	
+
 	public static class TestRealloc {
 		public static void test() {
 			Vec3[] arr = Struct.malloc(Vec3.class, 13);
 			assert arr.length == 13;
-			
+
 			arr[4].x = 13.14f;
 			arr[7].y = 17.13f;
-			
+
 			arr = Struct.realloc(Vec3.class, arr, 13);
 			assert arr.length == 13;
 			assert arr[4].x == 13.14f;
 			assert arr[7].y == 17.13f;
-			
+
 			arr = Struct.realloc(Vec3.class, arr, 5);
 			assert arr.length == 5;
 			assert arr[4].x == 13.14f;
-			
+
 			arr = Struct.realloc(Vec3.class, arr, 8);
 			assert arr.length == 8;
 			assert arr[4].x == 13.14f;
-			
+
 			Struct.free(arr);
 		}
 	}
-	
+
 	public static class TestCollectionAPI {
 		public static void test() {
-			//List< Vec3 > vectors = new ArrayList<>();
-			//List<Object> vectors = new ArrayList<>();
-			//vectors.add(new Vec3());
+			// List< Vec3 > vectors = new ArrayList<>();
+			// List<Object> vectors = new ArrayList<>();
+			// vectors.add(new Vec3());
 		}
 	}
 
@@ -167,8 +184,8 @@ public class StructTest {
 		}
 
 		public static void reassign() {
-			//ArrayEmbed ae = new ArrayEmbed();
-			//ae.iarr = new int[4]; // this will fail
+			// ArrayEmbed ae = new ArrayEmbed();
+			// ae.iarr = new int[4]; // this will fail
 		}
 	}
 
@@ -239,7 +256,7 @@ public class StructTest {
 			} catch (SuspiciousFieldAssignmentError err) {
 				assert true;
 			}
-			
+
 			Struct.free(field);
 			Struct.free(ship);
 		}

@@ -232,6 +232,8 @@ public class StructGC {
 		boolean freedFromLocalHeap = localHeap.freeHandle(handle);
 
 		if(!freedFromLocalHeap) {
+			awaitReasonableSyncQueueSize();
+			
 			synchronized (sync) {
 				Memory.sync_frees.push(handle);
 			}
@@ -251,14 +253,37 @@ public class StructGC {
 			}
 		}
 
-		if(!allFreedFromLocalHeap) {			
-			synchronized (sync) {
-				for(int i = 0; i < handles.length; i++) {
-					if(handles[i] != 0x00) {
-						Memory.sync_frees.push(handles[i]);
-						handles[i] = 0x00;
+		if(!allFreedFromLocalHeap) {
+			final int batchSize = 1024;
+			int off = 0;
+			while(off != handles.length) {
+				awaitReasonableSyncQueueSize();
+				synchronized (sync) {
+					int end = Math.min(off + batchSize, handles.length);
+					for(int i = off; i < end; i++) {
+						if(handles[i] != 0x00) {
+							Memory.sync_frees.push(handles[i]);
+							handles[i] = 0x00;
+						}
 					}
+					off = end;
 				}
+			}
+		}
+	}
+	
+	private static void awaitReasonableSyncQueueSize() {
+		while(true){
+			synchronized (sync) {
+				if(Memory.sync_frees.size < 10_000_000) {
+					return;
+				}
+			}
+			
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// ignore
 			}
 		}
 	}
@@ -483,6 +508,7 @@ public class StructGC {
 						if(largeMalloc.freeHandle(handle)) {
 							if(largeMalloc.unfreedHandles == 0)
 								large_mallocs.remove(largeMalloc);
+							freed++;
 							continue outer;
 						}
 					}			
