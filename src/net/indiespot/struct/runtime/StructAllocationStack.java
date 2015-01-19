@@ -12,8 +12,10 @@ public class StructAllocationStack extends StructAllocationBlock {
 		stack[level++] = wordsAllocated;
 	}
 
-	public void restore() {
+	public int restore() {
+		int was = wordsAllocated;
 		wordsAllocated = stack[--level];
+		return (was - wordsAllocated) << 2;
 	}
 
 	public int level() {

@@ -101,6 +101,10 @@ public class StructMemory {
 		copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
 	}
 
+	public static void copy(int sizeof, int srcHandle, int dstHandle, int count) {
+		copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof) * count);
+	}
+
 	public static void swap(int sizeof, int srcHandle, int dstHandle) {
 		swapMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
 	}
@@ -120,11 +124,11 @@ public class StructMemory {
 	public static long alignBufferToWord(ByteBuffer bb) {
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		long aligned = alignAddressToWord(addr);
-		if(addr != aligned)
-			bb.position(bb.position() + (int)(aligned-addr));
+		if (addr != aligned)
+			bb.position(bb.position() + (int) (aligned - addr));
 		return addr;
 	}
-	
+
 	public static long alignAddressToWord(long addr) {
 		int error = (int) (addr & (4 - 1));
 		if (error != 0)

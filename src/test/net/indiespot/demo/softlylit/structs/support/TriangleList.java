@@ -1,16 +1,20 @@
+package test.net.indiespot.demo.softlylit.structs.support;
+
+import test.net.indiespot.demo.softlylit.structs.Triangle;
+
 import net.indiespot.struct.cp.Struct;
 import net.indiespot.struct.cp.TakeStruct;
 
-public class List<T> {
+public class TriangleList {
 
-	private T[] arr;
+	private Triangle[] arr;
 	private int size, cap;
-	
-	public List() {
+
+	public TriangleList() {
 		this(10);
 	}
 
-	public List(int cap) {
+	public TriangleList(int cap) {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.expandTo(cap);
@@ -20,13 +24,13 @@ public class List<T> {
 		size = 0;
 	}
 
-	public void add(T elem) {
+	public void add(Triangle elem) {
 		if (size == cap)
 			this.expandTo(-1);
 		arr[size++] = elem;
 	}
 
-	public void addRange(List<T> list, int off, int len) {
+	public void addRange(TriangleList list, int off, int len) {
 		if (len < 0)
 			throw new IllegalArgumentException();
 		if (off + len > list.size)
@@ -36,33 +40,33 @@ public class List<T> {
 		}
 	}
 
-	public void addAll(List<T> list) {
+	public void addAll(TriangleList list) {
 		for (int i = 0, len = list.size; i < len; i++) {
 			this.add(list.arr[i]);
 		}
 	}
 
 	@TakeStruct
-	public T get(int index) {
+	public Triangle get(int index) {
 		if (index < 0 || index >= size)
 			throw new ArrayIndexOutOfBoundsException(index);
 		return arr[index];
 	}
 
 	@TakeStruct
-	public T remove(int index) {
+	public Triangle remove(int index) {
 		if (index < 0 || index >= size)
 			throw new ArrayIndexOutOfBoundsException(index);
-		T got = arr[index];
+		Triangle got = arr[index];
 		System.arraycopy(arr, index + 1, arr, index, --size - index);
 		return got;
 	}
 
 	@TakeStruct
-	public T removeMoveLast(int index) {
+	public Triangle removeMoveLast(int index) {
 		if (index < 0 || index >= size)
 			throw new ArrayIndexOutOfBoundsException(index);
-		T got = arr[index];
+		Triangle got = arr[index];
 		arr[index] = arr[--size];
 		return got;
 	}
@@ -72,7 +76,7 @@ public class List<T> {
 	}
 
 	public void expandTo(int minSize) {
-		T[] arr2 = Struct.emptyArray((Class<T>)Object.class, Math.max(minSize, cap * 2));
+		Triangle[] arr2 = Struct.emptyArray(Triangle.class, Math.max(minSize, cap * 2));
 		for (int i = 0; i < size; i++)
 			arr2[i] = arr[i];
 		arr = arr2;

@@ -864,6 +864,16 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek(2));
 								}
+							} else if (name.equals("copy") && desc.equals("(Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/Object;I)V")) {
+								if (flow.stack.peek(3) == VarType.STRUCT_TYPE) {
+									flow.stack.set(3, VarType.INT);
+									// ...,sizeof,src,dst,count
+									owner = StructEnv.jvmClassName(StructMemory.class);
+									name = "copy";
+									desc = "(I" + wrapped_struct_flag + "" + wrapped_struct_flag + "I)V";
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek(3));
+								}
 							} else if (name.equals("swap") && desc.equals("(Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/Object;)V")) {
 								if (flow.stack.peek(2) == VarType.STRUCT_TYPE) {
 									flow.stack.set(2, VarType.INT);

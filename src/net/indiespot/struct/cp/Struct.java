@@ -63,6 +63,10 @@ public class Struct {
 		throwFit();
 	}
 
+	public static <T> void copy(Class<T> structType, T src, T dst, int count) {
+		throwFit();
+	}
+
 	public static <T> void swap(Class<T> structType, T src, T dst) {
 		throwFit();
 	}

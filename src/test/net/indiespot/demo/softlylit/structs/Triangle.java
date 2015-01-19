@@ -14,7 +14,7 @@ public class Triangle {
 
 	@StructField(embed = true)
 	public Point c;
-
+/*
 	@StructField(embed = true)
 	public Line ab;
 
@@ -23,7 +23,7 @@ public class Triangle {
 
 	@StructField(embed = true)
 	public Line ca;
-
+*/
 	private Triangle() {
 		// hide
 	}
@@ -35,10 +35,11 @@ public class Triangle {
 		this.c.load(c);
 		return this;
 	}
-
+/*
 	public void sync() {
 		ab.load(a, b);
 		bc.load(b, c);
 		ca.load(c, a);
 	}
+	*/
 }

@@ -385,7 +385,7 @@ public class StructGC {
 				if(i == gc_stress_timeout) {
 					synchronized (gc_info_callbacks) {
 						for(GcInfo callback : gc_info_callbacks) {
-							callback.onPanic();
+							callback.onStress();
 						}
 					}
 				}

@@ -2,6 +2,7 @@ package test.net.indiespot.demo.softlylit.structs;
 
 import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
+import net.indiespot.struct.cp.TakeStruct;
 
 @StructType
 public class Point {
@@ -14,9 +15,11 @@ public class Point {
 		// hide
 	}
 
-	public void load(Point src) {
+	@TakeStruct
+	public Point load(Point src) {
 		x = src.x;
 		y = src.y;
+		return this;
 	}
 
 	public void add(float dx, float dy) {

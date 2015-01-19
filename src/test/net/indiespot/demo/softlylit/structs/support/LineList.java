@@ -1,19 +1,20 @@
-package test.net.indiespot.demo.softlylit.structs;
+package test.net.indiespot.demo.softlylit.structs.support;
 
-import test.net.indiespot.demo.softlylit.structs.Point;
+import test.net.indiespot.demo.softlylit.structs.Line;
+
 import net.indiespot.struct.cp.Struct;
 import net.indiespot.struct.cp.TakeStruct;
 
-public class PointList {
+public class LineList {
 
-	private Point[] arr;
+	private Line[] arr;
 	private int size, cap;
-	
-	public PointList() {
+
+	public LineList() {
 		this(10);
 	}
 
-	public PointList(int cap) {
+	public LineList(int cap) {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.expandTo(cap);
@@ -23,13 +24,13 @@ public class PointList {
 		size = 0;
 	}
 
-	public void add(Point elem) {
+	public void add(Line elem) {
 		if (size == cap)
 			this.expandTo(-1);
 		arr[size++] = elem;
 	}
 
-	public void addRange(PointList list, int off, int len) {
+	public void addRange(LineList list, int off, int len) {
 		if (len < 0)
 			throw new IllegalArgumentException();
 		if (off + len > list.size)
@@ -39,33 +40,33 @@ public class PointList {
 		}
 	}
 
-	public void addAll(PointList list) {
+	public void addAll(LineList list) {
 		for (int i = 0, len = list.size; i < len; i++) {
 			this.add(list.arr[i]);
 		}
 	}
 
 	@TakeStruct
-	public Point get(int index) {
+	public Line get(int index) {
 		if (index < 0 || index >= size)
 			throw new ArrayIndexOutOfBoundsException(index);
 		return arr[index];
 	}
 
 	@TakeStruct
-	public Point remove(int index) {
+	public Line remove(int index) {
 		if (index < 0 || index >= size)
 			throw new ArrayIndexOutOfBoundsException(index);
-		Point got = arr[index];
+		Line got = arr[index];
 		System.arraycopy(arr, index + 1, arr, index, --size - index);
 		return got;
 	}
 
 	@TakeStruct
-	public Point removeMoveLast(int index) {
+	public Line removeMoveLast(int index) {
 		if (index < 0 || index >= size)
 			throw new ArrayIndexOutOfBoundsException(index);
-		Point got = arr[index];
+		Line got = arr[index];
 		arr[index] = arr[--size];
 		return got;
 	}
@@ -75,14 +76,10 @@ public class PointList {
 	}
 
 	public void expandTo(int minSize) {
-		Point[] arr2 = Struct.emptyArray(Point.class, Math.max(minSize, cap * 2));
+		Line[] arr2 = Struct.emptyArray(Line.class, Math.max(minSize, cap * 2));
 		for (int i = 0; i < size; i++)
 			arr2[i] = arr[i];
 		arr = arr2;
 		cap = arr.length;
-	}
-	
-	public PointList self() {
-		return new PointList();
 	}
 }
