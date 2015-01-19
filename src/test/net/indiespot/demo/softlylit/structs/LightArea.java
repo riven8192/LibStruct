@@ -12,7 +12,9 @@ public class LightArea {
 	TriangleBlock litArea = new TriangleBlock(64);
 
 	public void sync() {
-		circleTris = new TriangleBlock(triangleCount);
+		if (circleTris == null)
+			circleTris = new TriangleBlock(triangleCount);
+		circleTris.clear();
 
 		for (int i = 0; i < triangleCount; i++) {
 			float angle1 = (i + 0) / (float) triangleCount * (float) Math.PI * 2.0f;
@@ -31,7 +33,7 @@ public class LightArea {
 		}
 	}
 
-	public void clear() {
+	public void reset() {
 		litArea.clear();
 		litArea.addAll(circleTris);
 	}
@@ -43,11 +45,12 @@ public class LightArea {
 			float x = origin.x;
 			float y = origin.y;
 			float r = radius;
+
 			Point p1 = occluder.p1;
-			Point p2 = occluder.p2;
 			float dx = x - p1.x;
 			float dy = y - p1.y;
 			if (dx * dx + dy * dy > r * r) {
+				Point p2 = occluder.p2;
 				dx = x - p2.x;
 				dy = y - p2.y;
 				if (dx * dx + dy * dy > r * r) {

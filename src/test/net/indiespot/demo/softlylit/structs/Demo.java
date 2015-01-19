@@ -124,7 +124,7 @@ public class Demo {
 
 		STACK.save();
 
-		TriangleBlock out = new TriangleBlock(1024);
+		TriangleBlock tmp = new TriangleBlock(256);
 		LineBlock occluders = new LineBlock(fallers.size());
 
 		Display.setDisplayMode(new DisplayMode(512, 512));
@@ -198,7 +198,7 @@ public class Demo {
 				int tris = 0;
 				glBegin(GL_TRIANGLES);
 				{
-					out.clear();
+					tmp.clear();
 					occluders.clear();
 
 					for (Faller faller : fallers) {
@@ -207,7 +207,7 @@ public class Demo {
 
 					for (LightArea area : areas) {
 						area.sync();
-						area.clear();
+						area.reset();
 
 						STACK.save();
 
@@ -220,7 +220,7 @@ public class Demo {
 							occluder.p1.add(dx, dy);
 							occluder.p2.add(dx, dy);
 
-							area.occlude(occluder, out);
+							area.occlude(occluder, tmp);
 
 							occluder.p1.add(-dx, -dy);
 							occluder.p2.add(-dx, -dy);
@@ -242,11 +242,12 @@ public class Demo {
 
 				glEnd();
 				glDisable(GL_BLEND);
-				System.out.println(tris);
+
+				System.out.println(tris + " tris");
+				System.out.println(maxGarbage + " bytes");
+				System.out.println();
 			}
 			glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-			System.out.println(maxGarbage + " bytes");
 
 			glClearColor(0, 0, 0, 1);
 			glClear(GL_COLOR_BUFFER_BIT);
@@ -419,10 +420,5 @@ public class Demo {
 	@TakeStruct
 	private static Point newPoint() {
 		return Struct.stackAlloc(STACK, Point.class);
-	}
-
-	@TakeStruct
-	private static Triangle newTriangle() {
-		return Struct.stackAlloc(STACK, Triangle.class);
 	}
 }
