@@ -7,14 +7,16 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.transform.StructEnv;
 
 public class LineBlock {
-	private final int length;
+	private final int cap;
 	private final Line base;
 
 	private int size;
 
-	public LineBlock(int length) {
-		this.length = length;
-		this.base = Struct.malloc(Line.class, length)[0];
+	public LineBlock(int cap) {
+		if (cap <= 0)
+			throw new IllegalArgumentException();
+		this.cap = cap;
+		this.base = Struct.malloc(Line.class, cap)[0];
 		this.size = 0;
 	}
 
@@ -40,7 +42,7 @@ public class LineBlock {
 
 	public void addAll(LineBlock src) {
 		if (StructEnv.SAFETY_FIRST)
-			if (src.size > this.length - this.size)
+			if (src.size > this.cap - this.size)
 				throw new IllegalStateException();
 		Struct.copy(Line.class, src.base, this.get(this.size), src.size);
 		this.size += src.size;
@@ -59,8 +61,8 @@ public class LineBlock {
 	}
 
 	public void free() {
-		Line[] arr = Struct.emptyArray(Line.class, length);
-		for (int i = 0; i < length; i++)
+		Line[] arr = Struct.emptyArray(Line.class, cap);
+		for (int i = 0; i < cap; i++)
 			arr[i] = this.get(i);
 		Struct.free(arr);
 	}

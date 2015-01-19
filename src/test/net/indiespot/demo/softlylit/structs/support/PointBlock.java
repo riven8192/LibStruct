@@ -7,14 +7,16 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.transform.StructEnv;
 
 public class PointBlock {
-	private final int length;
+	private final int cap;
 	private final Point base;
 
 	private int size;
 
-	public PointBlock(int length) {
-		this.length = length;
-		this.base = Struct.malloc(Point.class, length)[0];
+	public PointBlock(int cap) {
+		if (cap <= 0)
+			throw new IllegalArgumentException();
+		this.cap = cap;
+		this.base = Struct.malloc(Point.class, cap)[0];
 		this.size = 0;
 	}
 
@@ -40,7 +42,7 @@ public class PointBlock {
 
 	public void addAll(PointBlock src) {
 		if (StructEnv.SAFETY_FIRST)
-			if (src.size > this.length - this.size)
+			if (src.size > this.cap - this.size)
 				throw new IllegalStateException();
 		Struct.copy(Point.class, src.base, this.get(this.size), src.size);
 		this.size += src.size;
@@ -59,8 +61,8 @@ public class PointBlock {
 	}
 
 	public void free() {
-		Point[] arr = Struct.emptyArray(Point.class, length);
-		for (int i = 0; i < length; i++)
+		Point[] arr = Struct.emptyArray(Point.class, cap);
+		for (int i = 0; i < cap; i++)
 			arr[i] = this.get(i);
 		Struct.free(arr);
 	}

@@ -4,6 +4,7 @@ import test.net.indiespot.demo.softlylit.structs.Point;
 
 import net.indiespot.struct.cp.Struct;
 import net.indiespot.struct.cp.TakeStruct;
+import net.indiespot.struct.transform.StructEnv;
 
 public class PointList {
 
@@ -31,10 +32,12 @@ public class PointList {
 	}
 
 	public void addRange(PointList list, int off, int len) {
-		if (len < 0)
-			throw new IllegalArgumentException();
-		if (off + len > list.size)
-			throw new IllegalArgumentException();
+		if (StructEnv.SAFETY_FIRST)
+			if (len < 0)
+				throw new IllegalArgumentException();
+		if (StructEnv.SAFETY_FIRST)
+			if (off + len > list.size)
+				throw new IllegalArgumentException();
 		for (int i = 0; i < len; i++) {
 			this.add(list.arr[off + i]);
 		}
@@ -48,15 +51,17 @@ public class PointList {
 
 	@TakeStruct
 	public Point get(int index) {
-		if (index < 0 || index >= size)
-			throw new ArrayIndexOutOfBoundsException(index);
+		if (StructEnv.SAFETY_FIRST)
+			if (index < 0 || index >= size)
+				throw new ArrayIndexOutOfBoundsException(index);
 		return arr[index];
 	}
 
 	@TakeStruct
 	public Point remove(int index) {
-		if (index < 0 || index >= size)
-			throw new ArrayIndexOutOfBoundsException(index);
+		if (StructEnv.SAFETY_FIRST)
+			if (index < 0 || index >= size)
+				throw new ArrayIndexOutOfBoundsException(index);
 		Point got = arr[index];
 		System.arraycopy(arr, index + 1, arr, index, --size - index);
 		return got;
@@ -64,8 +69,9 @@ public class PointList {
 
 	@TakeStruct
 	public Point removeMoveLast(int index) {
-		if (index < 0 || index >= size)
-			throw new ArrayIndexOutOfBoundsException(index);
+		if (StructEnv.SAFETY_FIRST)
+			if (index < 0 || index >= size)
+				throw new ArrayIndexOutOfBoundsException(index);
 		Point got = arr[index];
 		arr[index] = arr[--size];
 		return got;

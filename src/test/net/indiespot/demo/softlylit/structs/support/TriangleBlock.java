@@ -7,14 +7,16 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.transform.StructEnv;
 
 public class TriangleBlock {
-	private final int length;
+	private final int cap;
 	private final Triangle base;
 
 	private int size;
 
-	public TriangleBlock(int length) {
-		this.length = length;
-		this.base = Struct.malloc(Triangle.class, length)[0];
+	public TriangleBlock(int cap) {
+		if (cap <= 0)
+			throw new IllegalArgumentException();
+		this.cap = cap;
+		this.base = Struct.malloc(Triangle.class, cap)[0];
 		this.size = 0;
 	}
 
@@ -40,7 +42,7 @@ public class TriangleBlock {
 
 	public void addAll(TriangleBlock src) {
 		if (StructEnv.SAFETY_FIRST)
-			if (src.size > this.length - this.size)
+			if (src.size > this.cap - this.size)
 				throw new IllegalStateException();
 		Struct.copy(Triangle.class, src.base, this.get(this.size), src.size);
 		this.size += src.size;
@@ -59,8 +61,8 @@ public class TriangleBlock {
 	}
 
 	public void free() {
-		Triangle[] arr = Struct.emptyArray(Triangle.class, length);
-		for (int i = 0; i < length; i++)
+		Triangle[] arr = Struct.emptyArray(Triangle.class, cap);
+		for (int i = 0; i < cap; i++)
 			arr[i] = this.get(i);
 		Struct.free(arr);
 	}

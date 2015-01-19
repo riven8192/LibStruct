@@ -4,6 +4,7 @@ import test.net.indiespot.demo.softlylit.structs.Triangle;
 
 import net.indiespot.struct.cp.Struct;
 import net.indiespot.struct.cp.TakeStruct;
+import net.indiespot.struct.transform.StructEnv;
 
 public class TriangleList {
 
@@ -31,10 +32,12 @@ public class TriangleList {
 	}
 
 	public void addRange(TriangleList list, int off, int len) {
-		if (len < 0)
-			throw new IllegalArgumentException();
-		if (off + len > list.size)
-			throw new IllegalArgumentException();
+		if (StructEnv.SAFETY_FIRST)
+			if (len < 0)
+				throw new IllegalArgumentException();
+		if (StructEnv.SAFETY_FIRST)
+			if (off + len > list.size)
+				throw new IllegalArgumentException();
 		for (int i = 0; i < len; i++) {
 			this.add(list.arr[off + i]);
 		}
@@ -48,15 +51,17 @@ public class TriangleList {
 
 	@TakeStruct
 	public Triangle get(int index) {
-		if (index < 0 || index >= size)
-			throw new ArrayIndexOutOfBoundsException(index);
+		if (StructEnv.SAFETY_FIRST)
+			if (index < 0 || index >= size)
+				throw new ArrayIndexOutOfBoundsException(index);
 		return arr[index];
 	}
 
 	@TakeStruct
 	public Triangle remove(int index) {
-		if (index < 0 || index >= size)
-			throw new ArrayIndexOutOfBoundsException(index);
+		if (StructEnv.SAFETY_FIRST)
+			if (index < 0 || index >= size)
+				throw new ArrayIndexOutOfBoundsException(index);
 		Triangle got = arr[index];
 		System.arraycopy(arr, index + 1, arr, index, --size - index);
 		return got;
@@ -64,8 +69,9 @@ public class TriangleList {
 
 	@TakeStruct
 	public Triangle removeMoveLast(int index) {
-		if (index < 0 || index >= size)
-			throw new ArrayIndexOutOfBoundsException(index);
+		if (StructEnv.SAFETY_FIRST)
+			if (index < 0 || index >= size)
+				throw new ArrayIndexOutOfBoundsException(index);
 		Triangle got = arr[index];
 		arr[index] = arr[--size];
 		return got;

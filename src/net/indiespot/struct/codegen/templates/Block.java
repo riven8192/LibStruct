@@ -5,14 +5,16 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.transform.StructEnv;
 
 public class Block<T> {
-	private final int length;
+	private final int cap;
 	private final T base;
 
 	private int size;
 
-	public Block(int length) {
-		this.length = length;
-		this.base = Struct.malloc((Class<T>)Object.class, length)[0];
+	public Block(int cap) {
+		if (cap <= 0)
+			throw new IllegalArgumentException();
+		this.cap = cap;
+		this.base = Struct.malloc((Class<T>) Object.class, cap)[0];
 		this.size = 0;
 	}
 
@@ -32,15 +34,15 @@ public class Block<T> {
 	@TakeStruct
 	public T add(T src) {
 		T dst = this.add();
-		Struct.copy((Class<T>)Object.class, src, dst);
+		Struct.copy((Class<T>) Object.class, src, dst);
 		return dst;
 	}
 
 	public void addAll(Block<T> src) {
 		if (StructEnv.SAFETY_FIRST)
-			if (src.size > this.length - this.size)
+			if (src.size > this.cap - this.size)
 				throw new IllegalStateException();
-		Struct.copy((Class<T>)Object.class, src.base, this.get(this.size), src.size);
+		Struct.copy((Class<T>) Object.class, src.base, this.get(this.size), src.size);
 		this.size += src.size;
 	}
 
@@ -49,16 +51,16 @@ public class Block<T> {
 		if (StructEnv.SAFETY_FIRST)
 			if (index < 0 || index >= size)
 				throw new IllegalStateException();
-		return Struct.sibling(base, (Class<T>)Object.class, index);
+		return Struct.sibling(base, (Class<T>) Object.class, index);
 	}
 
 	public void set(int index, T value) {
-		Struct.copy((Class<T>)Object.class, value, this.get(index));
+		Struct.copy((Class<T>) Object.class, value, this.get(index));
 	}
 
 	public void free() {
-		T[] arr = Struct.emptyArray((Class<T>)Object.class, length);
-		for (int i = 0; i < length; i++)
+		T[] arr = Struct.emptyArray((Class<T>) Object.class, cap);
+		for (int i = 0; i < cap; i++)
 			arr[i] = this.get(i);
 		Struct.free(arr);
 	}
