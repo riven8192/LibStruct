@@ -9,10 +9,6 @@ import java.util.NoSuchElementException;
 import net.indiespot.struct.transform.StructEnv;
 
 public class StructMemory {
-	public static final boolean CHECK_ALLOC_OVERFLOW = StructEnv.SAFETY_FIRST || false;
-	public static final boolean CHECK_MEMORY_ACCESS_REGION = StructEnv.SAFETY_FIRST || false;
-	public static final boolean CHECK_POINTER_ALIGNMENT = StructEnv.SAFETY_FIRST || false;
-	public static final boolean CHECK_FIELD_ASSIGNMENT = StructEnv.SAFETY_FIRST || false;
 	public static final boolean CHECK_SOURCECODE = StructEnv.SAFETY_FIRST || true;
 
 	private static final boolean manually_fill_and_copy = true;
@@ -196,21 +192,30 @@ public class StructMemory {
 	}
 
 	public static long handle2pointer(int handle) {
-		return (handle & 0xFFFF_FFFFL) << 2;
+		long pointer = (handle & 0xFFFF_FFFFL);
+		if (StructEnv.MEMORY_BASE_OFFSET)
+			pointer += StructUnsafe.memory_base_offset_in_words;
+		return pointer << 2;
 	}
 
 	public static int pointer2handle(long pointer) {
-		if (CHECK_POINTER_ALIGNMENT)
+		if (StructEnv.SAFETY_FIRST)
 			if (pointer < 0L || (pointer & 3) != 0)
 				throw new IllegalStateException("pointer must be 32-bit aligned");
-		long handle = pointer >> 2;
-		if (handle > 0xFFFF_FFFFL)
-			throw new IllegalStateException("pointer too big to fit in compressed pointer (addressable memory is 16 GB)");
+		long handle = (pointer >> 2);
+		if (StructEnv.MEMORY_BASE_OFFSET)
+			handle -= StructUnsafe.memory_base_offset_in_words;
+		if (StructEnv.SAFETY_FIRST)
+			if (handle < 0x0000_0000L)
+				throw new IllegalStateException("address [" + pointer + "] is negative due to base offset [" + StructUnsafe.memory_base_offset_in_words + "]");
+		if (StructEnv.SAFETY_FIRST)
+			if (handle > 0xFFFF_FFFFL)
+				throw new IllegalStateException("address [" + pointer + "] too big to fit in compressed pointer (addressable memory is 16 GB)");
 		return (int) handle;
 	}
 
 	private static void checkHandle(int handle) {
-		if (CHECK_MEMORY_ACCESS_REGION) {
+		if (StructEnv.SAFETY_FIRST) {
 			if (handle == 0)
 				throw new NullPointerException("null struct");
 			StructAllocationStack stack = StructThreadLocalStack.getStack();

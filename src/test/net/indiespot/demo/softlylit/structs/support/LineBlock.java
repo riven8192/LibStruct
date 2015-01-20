@@ -16,7 +16,7 @@ public class LineBlock {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.cap = cap;
-		this.base = Struct.malloc(Line.class, cap)[0];
+		this.base = Struct.mallocBlock(Line.class, cap);
 		this.size = 0;
 	}
 
@@ -40,12 +40,25 @@ public class LineBlock {
 		return dst;
 	}
 
+	public void addRange(LineBlock src, int off, int len) {
+		if (StructEnv.SAFETY_FIRST)
+			if (off < 0 || len < 0 || off + len > src.size)
+				throw new IllegalStateException();
+		if (StructEnv.SAFETY_FIRST)
+			if (len > this.cap - this.size)
+				throw new IllegalStateException();
+		int offset = this.size;
+		this.size += len;
+		Struct.copy(Line.class, src.get(off), this.get(offset), len);
+	}
+
 	public void addAll(LineBlock src) {
 		if (StructEnv.SAFETY_FIRST)
 			if (src.size > this.cap - this.size)
 				throw new IllegalStateException();
-		Struct.copy(Line.class, src.base, this.get(this.size), src.size);
+		int offset = this.size;
 		this.size += src.size;
+		Struct.copy(Line.class, src.base, this.get(offset), src.size);
 	}
 
 	@TakeStruct
@@ -61,9 +74,6 @@ public class LineBlock {
 	}
 
 	public void free() {
-		Line[] arr = Struct.emptyArray(Line.class, cap);
-		for (int i = 0; i < cap; i++)
-			arr[i] = this.get(i);
-		Struct.free(arr);
+		Struct.free(base);
 	}
 }

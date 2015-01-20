@@ -16,7 +16,7 @@ public class PointBlock {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.cap = cap;
-		this.base = Struct.malloc(Point.class, cap)[0];
+		this.base = Struct.mallocBlock(Point.class, cap);
 		this.size = 0;
 	}
 
@@ -40,12 +40,25 @@ public class PointBlock {
 		return dst;
 	}
 
+	public void addRange(PointBlock src, int off, int len) {
+		if (StructEnv.SAFETY_FIRST)
+			if (off < 0 || len < 0 || off + len > src.size)
+				throw new IllegalStateException();
+		if (StructEnv.SAFETY_FIRST)
+			if (len > this.cap - this.size)
+				throw new IllegalStateException();
+		int offset = this.size;
+		this.size += len;
+		Struct.copy(Point.class, src.get(off), this.get(offset), len);
+	}
+
 	public void addAll(PointBlock src) {
 		if (StructEnv.SAFETY_FIRST)
 			if (src.size > this.cap - this.size)
 				throw new IllegalStateException();
-		Struct.copy(Point.class, src.base, this.get(this.size), src.size);
+		int offset = this.size;
 		this.size += src.size;
+		Struct.copy(Point.class, src.base, this.get(offset), src.size);
 	}
 
 	@TakeStruct
@@ -61,9 +74,6 @@ public class PointBlock {
 	}
 
 	public void free() {
-		Point[] arr = Struct.emptyArray(Point.class, cap);
-		for (int i = 0; i < cap; i++)
-			arr[i] = this.get(i);
-		Struct.free(arr);
+		Struct.free(base);
 	}
 }

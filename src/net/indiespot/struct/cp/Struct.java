@@ -49,6 +49,11 @@ public class Struct {
 		return null;
 	}
 
+	public static <T> T mallocBlock(Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
 	public static <T> void free(T struct) {
 		throwFit();
 	}
@@ -76,7 +81,7 @@ public class Struct {
 		return null;
 	}
 
-	public static <T, A> A sibling(T struct, Class<A> asType, int move) {
+	public static <T> T sibling(T struct, Class<T> asType, int idx) {
 		throwFit();
 		return null;
 	}

@@ -40,12 +40,13 @@ import org.objectweb.asm.util.TraceClassVisitor;
 
 public class StructEnv {
 	public static final boolean SAFETY_FIRST;
-
 	public static final boolean PRINT_LOG;
+	public static final boolean MEMORY_BASE_OFFSET;
 
 	static {
 		SAFETY_FIRST = StructConfig.parseVmArg(StructEnv.class, "SAFETY_FIRST", 0, false) != 0L;
 		PRINT_LOG = StructConfig.parseVmArg(StructEnv.class, "PRINT_LOG", 0, false) != 0L;
+		MEMORY_BASE_OFFSET = StructConfig.parseVmArg(StructEnv.class, "MEMORY_BASE_OFFSET", 0, false) != 0L;
 	}
 
 	public static final String plain_struct_flag = "$truct";
@@ -282,46 +283,43 @@ public class StructEnv {
 				return type3;
 			}
 		};
-		
-		if(StructMemory.CHECK_SOURCECODE)
-		{
+
+		if (StructMemory.CHECK_SOURCECODE) {
 			File srcDir = new File("./src/");
-			if(srcDir.exists()) {
+			if (srcDir.exists()) {
 				String relpath = fqcn;
-				if(relpath.indexOf('$') != -1)
+				if (relpath.indexOf('$') != -1)
 					relpath = relpath.substring(0, relpath.indexOf('$'));
-				File srcFile = new File(srcDir, relpath+".java");
-				if(srcFile.exists()) {
+				File srcFile = new File(srcDir, relpath + ".java");
+				if (srcFile.exists()) {
 					try {
 						InputStream fis = new FileInputStream(srcFile);
 						ByteArrayOutputStream baos = new ByteArrayOutputStream();
-						byte[] tmp = new byte[4*1024];
-						while(true) {
-							int got = fis.read(tmp,0,tmp.length);
-							if(got==-1)
+						byte[] tmp = new byte[4 * 1024];
+						while (true) {
+							int got = fis.read(tmp, 0, tmp.length);
+							if (got == -1)
 								break;
-							baos.write(tmp,  0, got);
+							baos.write(tmp, 0, got);
 						}
-						String src = new String(baos.toByteArray(), "UTF-8");					
-						
-						for(String struct: plain_struct_types) {
-							struct = struct.substring(struct.lastIndexOf('/')+1);
-							struct = struct.substring(struct.indexOf('$')+1);
-							if(src.contains("<"+struct+">")) {
-								int io = src.indexOf("<"+struct+">");
+						String src = new String(baos.toByteArray(), "UTF-8");
+
+						for (String struct : plain_struct_types) {
+							struct = struct.substring(struct.lastIndexOf('/') + 1);
+							struct = struct.substring(struct.indexOf('$') + 1);
+							if (src.contains("<" + struct + ">")) {
+								int io = src.indexOf("<" + struct + ">");
 								int io2 = -1;
-								for(char c: " \t(".toCharArray()) {
-									int lio = src.substring(0,io).lastIndexOf(c);
-									if(lio != -1)
+								for (char c : " \t(".toCharArray()) {
+									int lio = src.substring(0, io).lastIndexOf(c);
+									if (lio != -1)
 										io2 = Math.max(io2, lio);
 								}
-								throw new UnsupportedOperationException(
-									"Cannot use generics with structs.\n"+//
-									"Found: "+src.substring(io2==-1?io:io2+1,io)+"<"+struct+"> in: "+relpath+".java");
+								throw new UnsupportedOperationException("Cannot use generics with structs.\n" + //
+										"Found: " + src.substring(io2 == -1 ? io : io2 + 1, io) + "<" + struct + "> in: " + relpath + ".java");
 							}
 						}
-					}
-					catch(IOException exc) {
+					} catch (IOException exc) {
 						// ignore
 						exc.printStackTrace();
 					}
@@ -469,27 +467,26 @@ public class StructEnv {
 					@Override
 					public void visitCode() {
 						if (_returnsStructType == null) {
-							if (strategy != null) {								
+							if (strategy != null) {
 								String msg = "";
 								msg += "@CopyStruct and @TakeStruct must only be used with struct return values";
 								msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
-								
+
 								throw new IllegalStateException(msg);
 							}
-						}
-						else {
+						} else {
 							if (strategy == null) {
-								if((_access & ACC_SYNTHETIC) != 0) {
+								if ((_access & ACC_SYNTHETIC) != 0) {
 									strategy = ReturnValueStrategy.PASS;
 									if (PRINT_LOG)
 										System.out.println("\t\t\twith struct return value, using fallback Pass strategy due to synthetic method");
 								}
 							}
-							if (strategy == null) {								
+							if (strategy == null) {
 								String msg = "";
 								msg += "must define how struct return values are handled: ";
 								msg += "\n\t\t" + fqcn + "." + _methodName + origMethodDesc;
-								
+
 								throw new IllegalStateException(msg);
 							}
 						}
@@ -542,7 +539,7 @@ public class StructEnv {
 						if (opcode == ARETURN && flow.stack.peek() == VarType.EMBEDDED_ARRAY) {
 							throw new IllegalStateException("cannot return embedded array, as the array does not exist");
 						}
-						
+
 						if (opcode == ARETURN && flow.stack.peek() == VarType.STRUCT) {
 							if (strategy == null)
 								throw new IllegalStateException();
@@ -620,7 +617,7 @@ public class StructEnv {
 
 					@Override
 					public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-						if (StructMemory.CHECK_FIELD_ASSIGNMENT) {
+						if (StructEnv.SAFETY_FIRST) {
 							if (opcode == PUTFIELD || opcode == PUTSTATIC) {
 								if (wrapped_struct_types.contains(desc)) {
 									if (plain_struct_types.contains(owner)) {
@@ -675,7 +672,7 @@ public class StructEnv {
 									super.visitInsn(IADD);
 
 									flow.stack.popEQ(VarType.INT);
-									
+
 									if (type.startsWith("[") && type.length() == 2)
 										flow.stack.push(VarType.EMBEDDED_ARRAY);
 									else
@@ -822,7 +819,17 @@ public class StructEnv {
 									// ...,sizeof,struct[],length
 									owner = StructEnv.jvmClassName(StructGC.class);
 									name = "realloc";
-									desc = "(I["+wrapped_struct_flag+"I)[" + wrapped_struct_flag;
+									desc = "(I[" + wrapped_struct_flag + "I)[" + wrapped_struct_flag;
+								} else {
+									throw new IllegalStateException("peek: " + flow.stack.peek());
+								}
+							} else if (name.equals("mallocBlock") && desc.equals("(Ljava/lang/Class;I)Ljava/lang/Object;")) {
+								if (flow.stack.peek(1) == VarType.STRUCT_TYPE) {
+									flow.stack.set(1, VarType.INT);
+									// ...,sizeof,length								
+									owner = StructEnv.jvmClassName(StructGC.class);
+									name = "mallocBlock";
+									desc = "(II)" + wrapped_struct_flag;
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}

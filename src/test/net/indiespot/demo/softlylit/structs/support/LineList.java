@@ -7,7 +7,6 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.transform.StructEnv;
 
 public class LineList {
-
 	private Line[] arr;
 	private int size, cap;
 
@@ -82,10 +81,7 @@ public class LineList {
 	}
 
 	public void expandTo(int minSize) {
-		Line[] arr2 = Struct.emptyArray(Line.class, Math.max(minSize, cap * 2));
-		for (int i = 0; i < size; i++)
-			arr2[i] = arr[i];
-		arr = arr2;
+		arr = Struct.realloc(Line.class, arr, Math.max(minSize, cap * 2));
 		cap = arr.length;
 	}
 }

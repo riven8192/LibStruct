@@ -14,6 +14,7 @@ import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.StructUnsafe;
 import net.indiespot.struct.runtime.SuspiciousFieldAssignmentError;
+import net.indiespot.struct.transform.StructEnv;
 
 public class StructTest {
 	public static void main(String[] args) {
@@ -71,7 +72,7 @@ public class StructTest {
 			TestInstanceMethod.test();
 			TestStructReturnType.test();
 
-			if (StructMemory.CHECK_MEMORY_ACCESS_REGION) {
+			if (StructEnv.SAFETY_FIRST) {
 				try {
 					TestStack.test();
 					throw new IllegalStateException();

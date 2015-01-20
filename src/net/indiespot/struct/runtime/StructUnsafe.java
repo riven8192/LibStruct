@@ -4,6 +4,7 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import net.indiespot.struct.transform.StructEnv;
 import sun.misc.Unsafe;
 
 /**
@@ -28,10 +29,16 @@ public class StructUnsafe {
 	}
 
 	private static final ByteBuffer global;
+	public static final long memory_base_offset_in_words;
 
 	static {
 		global = ByteBuffer.allocateDirect(4 * 1024);
 		global.order(ByteOrder.nativeOrder());
+		if (StructEnv.MEMORY_BASE_OFFSET) {
+			memory_base_offset_in_words = (getBufferBaseAddress(global) - (1024L * 1024L * 1024L)) >> 2;
+		} else {
+			memory_base_offset_in_words = 0L;
+		}
 	}
 
 	public static ByteBuffer newBuffer(int capacity) {

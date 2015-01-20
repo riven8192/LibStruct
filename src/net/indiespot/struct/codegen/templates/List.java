@@ -5,7 +5,6 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.transform.StructEnv;
 
 public class List<T> {
-
 	private T[] arr;
 	private int size, cap;
 
@@ -80,10 +79,7 @@ public class List<T> {
 	}
 
 	public void expandTo(int minSize) {
-		T[] arr2 = Struct.emptyArray((Class<T>) Object.class, Math.max(minSize, cap * 2));
-		for (int i = 0; i < size; i++)
-			arr2[i] = arr[i];
-		arr = arr2;
+		arr = Struct.realloc((Class<T>) Object.class, arr, Math.max(minSize, cap * 2));
 		cap = arr.length;
 	}
 }
