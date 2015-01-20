@@ -31,6 +31,11 @@ public class Struct {
 	 * Returns the size of this struct in bytes. Note that there isn't any
 	 * performance overhead, at runtime this method call is replaced with a
 	 * constant integer.
+	 * 
+	 * <pre>
+	 * int s1 = Struct.sizeof(Point.class);
+	 * int s1 = 8;
+	 * </pre>
 	 */
 
 	public static <T> int sizeof(Class<T> structType) {
@@ -169,7 +174,15 @@ public class Struct {
 
 	/**
 	 * Reinterpret the memory relative to a struct, as another struct of any
-	 * type.
+	 * type. Typically used to <i>dynamically</i> embed structs into structs.
+	 * For <i>statically</i> embedded structs into structs, use:
+	 * <code>class Ship { @StructField(embed=true) Point position; }</code> 
+	 * 
+	 * <pre>
+	 * Ship ship = new Ship();
+	 * Point position = Struct.view(ship, Point.class, offset);
+	 * Point position = Struct.fromPointer(Struct.getPointer(ship) + offset));
+	 * </pre>
 	 */
 
 	public static <T, A> A view(T struct, Class<A> asType, int offsetMultipleOf4) {
@@ -234,7 +247,7 @@ public class Struct {
 	 * Get the pointer of the specified struct.
 	 */
 
-	public static long getPointer(Object struct) {
+	public static <T> long getPointer(T struct) {
 		throwFit();
 		return 0L;
 	}
@@ -244,7 +257,7 @@ public class Struct {
 	 * reference at the callsite of this method. For debugging purposes.
 	 */
 
-	public static boolean isReachable(Object struct) {
+	public static <T> boolean isReachable(T struct) {
 		throwFit();
 		return false;
 	}

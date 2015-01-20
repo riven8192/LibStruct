@@ -1020,7 +1020,7 @@ public class StructTest {
 
 		public static void testStatic() {
 			vec2 = Struct.calloc(Vec3.class);
-			System.out.println("vec2: " + (Struct.getPointer(vec2) >> 2));
+
 			vec2.x = 12.34f;
 			Vec3 that = vec2;
 			vec2 = that;
@@ -1032,7 +1032,6 @@ public class StructTest {
 
 		public static void testStatic2() {
 			vec2.x = 4;
-			System.out.println("vec2: " + (Struct.getPointer(vec2) >> 2));
 			Struct.free(vec2);
 
 			arr[0].x = 5;
