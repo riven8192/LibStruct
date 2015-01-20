@@ -13,7 +13,7 @@ public class StructMemory {
 
 	private static final boolean manually_fill_and_copy = true;
 
-	public static int[] emptyArray(int length) {
+	public static int[] nullArray(int length) {
 		return new int[length];
 	}
 
@@ -109,7 +109,7 @@ public class StructMemory {
 		return srcHandle + bytes2words(offset);
 	}
 
-	public static int sibling(int srcHandle, int sizeof, int count) {
+	public static int index(int srcHandle, int sizeof, int count) {
 		return srcHandle + bytes2words(sizeof) * count;
 	}
 
@@ -144,6 +144,10 @@ public class StructMemory {
 	}
 
 	public static final void clearMemory(int handle, int sizeof) {
+		fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
+	}
+
+	public static final void clearMemory(int handle, long sizeof) {
 		fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
 	}
 

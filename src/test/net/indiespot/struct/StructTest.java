@@ -23,17 +23,17 @@ public class StructTest {
 
 			@Override
 			public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos) {
-				System.out.println("LibStruct GC: freed="+freedHandles/1024+"K, remaining="+remainingHandles/1024+"K, took: "+tookNanos/1000/1000+"ms");
+				System.out.println("LibStruct GC: freed=" + freedHandles / 1024 + "K, remaining=" + remainingHandles / 1024 + "K, took: " + tookNanos / 1000 / 1000 + "ms");
 			}
 
 			@Override
 			public void onStress() {
-				// 
+				//
 			}
 
 			@Override
 			public void onPanic() {
-				// 
+				//
 			}
 
 		});
@@ -90,7 +90,7 @@ public class StructTest {
 			TestCopy.test();
 			TestView.test();
 			TestSwitch.test();
-			TestSibling.test();
+			TestIndex.test();
 		}
 
 		// ParticleTestStruct.main(args);
@@ -104,7 +104,8 @@ public class StructTest {
 		TestEmbedArray.test();
 		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
-		TestSuspiciousFieldAssignment.test();
+		if (StructEnv.SAFETY_FIRST)
+			TestSuspiciousFieldAssignment.test();
 		TestFromPointer.test();
 		TestCollectionAPI.test();
 
@@ -125,13 +126,16 @@ public class StructTest {
 
 	public static class TestLargeAlloc {
 		public static void test() {
-			Vec3[] vecs = Struct.malloc(Vec3.class, Integer.MAX_VALUE / (Struct.sizeof(Vec3.class) - 2));
-			for (int i = 1; i < vecs.length; i++) {
-				long p1 = Struct.getPointer(vecs[i - 1]);
-				long p2 = Struct.getPointer(vecs[i - 0]);
+			int count = Integer.MAX_VALUE / (Struct.sizeof(Vec3.class) - 2);
+			Vec3 base = Struct.mallocBlock(Vec3.class, count);
+			for (int i = 1; i < count; i++) {
+				Vec3 v1 = Struct.index(base, Vec3.class, i - 1);
+				Vec3 v2 = Struct.index(base, Vec3.class, i - 0);
+				long p1 = Struct.getPointer(v1);
+				long p2 = Struct.getPointer(v2);
 				assert (p2 - p1) == Struct.sizeof(Vec3.class);
 			}
-			Struct.free(vecs); // blocks when GC is flooded (>10M handles to free)
+			Struct.free(base);
 		}
 	}
 
@@ -276,15 +280,15 @@ public class StructTest {
 		}
 	}
 
-	public static class TestSibling {
+	public static class TestIndex {
 		public static void test() {
 			Vec3[] arr = new Vec3[123];
 
 			arr[0].set(1.20f, 2.30f, 3.40f);
 			arr[1].set(1.02f, 2.03f, 3.04f);
 
-			assert Struct.sibling(arr[1], Vec3.class, -1) == arr[0];
-			assert Struct.sibling(arr[1], Vec3.class, +1) == arr[2];
+			assert Struct.index(arr[1], Vec3.class, -1) == arr[0];
+			assert Struct.index(arr[1], Vec3.class, +1) == arr[2];
 
 			/*
 			 * Vec3 base = arr[0]; for(int m = 0; m < 256; m++) { long t0 =
@@ -607,7 +611,7 @@ public class StructTest {
 
 			public VecList(int cap) {
 				this.cap = cap;
-				arr = Struct.emptyArray(Vec3.class, cap);
+				arr = Struct.nullArray(Vec3.class, cap);
 				size = 0;
 			}
 
@@ -618,7 +622,7 @@ public class StructTest {
 			}
 
 			public void expand(int minSize) {
-				Vec3[] arr2 = Struct.emptyArray(Vec3.class, Math.max(minSize, cap * 2));
+				Vec3[] arr2 = Struct.nullArray(Vec3.class, Math.max(minSize, cap * 2));
 				for (int i = 0; i < size; i++)
 					arr2[i] = arr[i];
 				arr = arr2;
@@ -660,7 +664,7 @@ public class StructTest {
 			private int size;
 
 			public Vec3BlockingQueue(int cap) {
-				queue = Struct.emptyArray(Vec3.class, cap);
+				queue = Struct.nullArray(Vec3.class, cap);
 			}
 
 			public synchronized void push(Vec3 vec) {
@@ -703,7 +707,7 @@ public class StructTest {
 
 					if (size == 0) {
 						if (System.currentTimeMillis() - started > timeout) {
-							return Struct.typedNull(Vec3.class);
+							return Struct.nullStruct(Vec3.class);
 						}
 					}
 				}
@@ -1016,6 +1020,7 @@ public class StructTest {
 
 		public static void testStatic() {
 			vec2 = Struct.calloc(Vec3.class);
+			System.out.println("vec2: " + (Struct.getPointer(vec2) >> 2));
 			vec2.x = 12.34f;
 			Vec3 that = vec2;
 			vec2 = that;
@@ -1027,6 +1032,7 @@ public class StructTest {
 
 		public static void testStatic2() {
 			vec2.x = 4;
+			System.out.println("vec2: " + (Struct.getPointer(vec2) >> 2));
 			Struct.free(vec2);
 
 			arr[0].x = 5;

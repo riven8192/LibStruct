@@ -120,33 +120,35 @@ public class StructGC {
 		}
 	}
 
-	public static int malloc(int sizeof) {
-		return malloc((long) sizeof);
-	}
-
-	public static int malloc(long sizeof) {
+	private static int mallocImpl(long stride, int count) {
 		if (StructEnv.SAFETY_FIRST)
-			if (sizeof <= 0)
+			if (stride <= 0)
+				throw new IllegalArgumentException();
+		if (StructEnv.SAFETY_FIRST)
+			if (count <= 0)
 				throw new IllegalArgumentException();
 
-		if (sizeof > gc_heap_size) {
-			LargeMalloc largeMalloc = new LargeMalloc(sizeof, 1);
+		int handle;
+
+		if (stride * count > gc_heap_size) {
+			LargeMalloc largeMalloc = new LargeMalloc(stride, count);
 			synchronized (large_mallocs) {
 				large_mallocs.add(largeMalloc);
 			}
-			return StructMemory.pointer2handle(largeMalloc.addr);
+			handle = StructMemory.pointer2handle(largeMalloc.addr);
+		} else {
+			handle = local_heaps.get().malloc((int) stride, count);
+			if (handle == 0) {
+				// try again with a new heap
+				local_heaps.set(newHeap());
+				handle = local_heaps.get().malloc((int) stride, count);
+				if (handle == 0)
+					throw new IllegalStateException();
+			}
 		}
 
-		StructHeap localHeap = local_heaps.get();
-		int handle = localHeap.malloc((int) sizeof);
-		if (handle == 0) {
-			// try again with a new heap
-			local_heaps.set(newHeap());
-			localHeap = local_heaps.get();
-			handle = localHeap.malloc((int) sizeof);
-			if (handle == 0)
-				throw new IllegalStateException();
-		}
+		// System.out.println("malloc [" + count + "]: " +
+		// StructMemory.handle2pointer(handle));
 		return handle;
 	}
 
@@ -155,14 +157,24 @@ public class StructGC {
 		public final long addr;
 		public final long sizeof;
 		public int unfreedHandles;
+		private IntList activeHandles;
 
-		public LargeMalloc(long sizeof, int handles) {
-			this.base = StructUnsafe.UNSAFE.allocateMemory(sizeof + 4L /*
-																		 * word-size
-																		 */);
+		public LargeMalloc(long stride, int count) {
+			this.base = StructUnsafe.UNSAFE.allocateMemory(stride * count + 4L);
 			this.addr = StructMemory.alignAddressToWord(base);
-			this.sizeof = sizeof;
-			this.unfreedHandles = handles;
+			this.sizeof = stride * count;
+			this.unfreedHandles = count;
+
+			if (StructEnv.SAFETY_FIRST) {
+				activeHandles = new IntList();
+				final int words = StructMemory.bytes2words(stride);
+				for (int i = 0; i < count; i++) {
+					int handle = StructMemory.bytes2words(addr) + i * words;
+					if (activeHandles.contains(handle))
+						throw new IllegalStateException();
+					activeHandles.add(handle);
+				}
+			}
 		}
 
 		public boolean freeHandle(int handle) {
@@ -170,6 +182,9 @@ public class StructGC {
 			if (pntr >= addr && pntr < addr + sizeof) {
 				if (StructEnv.SAFETY_FIRST && unfreedHandles <= 0)
 					throw new IllegalStateException();
+				if (StructEnv.SAFETY_FIRST)
+					if (!activeHandles.removeValue(handle))
+						throw new IllegalStateException();
 				if (--unfreedHandles == 0)
 					StructUnsafe.UNSAFE.freeMemory(base);
 				return true;
@@ -181,17 +196,21 @@ public class StructGC {
 	private static List<LargeMalloc> large_mallocs = new ArrayList<>();
 
 	public static int mallocBlock(int sizeof, int length) {
-		return malloc((long) sizeof * length);
+		return mallocImpl((long) sizeof * length, 1);
 	}
 
 	public static int[] malloc(int sizeof, int length) {
-		final int words = StructMemory.bytes2words(sizeof);
-		int baseHandle = malloc((long) sizeof * length);
+		int baseHandle = mallocImpl(sizeof, length);
 
+		final int words = StructMemory.bytes2words(sizeof);
 		int[] handles = new int[length];
 		for (int i = 0; i < length; i++)
 			handles[i] = baseHandle + i * words;
 		return handles;
+	}
+
+	public static int malloc(int sizeof) {
+		return mallocImpl(sizeof, 1);
 	}
 
 	public static int calloc(int sizeof) {
@@ -202,7 +221,7 @@ public class StructGC {
 
 	public static int[] calloc(int sizeof, int length) {
 		int[] handles = malloc(sizeof, length);
-		StructMemory.clearMemory(handles[0], sizeof * length);
+		StructMemory.clearMemory(handles[0], (long) sizeof * length);
 		return handles;
 	}
 
@@ -222,6 +241,8 @@ public class StructGC {
 	}
 
 	public static void freeHandle(int handle) {
+		// System.out.println("free: " + StructMemory.handle2pointer(handle));
+
 		StructHeap localHeap = local_heaps.get();
 		boolean freedFromLocalHeap = localHeap.freeHandle(handle);
 
@@ -235,6 +256,10 @@ public class StructGC {
 	}
 
 	public static void freeHandles(int[] handles) {
+		// for (int i = 0; i < handles.length; i++)
+		// System.out.println("free: " +
+		// StructMemory.handle2pointer(handles[i]));
+
 		StructHeap localHeap = local_heaps.get();
 
 		boolean allFreedFromLocalHeap = true;

@@ -512,7 +512,8 @@ public class StructEnv {
 							case LRETURN:
 							case DRETURN:
 								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
-								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()V", false);
+								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()I", false);
+								super.visitInsn(Opcodes.POP);
 								break;
 							}
 						}
@@ -738,7 +739,7 @@ public class StructEnv {
 						}
 
 						if (owner.equals(StructEnv.jvmClassName(Struct.class))) {
-							if (name.equals("typedNull") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
+							if (name.equals("nullStruct") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
 								if (flow.stack.peek() == VarType.STRUCT_TYPE) {
 									flow.stack.set(0, VarType.INT);
 									// ..., sizeof
@@ -759,7 +760,7 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							} else if (name.equals("emptyArray") && desc.equals("(Ljava/lang/Class;I)[Ljava/lang/Object;")) {
+							} else if (name.equals("nullArray") && desc.equals("(Ljava/lang/Class;I)[Ljava/lang/Object;")) {
 								if (flow.stack.peek(1) == VarType.STRUCT_TYPE) {
 									flow.stack.set(1, VarType.INT);
 									// ...,sizeof,length
@@ -768,7 +769,7 @@ public class StructEnv {
 									flow.visitInsn(Opcodes.POP);
 									// ...,length
 									owner = StructEnv.jvmClassName(StructMemory.class);
-									name = "emptyArray";
+									name = "nullArray";
 									desc = "(I)[" + wrapped_struct_flag;
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
@@ -905,12 +906,12 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek(2));
 								}
-							} else if (name.equals("sibling") && desc.equals("(Ljava/lang/Object;Ljava/lang/Class;I)Ljava/lang/Object;")) {
+							} else if (name.equals("index") && desc.equals("(Ljava/lang/Object;Ljava/lang/Class;I)Ljava/lang/Object;")) {
 								if (flow.stack.peek(1) == VarType.STRUCT_TYPE) {
 									flow.stack.set(1, VarType.INT);
 									// ...,address,sizeof,index
 									owner = StructEnv.jvmClassName(StructMemory.class);
-									name = "sibling";
+									name = "index";
 									desc = "(" + wrapped_struct_flag + "II)" + wrapped_struct_flag;
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek(2));

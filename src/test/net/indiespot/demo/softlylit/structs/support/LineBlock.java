@@ -66,7 +66,7 @@ public class LineBlock {
 		if (StructEnv.SAFETY_FIRST)
 			if (index < 0 || index >= size)
 				throw new IllegalStateException();
-		return Struct.sibling(base, Line.class, index);
+		return Struct.index(base, Line.class, index);
 	}
 
 	public void set(int index, Line value) {

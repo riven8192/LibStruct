@@ -64,7 +64,7 @@ public class Block<T> {
 		if (StructEnv.SAFETY_FIRST)
 			if (index < 0 || index >= size)
 				throw new IllegalStateException();
-		return Struct.sibling(base, (Class<T>) Object.class, index);
+		return Struct.index(base, (Class<T>) Object.class, index);
 	}
 
 	public void set(int index, T value) {

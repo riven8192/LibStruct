@@ -66,7 +66,7 @@ public class TriangleBlock {
 		if (StructEnv.SAFETY_FIRST)
 			if (index < 0 || index >= size)
 				throw new IllegalStateException();
-		return Struct.sibling(base, Triangle.class, index);
+		return Struct.index(base, Triangle.class, index);
 	}
 
 	public void set(int index, Triangle value) {
