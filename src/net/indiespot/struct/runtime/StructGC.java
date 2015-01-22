@@ -200,32 +200,8 @@ public class StructGC {
 	}
 
 	public static int callocArrayBase(int sizeof, int length) {
-		System.out.println("calloc: sizeof=" + sizeof);
-		System.out.println("calloc: length=" + length);
 		int baseHandle = mallocArrayBase(sizeof, length);
-		long lastValidAddress = testMemoryAccess(baseHandle, sizeof, length);
-		long base = StructMemory.handle2pointer(baseHandle);
-		int sum = 0;
-		System.out.println("base=" + base);
-		sum ^= StructUnsafe.UNSAFE.getByte(base);
-		sum ^= StructUnsafe.UNSAFE.getByte(lastValidAddress);
-		System.out.println("range check passed");
-		for (int i = 0; i < length; i++) {
-			long addr = base + (long) i * sizeof;
-			if (addr < base)
-				throw new IllegalStateException();
-			if (addr > lastValidAddress)
-				throw new IllegalStateException();
-			sum ^= StructUnsafe.UNSAFE.getByte(addr);
-		}
-		System.out.println("base=" + base);
-		System.out.println("sum=" + sum);
-		System.out.println("a:" + baseHandle);
-		System.out.println(sizeof * length);
-		System.out.println((long) sizeof * length);
-		System.out.println(StructMemory.bytes2words((long) sizeof * length));
 		StructMemory.clearMemory(baseHandle, (long) sizeof * length);
-		System.out.println("b");
 		return baseHandle;
 	}
 
