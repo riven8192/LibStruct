@@ -81,7 +81,7 @@ public class LineList {
 	}
 
 	public void expandTo(int minSize) {
-		arr = Struct.realloc(Line.class, arr, Math.max(minSize, cap * 2));
+		arr = Struct.reallocArray(Line.class, arr, Math.max(minSize, cap * 2));
 		cap = arr.length;
 	}
 }

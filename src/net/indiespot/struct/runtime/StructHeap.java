@@ -43,8 +43,9 @@ public class StructHeap {
 		if (block.canAllocate(sizeof * length)) {
 			int offset = block.allocate(sizeof * length);
 			if (StructEnv.SAFETY_FIRST) {
+				int words = StructMemory.bytes2words(sizeof);
 				for (int i = 0; i < length; i++) {
-					int handle = offset + i * StructMemory.bytes2words(sizeof);
+					int handle = offset + i * words;
 					if (activeHandles.contains(handle))
 						throw new IllegalStateException();
 					activeHandles.add(handle);

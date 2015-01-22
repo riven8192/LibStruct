@@ -57,40 +57,26 @@ public class StructMemory {
 		int sizeofWords = bytes2words(sizeof);
 		int handle = stack.allocate(sizeof * length);
 		fillMemoryByWord(handle, sizeofWords * length, 0x00000000);
-		int[] arr = new int[length];
-		for (int i = 0; i < arr.length; i++)
-			arr[i] = handle + i * sizeofWords;
-		return arr;
+		return pointer2handles(handle2pointer(handle), sizeof, length);
 	}
 
 	public static int[] mapBuffer(int sizeof, ByteBuffer bb) {
-		int sizeofWords = bytes2words(sizeof);
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int count = bb.remaining() / sizeof;
 		if (count == 0)
 			throw new IllegalStateException("no usable space in buffer");
-		int handle = pointer2handle(addr);
-		int[] arr = new int[count];
-		for (int i = 0; i < arr.length; i++)
-			arr[i] = handle + i * sizeofWords;
-		return arr;
+		return pointer2handles(addr, sizeof, count);
 	}
 
 	public static int[] mapBuffer(int sizeof, ByteBuffer bb, int stride, int offset) {
 		if (offset < 0 || offset + sizeof > stride || (offset % 4) != 0 || (stride % 4) != 0)
 			throw new IllegalStateException();
 
-		int offsetWords = bytes2words(offset);
-		int strideWords = bytes2words(stride);
-		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
+		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position() + offset;
 		int count = bb.remaining() / stride;
 		if (count == 0)
 			throw new IllegalStateException("no usable space in buffer");
-		int handle = pointer2handle(addr);
-		int[] arr = new int[count];
-		for (int i = 0; i < arr.length; i++)
-			arr[i] = handle + offsetWords + i * strideWords;
-		return arr;
+		return pointer2handles(addr, stride, count);
 	}
 
 	public static void copy(int sizeof, int srcHandle, int dstHandle) {
@@ -151,31 +137,38 @@ public class StructMemory {
 		fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
 	}
 
-	private static final void fillMemoryByWord(int handle, int count, int value) {
-		long p = handle2pointer(handle);
-		for (int i = 0; i < count; i++) {
-			int off = (i << 2);
-			StructUnsafe.UNSAFE.putInt(p + off, value);
-		}
+	private static final int word_count_int_shift_limit = Integer.MAX_VALUE >> 2;
+
+	private static final void fillMemoryByWord(int handle, int wordCount, int wordValue) {
+		long base = handle2pointer(handle);
+
+		int limit = Math.min(wordCount, word_count_int_shift_limit);
+		for (int i = 0; i < limit; i++)
+			StructUnsafe.UNSAFE.putInt(base + (i << 2), wordValue);
+		for (int i = limit; i < wordCount; i++)
+			StructUnsafe.UNSAFE.putInt(base + ((long) i << 2), wordValue);
 	}
 
-	private static final void copyMemoryByWord(int src, int dst, int count) {
+	private static final void copyMemoryByWord(int src, int dst, int wordCount) {
 		long pSrc = handle2pointer(src);
 		long pDst = handle2pointer(dst);
-		for (int i = 0; i < count; i++) {
-			int off = (i << 2);
-			StructUnsafe.UNSAFE.putInt(pDst + off, StructUnsafe.UNSAFE.getInt(pSrc + off));
-		}
+
+		int limit = Math.min(wordCount, word_count_int_shift_limit);
+		for (int i = 0; i < limit; i++)
+			StructUnsafe.UNSAFE.putInt(pDst + (i << 2), StructUnsafe.UNSAFE.getInt(pSrc + (i << 2)));
+		for (int i = limit; i < wordCount; i++)
+			StructUnsafe.UNSAFE.putInt(pDst + ((long) i << 2), StructUnsafe.UNSAFE.getInt(pSrc + ((long) i << 2)));
 	}
 
-	private static final void swapMemoryByWord(int src, int dst, int count) {
+	private static final void swapMemoryByWord(int src, int dst, int wordCount) {
 		long pSrc = handle2pointer(src);
 		long pDst = handle2pointer(dst);
-		for (int i = 0; i < count; i++) {
-			int off = (i << 2);
-			int t = StructUnsafe.UNSAFE.getInt(pSrc + off);
+
+		for (int i = 0; i < wordCount; i++) {
+			long off = ((long) i << 2);
+			int tmp = StructUnsafe.UNSAFE.getInt(pSrc + off);
 			StructUnsafe.UNSAFE.putInt(pSrc + off, StructUnsafe.UNSAFE.getInt(pDst + off));
-			StructUnsafe.UNSAFE.putInt(pDst + off, t);
+			StructUnsafe.UNSAFE.putInt(pDst + off, tmp);
 		}
 	}
 
@@ -188,10 +181,23 @@ public class StructMemory {
 	}
 
 	public static int bytes2words(long sizeof) {
-		return (int) (sizeof >> 2);
+		if (StructEnv.SAFETY_FIRST)
+			if (sizeof < 0 || (sizeof & 0x03) != 0x00)
+				throw new IllegalStateException();
+		if (StructEnv.SAFETY_FIRST)
+			if (sizeof > 0x2_FFFF_FFFFL)
+				throw new IllegalStateException();
+		int words = (int) (sizeof >> 2);
+		if (StructEnv.SAFETY_FIRST)
+			if (words < 0)
+				throw new IllegalStateException();
+		return words;
 	}
 
 	public static int bytes2words(int sizeof) {
+		if (StructEnv.SAFETY_FIRST)
+			if (sizeof < 0 || (sizeof & 0x03) != 0x00)
+				throw new IllegalStateException();
 		return sizeof >> 2;
 	}
 
@@ -216,6 +222,15 @@ public class StructMemory {
 			if (handle > 0xFFFF_FFFFL)
 				throw new IllegalStateException("address [" + pointer + "] too big to fit in compressed pointer (addressable memory is 16 GB)");
 		return (int) handle;
+	}
+
+	public static int[] pointer2handles(long pointer, int sizeof, int length) {
+		int baseHandle = pointer2handle(pointer);
+		int[] handles = new int[length];
+		int words = bytes2words(sizeof);
+		for (int i = 0; i < handles.length; i++)
+			handles[i] = baseHandle + i * words;
+		return handles;
 	}
 
 	private static void checkHandle(int handle) {

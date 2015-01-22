@@ -16,7 +16,7 @@ public class LineBlock {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.cap = cap;
-		this.base = Struct.mallocBlock(Line.class, cap);
+		this.base = Struct.mallocArrayBase(Line.class, cap);
 		this.size = 0;
 	}
 

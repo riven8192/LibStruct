@@ -14,7 +14,7 @@ public class Block<T> {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.cap = cap;
-		this.base = Struct.mallocBlock((Class<T>) Object.class, cap);
+		this.base = Struct.mallocArrayBase((Class<T>) Object.class, cap);
 		this.size = 0;
 	}
 

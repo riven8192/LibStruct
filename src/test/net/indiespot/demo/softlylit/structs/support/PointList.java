@@ -81,7 +81,7 @@ public class PointList {
 	}
 
 	public void expandTo(int minSize) {
-		arr = Struct.realloc(Point.class, arr, Math.max(minSize, cap * 2));
+		arr = Struct.reallocArray(Point.class, arr, Math.max(minSize, cap * 2));
 		cap = arr.length;
 	}
 }

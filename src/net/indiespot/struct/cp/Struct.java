@@ -69,7 +69,7 @@ public class Struct {
 	 * memory.
 	 */
 
-	public static <T> T[] malloc(Class<T> structType, int length) {
+	public static <T> T[] mallocArray(Class<T> structType, int length) {
 		throwFit();
 		return null;
 	}
@@ -79,7 +79,7 @@ public class Struct {
 	 * backing memory cleared.
 	 */
 
-	public static <T> T[] calloc(Class<T> structType, int length) {
+	public static <T> T[] callocArray(Class<T> structType, int length) {
 		throwFit();
 		return null;
 	}
@@ -93,7 +93,7 @@ public class Struct {
 	 * scattered.
 	 */
 
-	public static <T> T[] realloc(Class<T> structType, T[] currentArray, int newLength) {
+	public static <T> T[] reallocArray(Class<T> structType, T[] currentArray, int newLength) {
 		throwFit();
 		return null;
 	}
@@ -106,7 +106,7 @@ public class Struct {
 	 * 
 	 * <pre>
 	 * int len = 23;
-	 * Point base = Struct.mallocBlock(Point.class, len);
+	 * Point base = Struct.mallocArrayBase(Point.class, len);
 	 * for (int i = 0; i &lt; len; i++) {
 	 * 	Point p = Struct.index(base, Point.class, i);
 	 * }
@@ -114,7 +114,17 @@ public class Struct {
 	 * </pre>
 	 */
 
-	public static <T> T mallocBlock(Class<T> structType, int length) {
+	public static <T> T mallocArrayBase(Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.mallocArrayBase(type,length)</code>, but has
+	 * its backing memory cleared.
+	 */
+
+	public static <T> T callocArrayBase(Class<T> structType, int length) {
 		throwFit();
 		return null;
 	}
@@ -176,7 +186,7 @@ public class Struct {
 	 * Reinterpret the memory relative to a struct, as another struct of any
 	 * type. Typically used to <i>dynamically</i> embed structs into structs.
 	 * For <i>statically</i> embedded structs into structs, use:
-	 * <code>class Ship { @StructField(embed=true) Point position; }</code> 
+	 * <code>class Ship { @StructField(embed=true) Point position; }</code>
 	 * 
 	 * <pre>
 	 * Ship ship = new Ship();
@@ -195,11 +205,11 @@ public class Struct {
 	 * struct of the same type, where the <code>index</code> parameter is used
 	 * to calculate the offset: <code>sizeof(type)*index</code>. This can be
 	 * used to reference structs in a block of memory returned by
-	 * <code>Struct.mallocBlock(type, length)</code>. *
+	 * <code>Struct.mallocArrayBase(type, length)</code>. *
 	 * 
 	 * <pre>
 	 * int len = 23;
-	 * Point base = Struct.mallocBlock(Point.class, len);
+	 * Point base = Struct.mallocArrayBase(Point.class, len);
 	 * for (int i = 0; i &lt; len; i++) {
 	 * 	Point p = Struct.index(base, Point.class, i);
 	 * }
@@ -239,6 +249,26 @@ public class Struct {
 	 */
 
 	public static <T> T fromPointer(long pointer) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.fromPointer(pointer)</code>, except that it
+	 * returns a struct array with the specified length.
+	 */
+
+	public static <T> T[] fromPointer(long pointer, Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.fromPointer(pointer, type, length)</code>, except that it
+	 * uses the specified stride, as opposed to sizeof(type).
+	 */
+
+	public static <T> T[] fromPointer(long pointer, int stride, int length) {
 		throwFit();
 		return null;
 	}

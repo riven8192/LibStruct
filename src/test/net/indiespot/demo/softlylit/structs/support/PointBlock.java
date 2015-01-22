@@ -16,7 +16,7 @@ public class PointBlock {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.cap = cap;
-		this.base = Struct.mallocBlock(Point.class, cap);
+		this.base = Struct.mallocArrayBase(Point.class, cap);
 		this.size = 0;
 	}
 

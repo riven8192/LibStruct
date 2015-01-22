@@ -127,10 +127,14 @@ public class StructTest {
 	public static class TestLargeAlloc {
 		public static void test() {
 			int count = Integer.MAX_VALUE / (Struct.sizeof(Vec3.class) - 2);
-			Vec3 base = Struct.mallocBlock(Vec3.class, count);
+			System.out.println("count=" + count);
+			System.out.println("sizeof=" + Struct.sizeof(Vec3.class));
+			Vec3 base = Struct.callocArrayBase(Vec3.class, count);
 			for (int i = 1; i < count; i++) {
 				Vec3 v1 = Struct.index(base, Vec3.class, i - 1);
 				Vec3 v2 = Struct.index(base, Vec3.class, i - 0);
+				v2.mul(v1);
+				v1.mul(v2);
 				long p1 = Struct.getPointer(v1);
 				long p2 = Struct.getPointer(v2);
 				assert (p2 - p1) == Struct.sizeof(Vec3.class);
@@ -141,22 +145,22 @@ public class StructTest {
 
 	public static class TestRealloc {
 		public static void test() {
-			Vec3[] arr = Struct.malloc(Vec3.class, 13);
+			Vec3[] arr = Struct.mallocArray(Vec3.class, 13);
 			assert arr.length == 13;
 
 			arr[4].x = 13.14f;
 			arr[7].y = 17.13f;
 
-			arr = Struct.realloc(Vec3.class, arr, 13);
+			arr = Struct.reallocArray(Vec3.class, arr, 13);
 			assert arr.length == 13;
 			assert arr[4].x == 13.14f;
 			assert arr[7].y == 17.13f;
 
-			arr = Struct.realloc(Vec3.class, arr, 5);
+			arr = Struct.reallocArray(Vec3.class, arr, 5);
 			assert arr.length == 5;
 			assert arr[4].x == 13.14f;
 
-			arr = Struct.realloc(Vec3.class, arr, 8);
+			arr = Struct.reallocArray(Vec3.class, arr, 8);
 			assert arr.length == 8;
 			assert arr[4].x == 13.14f;
 
@@ -585,12 +589,12 @@ public class StructTest {
 		}
 
 		private static void memoryAllocArray(int n) {
-			for (Vec3 vec : Struct.malloc(Vec3.class, n))
+			for (Vec3 vec : Struct.mallocArray(Vec3.class, n))
 				Struct.free(vec);
 		}
 
 		private static void memoryAllocArrayBulkFree(int n) {
-			Struct.free(Struct.malloc(Vec3.class, n));
+			Struct.free(Struct.mallocArray(Vec3.class, n));
 		}
 	}
 
@@ -646,17 +650,17 @@ public class StructTest {
 				Struct.free(vec2);
 			}
 
-			Vec3[] vecs = Struct.malloc(Vec3.class, 7);
+			Vec3[] vecs = Struct.mallocArray(Vec3.class, 7);
 			for (Vec3 vec : vecs) {
 				Struct.free(vec);
 			}
 
-			vecs = Struct.malloc(Vec3.class, 100_000);
+			vecs = Struct.mallocArray(Vec3.class, 100_000);
 			for (Vec3 vec : vecs) {
 				Struct.free(vec);
 			}
 
-			Struct.free(Struct.malloc(Vec3.class, 100_000));
+			Struct.free(Struct.mallocArray(Vec3.class, 100_000));
 		}
 
 		private static class Vec3BlockingQueue {
@@ -1027,7 +1031,7 @@ public class StructTest {
 			assert (vec2.x == 12.34f);
 			assert (that.x == 12.34f);
 
-			arr = Struct.malloc(Vec3.class, 13);
+			arr = Struct.mallocArray(Vec3.class, 13);
 		}
 
 		public static void testStatic2() {

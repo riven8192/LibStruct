@@ -16,7 +16,7 @@ public class TriangleBlock {
 		if (cap <= 0)
 			throw new IllegalArgumentException();
 		this.cap = cap;
-		this.base = Struct.mallocBlock(Triangle.class, cap);
+		this.base = Struct.mallocArrayBase(Triangle.class, cap);
 		this.size = 0;
 	}
 

@@ -81,7 +81,7 @@ public class TriangleList {
 	}
 
 	public void expandTo(int minSize) {
-		arr = Struct.realloc(Triangle.class, arr, Math.max(minSize, cap * 2));
+		arr = Struct.reallocArray(Triangle.class, arr, Math.max(minSize, cap * 2));
 		cap = arr.length;
 	}
 }
