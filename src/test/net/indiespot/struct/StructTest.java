@@ -206,6 +206,15 @@ public class StructTest {
 			Vec3 v2 = Struct.fromPointer(addr + 1 * Struct.sizeof(Vec3.class));
 			assert Struct.getPointer(v1) == (addr + 0 * Struct.sizeof(Vec3.class));
 			assert Struct.getPointer(v2) == (addr + 1 * Struct.sizeof(Vec3.class));
+
+			Vec3[] vs = Struct.fromPointer(addr, Vec3.class, 2);
+			assert vs[0] == v1;
+			assert vs[1] == v2;
+			
+			vs = Struct.fromPointer(addr, 12, 2);
+			assert vs[0] == v1;
+			assert vs[1] == v2;
+
 			bb.clear(); // prevent untimely GC
 		}
 	}
@@ -296,15 +305,15 @@ public class StructTest {
 
 			/*
 			 * Vec3 base = arr[0]; for(int m = 0; m < 256; m++) { long t0 =
-			 * System.nanoTime(); float siblingSum = 0.0f; for(int k = 0; k <
-			 * 1024; k++) { for(int i = 0; i < 123; i++) { Vec3 at =
-			 * Struct.sibling(base, Vec3.class, i); siblingSum += at.x; } } long
-			 * t1 = System.nanoTime(); float arrayElemSum = 0.0f; for(int k = 0;
-			 * k < 1024; k++) { for(int i = 0; i < 123; i++) { Vec3 at = arr[i];
-			 * arrayElemSum += at.x; } } long t2 = System.nanoTime();
+			 * System.nanoTime(); float siblingSum = 0.0f; for(int k = 0; k < 1024;
+			 * k++) { for(int i = 0; i < 123; i++) { Vec3 at = Struct.sibling(base,
+			 * Vec3.class, i); siblingSum += at.x; } } long t1 = System.nanoTime();
+			 * float arrayElemSum = 0.0f; for(int k = 0; k < 1024; k++) { for(int i
+			 * = 0; i < 123; i++) { Vec3 at = arr[i]; arrayElemSum += at.x; } }
+			 * long t2 = System.nanoTime();
 			 * 
-			 * System.out.println("siblingSum=" + siblingSum + " (took: " + (t1
-			 * - t0) / 1000 + "us)"); System.out.println("arrayElemSum=" +
+			 * System.out.println("siblingSum=" + siblingSum + " (took: " + (t1 -
+			 * t0) / 1000 + "us)"); System.out.println("arrayElemSum=" +
 			 * arrayElemSum + " (took: " + (t2 - t1) / 1000 + "us)");
 			 * System.out.println(); }
 			 */
@@ -386,21 +395,21 @@ public class StructTest {
 			new Vec3();
 
 			switch (4) {
-			case 1:
-				break;
-			case 2:
-				break;
-			case 3:
-				break;
+				case 1:
+					break;
+				case 2:
+					break;
+				case 3:
+					break;
 			}
 
 			switch (4) {
-			case 1003:
-				break;
-			case 2003:
-				break;
-			case 3003:
-				break;
+				case 1003:
+					break;
+				case 2003:
+					break;
+				case 3003:
+					break;
 			}
 		}
 	}
@@ -1423,7 +1432,7 @@ public class StructTest {
 
 			vec = pass();
 			vec.x = 5; // must crash, as the struct is on the part of the stack
-						// that was popped
+			           // that was popped
 			if (vec.y != 15)
 				throw new IllegalStateException();
 		}

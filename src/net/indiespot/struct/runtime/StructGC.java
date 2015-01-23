@@ -70,12 +70,12 @@ public class StructGC {
 	}
 
 	public static void configureGarbageCollector(//
-			long minIntervalMillis, //
-			long maxIntervalMillis, //
-			float incIntervalFactor, //
-			long maxDurationMicros,//
-			int heapSize,//
-			int maxEmptyHeaps//
+	   long minIntervalMillis, //
+	   long maxIntervalMillis, //
+	   float incIntervalFactor, //
+	   long maxDurationMicros,//
+	   int heapSize,//
+	   int maxEmptyHeaps//
 	) {
 		if (minIntervalMillis < 0)
 			throw new IllegalArgumentException();
@@ -155,6 +155,9 @@ public class StructGC {
 	}
 
 	private static long testMemoryAccess(int handle, long stride, int count) {
+		if (true)
+			return 0L;
+		
 		long base = StructMemory.handle2pointer(handle);
 		long sizeof = stride * count;
 

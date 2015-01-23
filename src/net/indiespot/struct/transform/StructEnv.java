@@ -934,13 +934,13 @@ public class StructEnv {
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
-							} else if (name.equals("fromPointer") && desc.equals("(JLjava/lang/Object;I)[Ljava/lang/Object;")) {
+							} else if (name.equals("fromPointer") && desc.equals("(JLjava/lang/Class;I)[Ljava/lang/Object;")) {
 								if (flow.stack.peek(2) == VarType.MISC && flow.stack.peek(1) == VarType.STRUCT_TYPE) {
 									flow.stack.set(1, VarType.INT);
 									// ...,address,sizeof,length
 									owner = StructEnv.jvmClassName(StructMemory.class);
 									name = "pointer2handles";
-									desc = "(JII)" + wrapped_struct_flag;
+									desc = "(JII)[" + wrapped_struct_flag;
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
@@ -949,7 +949,7 @@ public class StructEnv {
 									// ...,address,sizeof,length
 									owner = StructEnv.jvmClassName(StructMemory.class);
 									name = "pointer2handles";
-									desc = "(JII)" + wrapped_struct_flag;
+									desc = "(JII)[" + wrapped_struct_flag;
 								} else {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
