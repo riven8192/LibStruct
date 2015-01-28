@@ -2,7 +2,7 @@ package net.indiespot.struct.runtime;
 
 import java.nio.ByteBuffer;
 
-import net.indiespot.struct.runtime.StructGC.IntList;
+import net.indiespot.struct.runtime.StructGC.LongList;
 import net.indiespot.struct.transform.StructEnv;
 
 public class StructHeap {
@@ -11,23 +11,22 @@ public class StructHeap {
 
 	private final StructAllocationBlock block;
 	private int allocCount, freeCount;
-	private IntList activeHandles;
+	private LongList activeHandles;
 
 	public StructHeap(ByteBuffer buffer) {
 		long addr = StructMemory.alignBufferToWord(buffer);
-		int handleOffset = StructMemory.pointer2handle(addr);
 
 		this.buffer = buffer;
-		this.block = new StructAllocationBlock(handleOffset, buffer.remaining());
+		this.block = new StructAllocationBlock(addr, buffer.remaining());
 
 		if (StructEnv.SAFETY_FIRST) {
-			this.activeHandles = new IntList();
+			this.activeHandles = new LongList();
 		}
 	}
 
-	public int malloc(int sizeof) {
+	public long malloc(int sizeof) {
 		if (block.canAllocate(sizeof)) {
-			int handle = block.allocate(sizeof);
+			long handle = block.allocate(sizeof);
 			if (StructEnv.SAFETY_FIRST) {
 				if (activeHandles.contains(handle))
 					throw new IllegalStateException();
@@ -39,13 +38,12 @@ public class StructHeap {
 		return 0;
 	}
 
-	public int malloc(int sizeof, int length) {
+	public long malloc(int sizeof, int length) {
 		if (block.canAllocate(sizeof * length)) {
-			int offset = block.allocate(sizeof * length);
+			long offset = block.allocate(sizeof * length);
 			if (StructEnv.SAFETY_FIRST) {
-				int words = StructMemory.bytes2words(sizeof);
 				for (int i = 0; i < length; i++) {
-					int handle = offset + i * words;
+					long handle = offset + (long) i * sizeof;
 					if (activeHandles.contains(handle))
 						throw new IllegalStateException();
 					activeHandles.add(handle);
@@ -57,7 +55,7 @@ public class StructHeap {
 		return 0;
 	}
 
-	public boolean freeHandle(int handle) {
+	public boolean freeHandle(long handle) {
 		if (this.isOnHeap(handle)) {
 			if (StructEnv.SAFETY_FIRST) {
 				if (!activeHandles.removeValue(handle))
@@ -66,14 +64,14 @@ public class StructHeap {
 			if (++freeCount == allocCount) {
 				allocCount = 0;
 				freeCount = 0;
-				block.wordsAllocated = 0;
+				block.reset();
 			}
 			return true;
 		}
 		return false;
 	}
 
-	public boolean isOnHeap(int handle) {
+	public boolean isOnHeap(long handle) {
 		return block.isOnBlock(handle);
 	}
 

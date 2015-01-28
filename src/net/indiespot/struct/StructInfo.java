@@ -190,6 +190,6 @@ public class StructInfo {
 		StructInfo info = lookup(type.substring(1, type.length() - 1));
 		if (info == null)
 			throw new NoSuchElementException("struct type not found: " + type);
-		return embed ? info.calcSizeof() : 4; // struct type
+		return embed ? info.calcSizeof() : 8; // struct type
 	}
 }

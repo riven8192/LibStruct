@@ -3,47 +3,39 @@ package net.indiespot.struct.runtime;
 import net.indiespot.struct.transform.StructEnv;
 
 public class StructAllocationBlock {
-	final int wordSizeof;
-	final int handleOffset;
-	protected int wordsAllocated;
+	final long base;
+	final int sizeof;
+	protected long next;
 
-	StructAllocationBlock(int handleOffset, int sizeof) {
-		this.handleOffset = handleOffset;
-		this.wordSizeof = bytesToWords(sizeof);
-		this.wordsAllocated = 0;
+	StructAllocationBlock(long base, int sizeof) {
+		this.base = base;
+		this.sizeof = sizeof;
+		this.next = base;
 	}
 
 	public void reset() {
-		wordsAllocated = 0;
+		this.next = base;
 	}
 
-	public int allocate(int sizeof) {
-		if(StructEnv.SAFETY_FIRST)
-			if(sizeof <= 0)
+	public long allocate(int sizeof) {
+		if (StructEnv.SAFETY_FIRST)
+			if (sizeof <= 0)
 				throw new IllegalArgumentException();
 
-		if(StructEnv.SAFETY_FIRST)
-			if(!this.canAllocate(sizeof))
+		if (StructEnv.SAFETY_FIRST)
+			if (!this.canAllocate(sizeof))
 				throw new StructAllocationBlockOverflowError();
 
-		int handleIndex = wordsAllocated;
-		wordsAllocated += bytesToWords(sizeof);
-		return handleOffset + handleIndex;
+		long addr = next;
+		next += sizeof;
+		return addr;
 	}
 
 	public boolean canAllocate(int sizeof) {
-		return (sizeof > 0) && (wordsAllocated + bytesToWords(sizeof) <= this.wordSizeof);
+		return (sizeof > 0) && (next + sizeof) <= (base + this.sizeof);
 	}
 
-	public boolean isOnBlock(int handle) {
-		int rel = handle - handleOffset;
-		return rel >= 0 && rel < wordSizeof;
-	}
-
-	private static int bytesToWords(int sizeof) {
-		if(StructEnv.SAFETY_FIRST)
-			if((sizeof & 3) != 0)
-				throw new RuntimeException();
-		return sizeof >> 2;
+	public boolean isOnBlock(long handle) {
+		return (handle > base && handle < next);
 	}
 }

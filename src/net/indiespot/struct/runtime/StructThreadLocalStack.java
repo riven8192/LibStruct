@@ -38,9 +38,7 @@ public class StructThreadLocalStack {
 		}
 
 		long addr = StructMemory.alignBufferToWord(buffer);
-		int handleOffset = StructMemory.pointer2handle(addr);
-
-		return new StructAllocationStack(handleOffset, buffer.remaining());
+		return new StructAllocationStack(addr, buffer.remaining());
 	}
 
 	private static final int threadlocal_stacksize = 256 * 1024;
@@ -60,7 +58,7 @@ public class StructThreadLocalStack {
 			public void onThreadDeath(long threadId) {
 				ByteBuffer buffer = threadid2buffer[(int) threadId];
 				threadid2buffer[(int) threadId] = null;
-				
+
 				if (buffer != null) {
 					synchronized (buffer_mutex) {
 						discarded_buffers.add(buffer);
