@@ -290,49 +290,6 @@ public class StructEnv {
 			}
 		};
 
-		if (StructMemory.CHECK_SOURCECODE) {
-			File srcDir = new File("./src/");
-			if (srcDir.exists()) {
-				String relpath = fqcn;
-				if (relpath.indexOf('$') != -1)
-					relpath = relpath.substring(0, relpath.indexOf('$'));
-				File srcFile = new File(srcDir, relpath + ".java");
-				if (srcFile.exists()) {
-					try {
-						InputStream fis = new FileInputStream(srcFile);
-						ByteArrayOutputStream baos = new ByteArrayOutputStream();
-						byte[] tmp = new byte[4 * 1024];
-						while (true) {
-							int got = fis.read(tmp, 0, tmp.length);
-							if (got == -1)
-								break;
-							baos.write(tmp, 0, got);
-						}
-						String src = new String(baos.toByteArray(), "UTF-8");
-
-						for (String struct : plain_struct_types) {
-							struct = struct.substring(struct.lastIndexOf('/') + 1);
-							struct = struct.substring(struct.indexOf('$') + 1);
-							if (src.contains("<" + struct + ">")) {
-								int io = src.indexOf("<" + struct + ">");
-								int io2 = -1;
-								for (char c : " \t(".toCharArray()) {
-									int lio = src.substring(0, io).lastIndexOf(c);
-									if (lio != -1)
-										io2 = Math.max(io2, lio);
-								}
-								throw new UnsupportedOperationException("Cannot use generics with structs.\n" + //
-										"Found: " + src.substring(io2 == -1 ? io : io2 + 1, io) + "<" + struct + "> in: " + relpath + ".java");
-							}
-						}
-					} catch (IOException exc) {
-						// ignore
-						exc.printStackTrace();
-					}
-				}
-			}
-		}
-
 		final Map<String, Set<String>> final2origMethods = new HashMap<>();
 
 		final String[] currentMethodName = new String[1];
@@ -579,7 +536,9 @@ public class StructEnv {
 
 					@Override
 					public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
-						//System.out.println("visitFrame: local=" + Arrays.toString(local) + ", stack=" + Arrays.toString(stack));
+						// System.out.println("visitFrame: local=" +
+						// Arrays.toString(local) + ", stack=" +
+						// Arrays.toString(stack));
 						if (local != null) {
 							for (int i = 0; i < local.length; i++) {
 								if (array_wrapped_struct_types.contains(local[i]))
@@ -832,7 +791,7 @@ public class StructEnv {
 								name = "callocArrayBase";
 								desc = "(II)" + wrapped_struct_flag;
 							} else if (name.equals("free") && desc.equals("(Ljava/lang/Object;)V")) {
-								if (flow.stack.peek() == VarType.NULL) {
+								if (flow.stack.peek() == VarType.NULL_REFERENCE) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP); // right thing
 																	// to do?
@@ -846,7 +805,7 @@ public class StructEnv {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
 							} else if (name.equals("free") && desc.equals("([Ljava/lang/Object;)V")) {
-								if (flow.stack.peek() == VarType.NULL) {
+								if (flow.stack.peek() == VarType.NULL_REFERENCE) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP); // right thing
 																	// to do?
@@ -914,7 +873,7 @@ public class StructEnv {
 								name = "createPointerArray";
 								desc = "(JII)" + array_wrapped_struct_flag;
 							} else if (name.equals("getPointer") && desc.equals("(Ljava/lang/Object;)J")) {
-								if (flow.stack.peek() == VarType.NULL) {
+								if (flow.stack.peek() == VarType.NULL_REFERENCE) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP);
 									// ...
@@ -934,7 +893,7 @@ public class StructEnv {
 									throw new IllegalStateException("peek: " + flow.stack.peek());
 								}
 							} else if (name.equals("isReachable") && desc.equals("(Ljava/lang/Object;)Z")) {
-								if (flow.stack.peek() == VarType.NULL) {
+								if (flow.stack.peek() == VarType.NULL_REFERENCE) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP);
 									// ...

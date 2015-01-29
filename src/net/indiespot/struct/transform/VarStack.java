@@ -114,7 +114,7 @@ public class VarStack {
 		StringBuilder sb = new StringBuilder();
 		sb.append('[');
 		for (int i = index - amount; i < index; i++) {
-			if (i > 0)
+			if (sb.length() > 1)
 				sb.append(",");
 			sb.append(stack[i]);
 		}

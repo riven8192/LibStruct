@@ -9,8 +9,6 @@ import java.util.NoSuchElementException;
 import net.indiespot.struct.transform.StructEnv;
 
 public class StructMemory {
-	public static final boolean CHECK_SOURCECODE = StructEnv.SAFETY_FIRST || true;
-
 	public static long[] nullArray(int length) {
 		return new long[length];
 	}

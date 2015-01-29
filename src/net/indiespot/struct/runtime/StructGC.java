@@ -212,7 +212,11 @@ public class StructGC {
 			}
 
 			this.sizeof = stride * count;
-			this.base = StructUnsafe.UNSAFE.allocateMemory(sizeof + 4L);
+			try {
+				this.base = StructUnsafe.UNSAFE.allocateMemory(sizeof + 4L);
+			} catch (OutOfMemoryError err) {
+				throw new OutOfMemoryError("failed to allocate " + sizeof + " bytes");
+			}
 			this.addr = StructMemory.alignAddressToWord(base);
 			this.unfreedHandles = count;
 

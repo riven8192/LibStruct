@@ -1,6 +1,8 @@
 package test.net.indiespot.struct;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import net.indiespot.struct.cp.CopyStruct;
@@ -59,6 +61,13 @@ public class StructTest {
 			test5(new Vec3(), new Vec3(), new Object());
 			test6(new Vec3(), new Vec3(), new Object());
 			Vec3 a = test7(new Vec3(), new Vec3(), new Object());
+			Vec3 b = test8(new Vec3(), new Vec3(), new Object());
+			// test8(new Vec3(), new Vec3(), new Vec3());
+			// test4(Struct.nullStruct(Vec3.class), null,
+			// Struct.nullStruct(Vec3.class));
+			test8(new Vec3(), new Vec3(), null);
+			test8(new Vec3(), Struct.nullStruct(Vec3.class), null);
+			// test8(new Vec3(), null, null);
 		}
 
 		public static void test1(Vec3 a, Vec3 b) {
@@ -115,6 +124,12 @@ public class StructTest {
 		public static Vec3 test7(Vec3 a, Vec3 b, Object obj) {
 			return a;
 		}
+
+		@CopyStruct
+		public static Vec3 test8(Vec3 a, Vec3 b, Object obj) {
+			Vec3 c = new Vec3();
+			return c;
+		}
 	}
 
 	public static void main(String[] args) {
@@ -138,13 +153,9 @@ public class StructTest {
 
 		});
 
-		// TestStructEnv.test();
+		TestStructEnv.test();
 		WideHandleTest.test();
 		WideHandleParamsLocalsTest.test();
-
-		if (!true) {
-			return;
-		}
 
 		if (true) {
 			TestCalloc.test();
@@ -207,18 +218,19 @@ public class StructTest {
 		// TestAllocPerformance.test();
 
 		TestStructList.test();
-		TestEmbedArray.test();
+		// TestEmbedArray.test();
 		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
 		// if (StructEnv.SAFETY_FIRST)
 		// TestSuspiciousFieldAssignment.test();
 		TestFromPointer.test();
-		TestCollectionAPI.test();
 
 		TestEmbeddedArrayUsage.test();
 		TestRealloc.test();
 		TestLargeAlloc.test();
 
+		if (false)
+			TestCollectionAPI.test();
 		if (false)
 			TestDuplicateOverloadedMethod.test();
 
@@ -276,9 +288,9 @@ public class StructTest {
 
 	public static class TestCollectionAPI {
 		public static void test() {
-			// List< Vec3 > vectors = new ArrayList<>();
+			List<Vec3> vectors = new ArrayList<>();
 			// List<Object> vectors = new ArrayList<>();
-			// vectors.add(new Vec3());
+			vectors.add(new Vec3());
 		}
 	}
 
@@ -1215,12 +1227,12 @@ public class StructTest {
 		public static void test() {
 			Object obj = new Object();
 			Vec3 vec = new Vec3();
-			assert !(vec == null);
-			assert !(obj == null);
 			assert (vec != null);
-			assert (obj != null);
-			assert (vec == vec);
-			assert (obj == obj);
+			// assert (obj != null);
+			// assert !(vec == null);
+			// assert !(obj == null);
+			// assert (vec == vec);
+			// assert (obj == obj);
 		}
 	}
 

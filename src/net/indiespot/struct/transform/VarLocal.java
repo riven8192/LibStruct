@@ -30,16 +30,15 @@ public class VarLocal {
 		int result = 0;
 		for (int i = 0; i < local.length; i++) {
 			oldSlot2newSlot[i] = offset++;
-			if (local[i] == VarType.STRUCT_LOCALVAR) {
-				offset++; // expand
-			}
+			if (local[i] == VarType.STRUCT_PLACEHOLDER)
+				offset++; // make room for expansion
 			if (i < paramSlots)
 				result = offset;
 			if (StructEnv.PRINT_LOG)
 				if (local[i] != null)
 					System.out.println("\t\t\tlocal.map[" + local[i] + "]: " + i + " -> " + oldSlot2newSlot[i]);
 		}
-		this.slotBoundary = 1 + usedLocalvarSlots + (oldSlot2newSlot[paramSlots] - paramSlots);
+		this.slotBoundary = usedLocalvarSlots + (oldSlot2newSlot[paramSlots] - paramSlots);
 		if (StructEnv.PRINT_LOG)
 			System.out.println("slotBoundary=" + usedLocalvarSlots + " -> " + this.slotBoundary);
 
@@ -50,12 +49,10 @@ public class VarLocal {
 			if (oldSlot2newSlot[src] < local.length)
 				local[oldSlot2newSlot[src]] = local[src];
 
-		// if (StructEnv.PRINT_LOG)
-		// this.dump(true);
-
 		for (int i = 0; i < local.length; i++) {
-			if (local[i] == VarType.STRUCT_LOCALVAR) {
+			if (local[i] == VarType.STRUCT_PLACEHOLDER) {
 				local2pntrBase[i] = i;
+				// expand reference to struct-pointer
 				local[i + 0] = VarType.STRUCT_HI;
 				local[i + 1] = VarType.STRUCT_LO;
 			}
@@ -72,7 +69,7 @@ public class VarLocal {
 			if (i == slotBoundary)
 				System.out.println("\t\t\tboundary: " + i);
 
-			if (local[i] == VarType.STRUCT_LOCALVAR && withMapping)
+			if (local[i] == VarType.STRUCT_PLACEHOLDER && withMapping)
 				System.out.println("\t\t\tlocal: " + i + " -> " + local[i] + " refering to (" + local2pntrBase[i] + ")");
 			else if (local[i] != null)
 				System.out.println("\t\t\tlocal: " + i + " -> " + local[i]);
@@ -103,14 +100,15 @@ public class VarLocal {
 		if (StructEnv.PRINT_LOG)
 			System.out.println("\t\t\tlocal dump: " + this.toString());
 
-		if (var == VarType.STRUCT_LOCALVAR && slotBoundary != -1) {
+		if (var == VarType.STRUCT_PLACEHOLDER && slotBoundary != -1) {
 			if (local2pntrBase[mapped] == -1) {
 				local2pntrBase[mapped] = slotBoundary + expandedSlotBoundary;
 				expandedSlotBoundary += 2;
 			}
 			local[local2pntrBase[mapped] + 0] = VarType.STRUCT_HI;
 			local[local2pntrBase[mapped] + 1] = VarType.STRUCT_LO;
-			this.dump("set(" + index + ")", true);
+			if (StructEnv.PRINT_LOG)
+				this.dump("set(" + index + ")", true);
 			return local2pntrBase[mapped];
 		}
 		return mapped;
@@ -118,7 +116,7 @@ public class VarLocal {
 
 	public int getStructBaseIndexMapped(int index) {
 		int mapped = oldSlot2newSlot[index];
-		if (local[mapped] != VarType.STRUCT_LOCALVAR)
+		if (local[mapped] != VarType.STRUCT_PLACEHOLDER)
 			throw new IllegalStateException("index=" + index + ", mapped=" + mapped + ", expected STRUCT_LOCALVAR, found " + local[mapped]);
 		if (local[local2pntrBase[mapped]] != VarType.STRUCT_HI)
 			throw new IllegalStateException("index=" + index + ", mapped=" + mapped + ", base=" + local2pntrBase[mapped] + ",  expected STRUCT_HI, found " + local[local2pntrBase[mapped]]);
@@ -138,7 +136,7 @@ public class VarLocal {
 			throw new IllegalStateException();
 		VarType var = local[mapped];
 
-		if (var == VarType.STRUCT_LOCALVAR && slotBoundary != -1) {
+		if (var == VarType.STRUCT_PLACEHOLDER && slotBoundary != -1) {
 			if (local2pntrBase[mapped] == -1)
 				throw new IllegalStateException();
 
@@ -154,7 +152,7 @@ public class VarLocal {
 	}
 
 	public VarType getEQ(int index, VarType type) {
-		if (type == VarType.STRUCT_LOCALVAR)
+		if (type == VarType.STRUCT_PLACEHOLDER)
 			throw new UnsupportedOperationException();
 		if (type != get(index))
 			throw new IllegalStateException("expected: " + type + ", found: " + get(index));
@@ -163,7 +161,7 @@ public class VarLocal {
 
 	public VarType getEQ(int index, EnumSet<VarType> types) {
 		VarType got = get(index);
-		if (types.contains(VarType.STRUCT_LOCALVAR))
+		if (types.contains(VarType.STRUCT_PLACEHOLDER))
 			throw new UnsupportedOperationException();
 		if (!types.contains(got))
 			throw new IllegalStateException("expected: " + types + ", found: " + got);
