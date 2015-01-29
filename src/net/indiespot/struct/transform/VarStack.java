@@ -41,8 +41,9 @@ public class VarStack {
 		try {
 			return stack[index - 1 - off];
 		} finally {
-			if (StructEnv.PRINT_LOG)
-				System.out.println("\t\t\tstack.peek(" + stack[index - 1 - off] + ") -> " + this);
+			// if (StructEnv.PRINT_LOG)
+			// System.out.println("\t\t\tstack.peek(" + stack[index - 1 - off] +
+			// ") -> " + this);
 		}
 	}
 

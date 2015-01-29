@@ -77,19 +77,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	@Override
 	public void visitCode() {
 		super.visitCode();
-		if (StructEnv.PRINT_LOG)
-			local.dump("visitcode", true);
-		for (int slot = 0; slot < expandedParamSizeof; slot++) {
-			if (local.getUnmapped(slot) == VarType.STRUCT_LOCALVAR) {
-				int src = slot;
-				int dst = local.getStructBaseIndexUnmapped(slot);
-
-				if (StructEnv.PRINT_LOG)
-					System.out.println("\t\t\tcopying struct-pointer from " + src + " to " + dst);
-				super.visitVarInsn(LLOAD, src);
-				super.visitVarInsn(LSTORE, dst);
-			}
-		}
 	}
 
 	@Override
@@ -1165,6 +1152,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			System.out.println("\t\tIINC");
 
 		local.getEQ(var, VarType.INT);
+		var = local.remap(var);
 
 		super.visitIincInsn(var, increment);
 	}

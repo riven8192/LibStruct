@@ -17,7 +17,7 @@ import net.indiespot.struct.runtime.SuspiciousFieldAssignmentError;
 import net.indiespot.struct.transform.StructEnv;
 
 public class StructTest {
-	public static class LongHandleTest {
+	public static class WideHandleTest {
 		public static void test() {
 			ByteBuffer bb = ByteBuffer.allocateDirect(1024);
 			long addr = StructUnsafe.getBufferBaseAddress(bb);
@@ -58,6 +58,7 @@ public class StructTest {
 			test4(new Vec3(), new Object(), new Vec3());
 			test5(new Vec3(), new Vec3(), new Object());
 			test6(new Vec3(), new Vec3(), new Object());
+			Vec3 a = test7(new Vec3(), new Vec3(), new Object());
 		}
 
 		public static void test1(Vec3 a, Vec3 b) {
@@ -109,6 +110,11 @@ public class StructTest {
 			assert pa == Struct.getPointer(a);
 			assert pa == Struct.getPointer(b);
 		}
+
+		@TakeStruct
+		public static Vec3 test7(Vec3 a, Vec3 b, Object obj) {
+			return a;
+		}
 	}
 
 	public static void main(String[] args) {
@@ -133,9 +139,10 @@ public class StructTest {
 		});
 
 		// TestStructEnv.test();
+		WideHandleTest.test();
 		WideHandleParamsLocalsTest.test();
 
-		if (true) {
+		if (!true) {
 			return;
 		}
 
@@ -173,8 +180,8 @@ public class StructTest {
 
 			if (StructEnv.SAFETY_FIRST) {
 				try {
-					// TestStack.test();
-					// throw new IllegalStateException(); // FIXME
+					TestStack.test();
+					// throw new IllegalStateException(); FIXME
 				} catch (IllegalStackAccessError expected) {
 					// okay!
 				}
@@ -200,7 +207,7 @@ public class StructTest {
 		// TestAllocPerformance.test();
 
 		TestStructList.test();
-		// TestEmbedArray.test();
+		TestEmbedArray.test();
 		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
 		// if (StructEnv.SAFETY_FIRST)
