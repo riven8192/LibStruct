@@ -365,16 +365,13 @@ public class StructMemory {
 	public static final void $put(long addr, long value, int fieldOffset) {
 		if (StructEnv.SAFETY_FIRST)
 			checkPointer(addr);
-		System.out.println("$put: " + addr + ", " + value + ", " + fieldOffset);
 		StructUnsafe.UNSAFE.putLong(addr + fieldOffset, value);
 	}
 
 	public static final long $get(long addr, int fieldOffset) {
 		if (StructEnv.SAFETY_FIRST)
 			checkPointer(addr);
-		long value = StructUnsafe.UNSAFE.getLong(addr + fieldOffset);
-		System.out.println("$get: " + addr + ", " + fieldOffset + " -> " + value);
-		return value;
+		return StructUnsafe.UNSAFE.getLong(addr + fieldOffset);
 	}
 
 	// boolean[]
