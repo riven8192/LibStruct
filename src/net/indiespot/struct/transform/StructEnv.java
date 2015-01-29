@@ -585,12 +585,16 @@ public class StructEnv {
 										super.visitVarInsn(ASTORE, 0 + base);
 										super.visitVarInsn(ALOAD, 0 + base);
 										super.visitVarInsn(ALOAD, 1 + base);
-										super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "checkFieldAssignment", "(" + wrapped_struct_flag + "" + wrapped_struct_flag + ")V", false);
+										super.visitIntInsn(BIPUSH, opcode == PUTSTATIC ? 1 : 0);
+										super.visitLdcInsn(owner + "." + name);
+										super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "checkFieldAssignment", "(" + wrapped_struct_flag + "" + wrapped_struct_flag + "ZLjava/lang/String;)V", false);
 										super.visitVarInsn(ALOAD, 0 + base);
 										super.visitVarInsn(ALOAD, 1 + base);
 									} else {
 										super.visitInsn(DUP);
-										super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "checkFieldAssignment", "(" + wrapped_struct_flag + ")V", false);
+										super.visitIntInsn(BIPUSH, opcode == PUTSTATIC ? 1 : 0);
+										super.visitLdcInsn(owner + "." + name);
+										super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "checkFieldAssignment", "(" + wrapped_struct_flag + "ZLjava/lang/String;)V", false);
 									}
 								}
 							}
@@ -973,7 +977,7 @@ public class StructEnv {
 				msg += "\tThe following methods collide after transformation: \n";
 				for (String m : entry.getValue())
 					msg += "\t\t" + m + "\n";
-				msg += "\tdue to shared name and description: (struct references are rewritten to ints)\n";
+				msg += "\tdue to shared name and description: (struct references are rewritten to longs)\n";
 				msg += "\t\t" + entry.getKey() + "\n";
 				if (!StructEnv.PRINT_LOG)
 					msg += "\n\t\tfor more information set: -DLibStruct.PRINT_LOG=true";

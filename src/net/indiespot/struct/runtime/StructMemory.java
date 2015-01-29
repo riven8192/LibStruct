@@ -189,24 +189,20 @@ public class StructMemory {
 			throw new IllegalStackAccessError();
 	}
 
-	public static void checkFieldAssignment(long targetHandle) {
-		if (targetHandle == 0)
-			throw new NullPointerException("null struct");
-
+	public static void checkFieldAssignment(long assignedHandle, boolean isStatic, String msg) {
 		StructAllocationStack stack = StructThreadLocalStack.getStack();
-		if (stack.isInvalid(targetHandle))
-			throw new SuspiciousFieldAssignmentError();
-
+		if (stack.isValid(assignedHandle))
+			throw new SuspiciousFieldAssignmentError("\n\t\tError: assigning stack-allocated struct to " + (isStatic ? "static" : "instance") + " field.\n\t\tField: " + msg);
 	}
 
-	public static void checkFieldAssignment(long targetHandle, long handle) {
+	public static void checkFieldAssignment(long targetHandle, long assignedHandle, boolean isStatic, String msg) {
 		if (targetHandle == 0)
-			throw new NullPointerException("null struct");
+			throw new NullPointerException("cannot assign field of null struct");
 
 		StructAllocationStack stack = StructThreadLocalStack.getStack();
-		if (stack.isValid(handle))
+		if (stack.isValid(assignedHandle))
 			if (!stack.isValid(targetHandle))
-				throw new SuspiciousFieldAssignmentError();
+				throw new SuspiciousFieldAssignmentError("\n\t\tError: assigning stack-allocated struct to non-stack-allocated struct field.\n\t\tField: " + msg);
 	}
 
 	static class Holder {

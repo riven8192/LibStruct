@@ -155,12 +155,18 @@ public class StructTest {
 
 		});
 
+		if (false)
+			TestCollectionAPI.test();
+		if (false)
+			TestDuplicateOverloadedMethod.test();
+
 		if (true) {
 			// TestAllocPerformance.test();
-			// return;
+			return;
 		}
 
 		TestStructEnv.test();
+		TestSuspiciousFieldAssignment.test();
 		WideHandleTest.test();
 		WideHandleParamsLocalsTest.test();
 
@@ -229,15 +235,6 @@ public class StructTest {
 
 		TestRealloc.test();
 		TestLargeAlloc.test();
-
-		if (false)
-			TestSuspiciousFieldAssignment.test();
-		if (false)
-			TestStructAsObjectParam.test();
-		if (false)
-			TestCollectionAPI.test();
-		if (false)
-			TestDuplicateOverloadedMethod.test();
 
 		System.out.println("awaiting gc...");
 		while (StructGC.getHandleCount() != 0) {
@@ -333,16 +330,6 @@ public class StructTest {
 		}
 	}
 
-	public static class TestNull2 {
-		public static void test() {
-			Ship ship = new Ship();
-			// ship = null;
-			// ship = Struct.typedNull(Ship.class);
-			ship.id = 0;
-			ship.pos = new Vec3();
-		}
-	}
-
 	public static class TestDuplicateOverloadedMethod {
 		public static void test() {
 			test(1);
@@ -416,21 +403,6 @@ public class StructTest {
 
 			assert Struct.index(arr[1], Vec3.class, -1) == arr[0];
 			assert Struct.index(arr[1], Vec3.class, +1) == arr[2];
-
-			/*
-			 * Vec3 base = arr[0]; for(int m = 0; m < 256; m++) { long t0 =
-			 * System.nanoTime(); float siblingSum = 0.0f; for(int k = 0; k <
-			 * 1024; k++) { for(int i = 0; i < 123; i++) { Vec3 at =
-			 * Struct.sibling(base, Vec3.class, i); siblingSum += at.x; } } long
-			 * t1 = System.nanoTime(); float arrayElemSum = 0.0f; for(int k = 0;
-			 * k < 1024; k++) { for(int i = 0; i < 123; i++) { Vec3 at = arr[i];
-			 * arrayElemSum += at.x; } } long t2 = System.nanoTime();
-			 * 
-			 * System.out.println("siblingSum=" + siblingSum + " (took: " + (t1
-			 * - t0) / 1000 + "us)"); System.out.println("arrayElemSum=" +
-			 * arrayElemSum + " (took: " + (t2 - t1) / 1000 + "us)");
-			 * System.out.println(); }
-			 */
 		}
 	}
 
@@ -835,9 +807,9 @@ public class StructTest {
 	public static class TestStructWithStructField {
 		public static void test() {
 			Ship ship = new Ship();
-			assert (ship.id == 100001);
-			ship.id++;
 			assert (ship.id == 100002);
+			ship.id++;
+			assert (ship.id == 100003);
 			assert (ship.pos == null);
 
 			System.out.println("--");
@@ -917,95 +889,6 @@ public class StructTest {
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-		}
-	}
-
-	public static class TestStructAsObjectParam {
-		public static void test() {
-			Vec3 vec = new Vec3();
-
-			{
-				test(null);
-				test(vec);
-
-				test(null, null);
-				test(null, vec);
-				test(vec, null);
-				test(vec, vec);
-
-				test(null, null, null);
-				test(null, null, vec);
-				test(null, vec, null);
-				test(null, vec, vec);
-				test(vec, null, null);
-				test(vec, null, vec);
-				test(vec, vec, null);
-				test(vec, vec, vec);
-			}
-
-			{
-				test("v");
-				test(vec);
-
-				test("v", "v");
-				test("v", vec);
-				test(vec, "v");
-				test(vec, vec);
-
-				test("v", "v", "v");
-				test("v", "v", vec);
-				test("v", vec, "v");
-				test("v", vec, vec);
-				test(vec, "v", "v");
-				test(vec, "v", vec);
-				test(vec, vec, "v");
-				test(vec, vec, vec);
-			}
-
-			{
-				Vec3 vc3 = new Vec3();
-				test(vc3, vec, vec);
-				test(vc3, vec, vc3);
-				test(vec, vec, vc3);
-
-				vc3 = null;
-				test(vc3, vec, vec);
-				test(vc3, vec, vc3);
-				test(vec, vec, vc3);
-			}
-
-			{
-				// stringify support for last 3 struct params
-				test("v", "v", "v", "v");
-				test("v", "v", "v", vec);
-				test("v", "v", vec, "v");
-				test("v", vec, "v", "v");
-				// test(vec, "v", "v", "v"); // will bark!
-
-				// deterministically null-structs are not stringified
-				vec = null;
-				test("v", "v", "v", "v");
-				test("v", "v", "v", vec);
-				test("v", "v", vec, "v");
-				test("v", vec, "v", "v");
-			}
-
-		}
-
-		private static void test(Object a) {
-			//
-		}
-
-		private static void test(Object a, Object b) {
-			//
-		}
-
-		private static void test(Object a, Object b, Object c) {
-			//
-		}
-
-		private static void test(Object a, Object b, Object c, Object d) {
-			//
 		}
 	}
 
