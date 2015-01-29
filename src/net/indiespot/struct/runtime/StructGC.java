@@ -484,8 +484,10 @@ public class StructGC {
 
 		private static int gc_run_id = 0;
 
-		public static int gc(long begin) {
-			gc_run_id++;
+		public static void gc(long begin, GcStats out) {
+			out.runId = gc_run_id++;
+			out.freed = 0;
+			out.collectedRegionCount = 0;
 			int freed = 0;
 
 			synchronized (sync) {
@@ -503,11 +505,13 @@ public class StructGC {
 				sync_region_set.clear();
 			}
 
+			out.collectedRegionCount = gc_region_set.regions.size();
 			for (int i = 0, size = gc_region_set.regions.size(); i < size; i++) {
 				int idx = (i + gc_run_id) % size;
 				freed += gc_region_set.regions.get(idx).gc(begin);
 
 				if (i > gc_min_region_collect_count && isExpired(begin)) {
+					out.collectedRegionCount = i + 1;
 					break;
 				}
 			}
@@ -527,12 +531,14 @@ public class StructGC {
 				outer: while (!Memory.sync_frees.isEmpty()) {
 					long handle = Memory.sync_frees.pop();
 
-					for (LargeMalloc largeMalloc : large_mallocs) {
-						if (largeMalloc.freeHandle(handle)) {
-							if (largeMalloc.unfreedHandles == 0)
-								large_mallocs.remove(largeMalloc);
-							freed++;
-							continue outer;
+					synchronized (large_mallocs) { // TODO: optimize
+						for (LargeMalloc largeMalloc : large_mallocs) {
+							if (largeMalloc.freeHandle(handle)) {
+								if (largeMalloc.unfreedHandles == 0)
+									large_mallocs.remove(largeMalloc);
+								freed++;
+								continue outer;
+							}
 						}
 					}
 
@@ -545,7 +551,7 @@ public class StructGC {
 				handleCount += gc_region_set.regions.get(i).getHandleCount();
 			gc_regions_handle_count = handleCount;
 
-			return freed;
+			out.freed = freed;
 		}
 
 		public static int getHandleCount() {
@@ -553,6 +559,8 @@ public class StructGC {
 			synchronized (sync) {
 				for (int i = 0, size = sync_region_set.regions.size(); i < size; i++)
 					handleCount += sync_region_set.regions.get(i).getHandleCount();
+			}
+			synchronized (large_mallocs) {
 				for (int i = 0, size = large_mallocs.size(); i < size; i++)
 					handleCount += large_mallocs.get(i).unfreedHandles;
 			}
@@ -560,10 +568,28 @@ public class StructGC {
 			local_heaps.visit(new FastThreadLocal.Visitor<StructHeap>() {
 				@Override
 				public void visit(int threadId, StructHeap heap) {
-					holder[0] += heap.getHandleCount();
+					holder[0] += heap.getHandleCountEstimate();
 				}
 			});
 			return handleCount + holder[0];
+		}
+	}
+
+	public static class GcStats implements Cloneable {
+		public int runId;
+		public int freed;
+		public int remaining;
+		public int collectedRegionCount;
+		public long tookNanos;
+
+		public GcStats copy() {
+			GcStats copy = new GcStats();
+			copy.runId = this.runId;
+			copy.freed = this.freed;
+			copy.remaining = this.remaining;
+			copy.collectedRegionCount = this.collectedRegionCount;
+			copy.tookNanos = this.tookNanos;
+			return copy;
 		}
 	}
 
@@ -641,6 +667,7 @@ public class StructGC {
 			@Override
 			public void run() {
 				long sleep = (gc_min_interval + gc_max_interval) / 2;
+				GcStats stats = new GcStats();
 
 				while (true) {
 					try {
@@ -650,10 +677,11 @@ public class StructGC {
 					}
 
 					long tBegin = System.nanoTime();
-					int freed = Memory.gc(tBegin);
-					long took = System.nanoTime() - tBegin;
-					if (freed > 0) {
-						int handleCount = Memory.gc_regions_handle_count;
+					Memory.gc(tBegin, stats);
+					stats.tookNanos = System.nanoTime() - tBegin;
+					
+					if (stats.freed > 0) {
+						stats.remaining = Memory.getHandleCount();
 
 						int gcHeaps = 0;
 						for (MemoryRegion region : Memory.gc_region_set.regions)
@@ -666,11 +694,11 @@ public class StructGC {
 
 						synchronized (gc_info_callbacks) {
 							for (GcInfo callback : gc_info_callbacks) {
-								callback.onGC(freed, handleCount, gcHeaps, emptyHeaps, took);
+								callback.onGC(stats.copy());
 							}
 						}
 					}
-					if (freed == 0)
+					if (stats.freed == 0)
 						sleep = Math.round(sleep * gc_inc_interval);
 					else
 						sleep = Math.round(sleep * gc_dec_interval);
@@ -703,7 +731,7 @@ public class StructGC {
 	}
 
 	public static interface GcInfo {
-		public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos);
+		public void onGC(GcStats stats);
 
 		public void onStress();
 

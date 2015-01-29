@@ -22,11 +22,10 @@ public class StructInfo {
 
 	public final String fqcn;
 	public int sizeof = -1;
-	public boolean skipZeroFill;
+	public boolean disableClearMemory;
 
 	public List<String> fieldNames = new ArrayList<>();
 	public Map<String, Integer> field2offset = new HashMap<>();
-	public Map<String, Integer> field2count = new HashMap<>();
 	public Map<String, String> field2type = new HashMap<>();
 	public Map<String, Boolean> field2embed = new HashMap<>();
 
@@ -47,22 +46,19 @@ public class StructInfo {
 		System.out.println("StructInfo[" + fqcn + "] sizeof=" + sizeof);
 	}
 
-	public void skipZeroFill() {
-		skipZeroFill = true;
+	public void disableClearMemory() {
+		disableClearMemory = true;
 
-		System.out.println("StructInfo[" + fqcn + "] skipZeroFill");
+		System.out.println("StructInfo[" + fqcn + "] disableClearMemory");
 	}
 
-	public void addField(String name, String type, int byteOffset, int elemCount, boolean embed) {
+	public void addField(String name, String type, int byteOffset, boolean embed) {
 		if (byteOffset < -1)
 			throw new IllegalArgumentException("field byte offset must not be negative");
-		if (elemCount <= 0)
-			throw new IllegalArgumentException("field element count must be positive");
 
 		fieldNames.add(name);
 		field2type.put(name, type);
 		field2offset.put(name, Integer.valueOf(byteOffset));
-		field2count.put(name, Integer.valueOf(elemCount));
 		field2embed.put(name, Boolean.valueOf(embed));
 	}
 
@@ -86,7 +82,6 @@ public class StructInfo {
 			int offset = field2offset.get(field).intValue();
 			boolean embed = field2embed.get(field).booleanValue();
 			String type = field2type.get(field);
-			int count = field2count.get(field).intValue();
 
 			if (offset == -1) {
 				offset = calcSizeof;
@@ -95,7 +90,7 @@ public class StructInfo {
 				offset = align(offset, alignment);
 				field2offset.put(field, Integer.valueOf(offset));
 			}
-			int fieldWidth = sizeof(type, embed) * count;
+			int fieldWidth = sizeof(type, embed);
 
 			System.out.println("StructInfo[" + fqcn + "] field=" + field + ", type=" + type + ", offset=" + offset + ", sizeof=" + fieldWidth + ", alignment=" + alignment(type));
 
@@ -123,7 +118,7 @@ public class StructInfo {
 			int offset = field2offset.get(field).intValue();
 			boolean embed = field2embed.get(field).booleanValue();
 			String type = field2type.get(field);
-			int range = field2count.get(field).intValue() * sizeof(type, embed);
+			int range = sizeof(type, embed);
 
 			int alignment = alignment(type);
 			if (offset % alignment != 0)
@@ -181,9 +176,11 @@ public class StructInfo {
 			return 8;
 		if (type.startsWith("["))
 			return sizeof(type.substring(1), embed); // unknown, but at least 1
-			                                         // element, or it wouldn't
-			                                         // make sense to define the
-			                                         // array
+														// element, or it
+														// wouldn't
+														// make sense to define
+														// the
+														// array
 		if (type.length() == 2)
 			throw new IllegalStateException();
 

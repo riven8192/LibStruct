@@ -11,7 +11,5 @@ public enum VarType {
 	STRUCT_HI, // localvar holding the highest 32 bits of a struct pointer (64 bit)
 	STRUCT_LO, // localvar holding the lowest 32 bits of a struct pointer (64 bit)
 	STRUCT_ARRAY, // long[], holding pointers to structs
-	STRUCT_TYPE, // localvar holding sizeof(type)
-	//
-	EMBEDDED_ARRAY
+	STRUCT_TYPE // localvar holding sizeof(type)
 }

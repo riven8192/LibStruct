@@ -14,8 +14,10 @@ import net.indiespot.struct.runtime.IllegalStackAccessError;
 import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructMemory;
+import net.indiespot.struct.runtime.StructThreadLocalStack;
 import net.indiespot.struct.runtime.StructUnsafe;
 import net.indiespot.struct.runtime.SuspiciousFieldAssignmentError;
+import net.indiespot.struct.runtime.StructGC.GcStats;
 import net.indiespot.struct.transform.StructEnv;
 
 public class StructTest {
@@ -137,8 +139,8 @@ public class StructTest {
 		StructGC.addListener(new StructGC.GcInfo() {
 
 			@Override
-			public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos) {
-				System.out.println("LibStruct GC: freed=" + freedHandles + ", remaining=" + remainingHandles + ", took: " + tookNanos / 1000 / 1000 + "ms");
+			public void onGC(GcStats stats) {
+				System.out.println("LibStruct GC: id=" + stats.runId + ", freed=" + stats.freed + ", remaining=" + stats.remaining + ", collected regions: " + stats.collectedRegionCount + ", took: " + stats.tookNanos / 1000 / 1000 + "ms");
 			}
 
 			@Override
@@ -152,6 +154,11 @@ public class StructTest {
 			}
 
 		});
+
+		if (true) {
+			// TestAllocPerformance.test();
+			// return;
+		}
 
 		TestStructEnv.test();
 		WideHandleTest.test();
@@ -192,7 +199,7 @@ public class StructTest {
 			if (StructEnv.SAFETY_FIRST) {
 				try {
 					TestStack.test();
-					// throw new IllegalStateException(); FIXME
+					throw new IllegalStateException();
 				} catch (IllegalStackAccessError expected) {
 					// okay!
 				}
@@ -200,7 +207,7 @@ public class StructTest {
 
 			TestStructField.test();
 			TestStructWithStructField.test();
-			// TestStructAsObjectParam.test();
+			//
 			TestMalloc.test();
 
 			TestCustomStack.test();
@@ -211,24 +218,22 @@ public class StructTest {
 		}
 
 		// ParticleTestStruct.main(args);
-		// TestMultiThreadedAllocation.test();
+
 		// TestPerformance.test();
-		// TheAgentD.main(args);
-		// TestMalloc.testBlockingQueueProducerConsumer();
+		// TheAgentD.main(args); // TestMultiThreadedAllocation.test();
+		TestMalloc.testBlockingQueueProducerConsumer();
 		// TestAllocPerformance.test();
 
-		TestStructList.test();
-		// TestEmbedArray.test();
-		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
-		// if (StructEnv.SAFETY_FIRST)
-		// TestSuspiciousFieldAssignment.test();
 		TestFromPointer.test();
 
-		TestEmbeddedArrayUsage.test();
 		TestRealloc.test();
 		TestLargeAlloc.test();
 
+		if (false)
+			TestSuspiciousFieldAssignment.test();
+		if (false)
+			TestStructAsObjectParam.test();
 		if (false)
 			TestCollectionAPI.test();
 		if (false)
@@ -244,10 +249,10 @@ public class StructTest {
 
 	public static class TestLargeAlloc {
 		public static void test() {
-			int count = Integer.MAX_VALUE / (Struct.sizeof(Vec3.class) - 2);
+			int count = Integer.MAX_VALUE / 3 / (Struct.sizeof(Vec3.class) - 2);
 			System.out.println("count=" + count);
 			System.out.println("sizeof=" + Struct.sizeof(Vec3.class));
-			Vec3 base = Struct.callocArrayBase(Vec3.class, count);
+			Vec3 base = Struct.mallocArrayBase(Vec3.class, count);
 			for (int i = 1; i < count; i++) {
 				Vec3 v1 = Struct.index(base, Vec3.class, i - 1);
 				Vec3 v2 = Struct.index(base, Vec3.class, i - 0);
@@ -443,62 +448,6 @@ public class StructTest {
 		}
 	}
 
-	public static class TestEmbedArray {
-		public static void test() {
-			ArrayEmbed ae = new ArrayEmbed();
-
-			// test float[]
-			{
-				float[] farr = ae.farr;
-
-				assert farr[0] == 0.0f;
-				assert farr[1] == 0.0f;
-
-				farr[0] = 1.2f;
-				assert farr[0] == 1.2f;
-
-				farr[1] = 3.4f;
-				assert farr[0] == 1.2f;
-				assert farr[1] == 3.4f;
-			}
-
-			// test int[]
-			{
-				int[] iarr = ae.iarr;
-
-				assert iarr[0] == 0;
-				assert iarr[1] == 0;
-
-				iarr[0] = 0;
-				assert iarr[0] == 0;
-
-				iarr[1] = 3;
-				assert iarr[0] == 0;
-				assert iarr[1] == 3;
-
-				iarr[2] = 5;
-				assert iarr[0] == 0;
-				assert iarr[1] == 3;
-				assert iarr[2] == 5;
-			}
-
-			// test double[]
-			{
-				double[] darr = ae.darr;
-
-				assert darr[0] == 0.0;
-				assert darr[1] == 0.0;
-
-				darr[0] = 1.2;
-				assert darr[0] == 1.2;
-
-				darr[1] = 3.4;
-				assert darr[0] == 1.2;
-				assert darr[1] == 3.4;
-			}
-		}
-	}
-
 	public static class TestSwitch {
 		public static void test() {
 			new Vec3();
@@ -636,6 +585,9 @@ public class StructTest {
 				for (int i = 0; i < allocCount; i += 100)
 					memoryAllocArrayBulkFree(100);
 				long t7 = System.nanoTime();
+				for (int i = 0; i < allocCount; i += 100)
+					memoryAllocArrayBaseFree(100);
+				long t8 = System.nanoTime();
 
 				long tInstance1 = (tm1 - tm2) / 1000L;
 				long tStackAllocS = (t0 - tm1) / 1000L;
@@ -646,6 +598,7 @@ public class StructTest {
 				long tMemoryAllocAndFree = (t5 - t4) / 1000L;
 				long tMemoryAllocAndFreeArr = (t6 - t5) / 1000L;
 				long tMemoryAllocAndFree2Arr = (t7 - t6) / 1000L;
+				long tMemoryAllocAndFree3Arr = (t8 - t7) / 1000L;
 
 				System.out.println();
 				System.out.println("tInstance1      \t" + tInstance1 / 1000 + "ms \t" + (int) (allocCount / (double) tInstance1) + "M/s");
@@ -657,6 +610,7 @@ public class StructTest {
 				System.out.println("tMemoryAllocFree     \t" + tMemoryAllocAndFree / 1000 + "ms    \t" + (int) (allocCount / (double) tMemoryAllocAndFree) + "M/s");
 				System.out.println("tMemoryAllocFreeArr  \t" + tMemoryAllocAndFreeArr / 1000 + "ms \t" + (int) (allocCount / (double) tMemoryAllocAndFreeArr) + "M/s");
 				System.out.println("tMemoryAllocFreeArr2 \t" + tMemoryAllocAndFree2Arr / 1000 + "ms \t" + (int) (allocCount / (double) tMemoryAllocAndFree2Arr) + "M/s");
+				System.out.println("tMemoryAllocFreeArr3 \t" + tMemoryAllocAndFree3Arr / 1000 + "ms    \t" + (int) (allocCount / (double) tMemoryAllocAndFree3Arr) + "M/s");
 			}
 
 			Struct.discardStructAllocationStack(sas);
@@ -714,48 +668,11 @@ public class StructTest {
 		private static void memoryAllocArrayBulkFree(int n) {
 			Struct.free(Struct.mallocArray(Vec3.class, n));
 		}
-	}
 
-	public static class TestStructList {
-		public static void test() {
-			VecList list = new VecList(10);
-			for (int i = 0; i < 100; i++)
-				list.add(new Vec3());
+		private static void memoryAllocArrayBaseFree(int n) {
+			Struct.free(Struct.mallocArrayBase(Vec3.class, n));
 		}
 
-		public static class VecList {
-			private Vec3[] arr;
-			private int size, cap;
-
-			public VecList() {
-				this(10);
-			}
-
-			public VecList(int cap) {
-				this.cap = cap;
-				arr = Struct.nullArray(Vec3.class, cap);
-				size = 0;
-			}
-
-			public void add(Vec3 vec) {
-				if (size == cap)
-					this.expand(-1);
-				arr[size++] = vec;
-			}
-
-			public void expand(int minSize) {
-				Vec3[] arr2 = Struct.nullArray(Vec3.class, Math.max(minSize, cap * 2));
-				for (int i = 0; i < size; i++)
-					arr2[i] = arr[i];
-				arr = arr2;
-				cap = arr.length;
-			}
-
-			public void free() {
-				for (int i = 0; i < size; i++)
-					Struct.free(arr[i]);
-			}
-		}
 	}
 
 	public static class TestMalloc {
@@ -861,23 +778,6 @@ public class StructTest {
 
 			StructGC.discardThreadLocal();
 
-			StructGC.addListener(new StructGC.GcInfo() {
-				@Override
-				public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos) {
-					System.out.println("StructGC: handles freed: " + (freedHandles / 1024) + "K/" + (freedHandles + remainingHandles) / 1024 + "K, empty heaps: " + emptyHeaps + "/" + (emptyHeaps + gcHeaps) + ", collection took: " + (tookNanos / 1_000) + "us");
-				}
-
-				@Override
-				public void onStress() {
-
-				}
-
-				@Override
-				public void onPanic() {
-
-				}
-			});
-
 			try {
 				Thread.sleep(pollTimeout);
 			} catch (InterruptedException e) {
@@ -940,16 +840,19 @@ public class StructTest {
 			assert (ship.id == 100002);
 			assert (ship.pos == null);
 
+			System.out.println("--");
+			System.out.println("ship @ " + Struct.getPointer(ship));
 			Vec3 pos = Struct.malloc(Vec3.class);
-			System.out.println(Struct.getPointer(pos));
+			System.out.println("pos @ " + Struct.getPointer(pos));
 			ship.pos = pos;
-			System.out.println(Struct.getPointer(ship.pos));
+			System.out.println("pos @ " + Struct.getPointer(pos));
+			System.out.println("ship.pos @ " + Struct.getPointer(ship.pos));
+
 			assert (ship.pos != null);
 			Struct.free(ship.pos);
 			ship.pos = Struct.nullStruct(Vec3.class);
 
 			ship.pos = new Vec3(); // SuspiciousFieldAssignmentError
-
 		}
 	}
 
@@ -1473,16 +1376,6 @@ public class StructTest {
 		}
 	}
 
-	public static class TestAddress {
-		public static void test() {
-			Vec3 vec = new Vec3();
-			Object obj = new Object();
-
-			// System.out.println("addr=" + Struct.getPointer(vec));
-			// System.out.println("addr=" + Struct.getPointer(obj));
-		}
-	}
-
 	public static class TestInstanceMethod {
 		public static void test() {
 			Vec3 a = new Vec3();
@@ -1534,22 +1427,31 @@ public class StructTest {
 
 	public static class TestStack {
 		public static void test() {
+			StructAllocationStack sas = StructThreadLocalStack.getStack();
+
 			Vec3 vec = new Vec3();
 			vec.x = 1;
+			System.out.println("sas.sa=" + sas.isInvalid(Struct.getPointer(vec)));
 
 			vec = self(vec);
+			System.out.println("sas.se=" + sas.isInvalid(Struct.getPointer(vec)));
 			vec.x = 3;
 			if (vec.y != 13)
 				throw new IllegalStateException();
 
 			vec = copy();
 			vec.x = 4;
+			System.out.println("sas.co=" + sas.isInvalid(Struct.getPointer(vec)));
 			if (vec.y != 14)
 				throw new IllegalStateException();
 
 			vec = pass();
+			System.out.println("sas.pa=" + sas.isInvalid(Struct.getPointer(vec)));
+
+			System.out.println(sas.isOnBlock(Struct.getPointer(vec)));
 			vec.x = 5; // must crash, as the struct is on the part of the stack
 						// that was popped
+			System.out.println("oo");
 			if (vec.y != 15)
 				throw new IllegalStateException();
 		}
@@ -1761,7 +1663,7 @@ public class StructTest {
 		// System.out.println(v);
 	}
 
-	@StructType
+	@StructType(disableClearMemory = true)
 	public static class Vec3 {
 		@StructField
 		public float x;
@@ -1769,7 +1671,6 @@ public class StructTest {
 		public float y;
 		@StructField
 		public float z;
-		public static int aaaaaaah;
 
 		public Vec3() {
 			this(0.0f, 0.0f, 0.0f);
@@ -1814,13 +1715,15 @@ public class StructTest {
 			return this;
 		}
 
-		public static void noob() {
-			// System.out.println("n00b!");
-		}
-
 		@Override
 		public String toString() {
 			return "Vec3[" + x + ", " + y + ", " + z + "]";
+		}
+
+		public static int aaaaaaah;
+
+		public static void noob() {
+			// System.out.println("n00b!");
 		}
 	}
 
@@ -1876,21 +1779,6 @@ public class StructTest {
 		@Override
 		public String toString() {
 			return "PosVelView[id=" + id + ", pos=" + pos().toString() + ", vel=" + vel().toString() + "]";
-		}
-	}
-
-	@StructType
-	public static class ArrayEmbed {
-		@StructField(length = 2)
-		public float[] farr;
-		@StructField(length = 15)
-		public int[] iarr;
-		@StructField(length = 2)
-		public double[] darr;
-
-		@Override
-		public String toString() {
-			return "ArrayEmbed[]";
 		}
 	}
 

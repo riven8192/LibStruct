@@ -1,5 +1,6 @@
 package test.net.indiespot.struct;
 
+import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructThreadLocalStack;
 
@@ -9,7 +10,7 @@ public class TheAgentD {
 	private static int tests = 16;
 
 	public static void main(String[] args) {
-		for(int t = 0; t < tests; t++) {
+		for (int t = 0; t < tests; t++) {
 			System.out.println();
 			testVec3((float) Math.random());
 			testNormalVec3((float) Math.random());
@@ -20,16 +21,34 @@ public class TheAgentD {
 	private static void testVec3(float start) {
 		long time = System.nanoTime();
 
+		@StructType
 		StructTest.Vec3 vec3 = new StructTest.Vec3(start, start, start);
-		for(int i = 0; i < iterations; i++) {
-			StructAllocationStack sas = StructThreadLocalStack.saveStack();
 
-			vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new StructTest.Vec3(0.75f, 0.75f, 0.75f));
-			vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new StructTest.Vec3(0.75f, 0.75f, 0.75f));
-			vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new StructTest.Vec3(0.75f, 0.75f, 0.75f));
+		StructAllocationStack sas = StructThreadLocalStack.getStack();
+		sas.save();
 
-			sas.restore();
+		StructTest.Vec3 tmp = new StructTest.Vec3();
+
+		for (int i = 0; i < iterations; i++) {
+			// vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new
+			// StructTest.Vec3(0.75f, 0.75f, 0.75f));
+			// vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new
+			// StructTest.Vec3(0.75f, 0.75f, 0.75f));
+			// vec3.add(new StructTest.Vec3(1, 2, 3)).mul(new
+			// StructTest.Vec3(0.75f, 0.75f, 0.75f));
+
+			vec3.add(tmp.set(1, 2, 3)).mul(tmp.set(0.75f, 0.75f, 0.75f));
+			vec3.add(tmp.set(1, 2, 3)).mul(tmp.set(0.75f, 0.75f, 0.75f));
+			vec3.add(tmp.set(1, 2, 3)).mul(tmp.set(0.75f, 0.75f, 0.75f));
+
+			// if ((i & 255) == 0) // cleanup some transient garbage: the
+			// // thread-local stack cannot hold 100M * 60
+			// // Vec3s
+			// {
+			// sas.flush();
+			// }
 		}
+		sas.restore();
 
 		System.out.println((System.nanoTime() - time) / 1000 / 1000f + ": " + vec3.toString());
 	}
@@ -38,7 +57,7 @@ public class TheAgentD {
 		long time = System.nanoTime();
 
 		NormalVec3 vec3 = new NormalVec3(start, start, start);
-		for(int i = 0; i < iterations; i++) {
+		for (int i = 0; i < iterations; i++) {
 			vec3.add(new NormalVec3(1, 2, 3)).mul(new NormalVec3(0.75f, 0.75f, 0.75f));
 			vec3.add(new NormalVec3(1, 2, 3)).mul(new NormalVec3(0.75f, 0.75f, 0.75f));
 			vec3.add(new NormalVec3(1, 2, 3)).mul(new NormalVec3(0.75f, 0.75f, 0.75f));
@@ -54,7 +73,7 @@ public class TheAgentD {
 		float vy = start;
 		float vz = start;
 
-		for(int i = 0; i < iterations; i++) {
+		for (int i = 0; i < iterations; i++) {
 			{
 				vx += 1;
 				vy += 2;

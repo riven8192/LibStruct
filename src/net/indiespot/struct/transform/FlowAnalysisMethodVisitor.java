@@ -8,9 +8,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
-import net.indiespot.struct.codegen.StructGenericsSourcecodeGenerator;
 import net.indiespot.struct.cp.Struct;
-import net.indiespot.struct.runtime.StructMemory;
 import net.indiespot.struct.runtime.UnsupportedCallsiteException;
 
 import org.objectweb.asm.AnnotationVisitor;
@@ -265,26 +263,15 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		}
 
 		case DUP2: {
-			if (stack.peek(0) == VarType.STRUCT_LO && //
-					stack.peek(1) == VarType.STRUCT_HI) {
-				super.visitInsn(DUP2_X2);
-				super.visitInsn(DUP2_X2);
-				stack.push(stack.peek(1));
-				stack.push(stack.peek(1));
-				stack.push(stack.peek(1));
-				stack.push(stack.peek(1));
-				return;
-			} else {
-				for (int i = 0; i < 2; i++)
-					if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
-						throw new IllegalStateException();
-				VarType got1 = stack.pop();
-				VarType got2 = stack.pop();
-				stack.push(got2);
-				stack.push(got1);
-				stack.push(got2);
-				stack.push(got1);
-			}
+			for (int i = 0; i < 2; i++)
+				if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
+					throw new IllegalStateException();
+			VarType got1 = stack.pop();
+			VarType got2 = stack.pop();
+			stack.push(got2);
+			stack.push(got1);
+			stack.push(got2);
+			stack.push(got1);
 			break;
 		}
 
@@ -597,8 +584,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				stack.push(VarType.STRUCT_HI);
 				stack.push(VarType.STRUCT_LO);
 			} else {
-				VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL_REFERENCE, VarType.EMBEDDED_ARRAY));
-				if (got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
+				VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL_REFERENCE));
+				if (got == VarType.STRUCT_TYPE) {
 					opcode = ILOAD;
 					var = local.remap(var);
 					stack.push(got);
@@ -632,14 +619,14 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case ASTORE: {
-			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_LO, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL_REFERENCE, VarType.EMBEDDED_ARRAY));
+			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_LO, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL_REFERENCE));
 			if (StructEnv.PRINT_LOG)
 				System.out.println("\t\t\t" + got);
 			if (got == VarType.STRUCT_LO) {
 				stack.popEQ(VarType.STRUCT_HI);
 				var = local.set(var, VarType.STRUCT_PLACEHOLDER);
 				opcode = LSTORE;
-			} else if (got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
+			} else if (got == VarType.STRUCT_TYPE) {
 				opcode = ISTORE;
 				var = local.set(var, got);
 			} else {
@@ -809,16 +796,6 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 						msg += "Not allowed to pass null-argument to a struct-parameter, use Struct.nullStruct(type) instead of 'null'";
 
 					throw new UnsupportedCallsiteException(msg, //
-							callsiteDescription, //
-							owner + "." + name + "" + desc, // target
-							paramTypes.toString().replace(VarType.STRUCT_HI + "," + VarType.STRUCT_LO, "STRUCT"), //
-							stack.topToString(off).replace(VarType.STRUCT_HI + "," + VarType.STRUCT_LO, "STRUCT"));
-				}
-			}
-
-			for (int i = arr.length - 1, ii = 0; i >= 0; i--, ii++) {
-				if (stack.peek(ii) == VarType.EMBEDDED_ARRAY) {
-					throw new UnsupportedCallsiteException("cannot pass embedded array to a method, as the array doesn't exist", //
 							callsiteDescription, //
 							owner + "." + name + "" + desc, // target
 							paramTypes.toString().replace(VarType.STRUCT_HI + "," + VarType.STRUCT_LO, "STRUCT"), //

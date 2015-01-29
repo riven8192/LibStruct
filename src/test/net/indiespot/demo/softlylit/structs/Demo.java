@@ -11,6 +11,7 @@ import net.indiespot.struct.cp.TakeStruct;
 import net.indiespot.struct.runtime.StructAllocationStack;
 import net.indiespot.struct.runtime.StructGC;
 import net.indiespot.struct.runtime.StructGC.GcInfo;
+import net.indiespot.struct.runtime.StructGC.GcStats;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.ARBFragmentShader;
@@ -85,9 +86,9 @@ public class Demo {
 				}
 
 				@Override
-				public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos) {
+				public void onGC(GcStats stats) {
 					synchronized (STRUCT_GC_DURATIONS) {
-						STRUCT_GC_DURATIONS.add(Long.valueOf(tookNanos / 1_000_000L));
+						STRUCT_GC_DURATIONS.add(Long.valueOf(stats.tookNanos / 1_000_000L));
 					}
 				}
 			});

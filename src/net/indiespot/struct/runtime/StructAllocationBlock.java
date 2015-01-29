@@ -31,11 +31,15 @@ public class StructAllocationBlock {
 		return addr;
 	}
 
+	public int getFreeSpace() {
+		return (int) (base + sizeof - next);
+	}
+
 	public boolean canAllocate(int sizeof) {
 		return (sizeof > 0) && (next + sizeof) <= (base + this.sizeof);
 	}
 
 	public boolean isOnBlock(long handle) {
-		return (handle >= base && handle < next);
+		return (handle >= base && handle < base + sizeof);
 	}
 }

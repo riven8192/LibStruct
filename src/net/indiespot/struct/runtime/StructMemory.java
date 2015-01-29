@@ -15,23 +15,19 @@ public class StructMemory {
 
 	// ---
 
-	public static long allocate(int sizeof, StructAllocationStack stack) {
+	public static long calloc(int sizeof, StructAllocationStack stack) {
 		long handle = stack.allocate(sizeof);
-
 		fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
-
 		return handle;
 	}
 
-	public static long allocateSkipZeroFill(int sizeof, StructAllocationStack stack) {
+	public static long malloc(int sizeof, StructAllocationStack stack) {
 		return stack.allocate(sizeof);
 	}
 
 	public static long allocateCopy(long srcHandle, int sizeof) {
 		long dstHandle = StructThreadLocalStack.getStack().allocate(sizeof);
-
 		copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
-
 		return dstHandle;
 	}
 
@@ -149,7 +145,7 @@ public class StructMemory {
 	}
 
 	public static boolean isValid(long handle) {
-		return StructThreadLocalStack.getStack().isOnStack(handle);
+		return StructThreadLocalStack.getStack().isValid(handle);
 	}
 
 	public static void execCheckcastInsn() {
@@ -185,36 +181,32 @@ public class StructMemory {
 	}
 
 	private static void checkPointer(long pointer) {
-		if (StructEnv.SAFETY_FIRST) {
-			if (pointer == 0)
-				throw new NullPointerException("null struct");
-			StructAllocationStack stack = StructThreadLocalStack.getStack();
-			if (stack.isOnBlock(pointer) && !stack.isOnStack(pointer)) {
-				throw new IllegalStackAccessError();
-			}
-		}
+		if (pointer == 0)
+			throw new NullPointerException("null struct");
+
+		StructAllocationStack stack = StructThreadLocalStack.getStack();
+		if (stack.isInvalid(pointer))
+			throw new IllegalStackAccessError();
 	}
 
-	public static void checkFieldAssignment(long handle) {
-		if (handle == 0)
+	public static void checkFieldAssignment(long targetHandle) {
+		if (targetHandle == 0)
 			throw new NullPointerException("null struct");
+
 		StructAllocationStack stack = StructThreadLocalStack.getStack();
-		if (stack.isOnBlock(handle) && stack.isOnStack(handle)) {
+		if (stack.isInvalid(targetHandle))
 			throw new SuspiciousFieldAssignmentError();
-		}
+
 	}
 
 	public static void checkFieldAssignment(long targetHandle, long handle) {
-		if (handle == 0)
-			throw new NullPointerException("null struct");
 		if (targetHandle == 0)
 			throw new NullPointerException("null struct");
+
 		StructAllocationStack stack = StructThreadLocalStack.getStack();
-		if (stack.isOnBlock(handle) && stack.isOnStack(handle)) {
-			if (!stack.isOnBlock(targetHandle) || !stack.isOnStack(targetHandle)) {
+		if (stack.isValid(handle))
+			if (!stack.isValid(targetHandle))
 				throw new SuspiciousFieldAssignmentError();
-			}
-		}
 	}
 
 	static class Holder {
@@ -273,97 +265,116 @@ public class StructMemory {
 	// byte
 
 	public static final void bput(long addr, byte value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		StructUnsafe.UNSAFE.putByte(addr + fieldOffset, value);
 	}
 
 	public static final byte bget(long addr, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		return StructUnsafe.UNSAFE.getByte(addr + fieldOffset);
 	}
 
 	// short
 
 	public static final void sput(long addr, short value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		StructUnsafe.UNSAFE.putShort(addr + fieldOffset, value);
 	}
 
 	public static final short sget(long addr, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		return StructUnsafe.UNSAFE.getShort(addr + fieldOffset);
 	}
 
 	// char
 
 	public static final void cput(long addr, char value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		StructUnsafe.UNSAFE.putChar(addr + fieldOffset, value);
 	}
 
 	public static final char cget(long addr, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		return StructUnsafe.UNSAFE.getChar(addr + fieldOffset);
 	}
 
 	// int
 
 	public static final void iput(long addr, int value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		StructUnsafe.UNSAFE.putInt(addr + fieldOffset, value);
 	}
 
 	public static final int iget(long addr, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		return StructUnsafe.UNSAFE.getInt(addr + fieldOffset);
 	}
 
 	// float
 
 	public static final void fput(long addr, float value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		StructUnsafe.UNSAFE.putFloat(addr + fieldOffset, value);
 	}
 
 	public static final float fget(long addr, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		return StructUnsafe.UNSAFE.getFloat(addr + fieldOffset);
 	}
 
 	// long
 
 	public static final void jput(long addr, long value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		StructUnsafe.UNSAFE.putLong(addr + fieldOffset, value);
 	}
 
 	public static final long jget(long addr, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		return StructUnsafe.UNSAFE.getLong(addr + fieldOffset);
 	}
 
 	// double
 
 	public static final void dput(long addr, double value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		StructUnsafe.UNSAFE.putDouble(addr + fieldOffset, value);
 	}
 
 	public static final double dget(long addr, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
 		return StructUnsafe.UNSAFE.getDouble(addr + fieldOffset);
 	}
 
 	// struct
 
 	public static final void $put(long addr, long value, int fieldOffset) {
-		checkPointer(addr);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
+		System.out.println("$put: " + addr + ", " + value + ", " + fieldOffset);
 		StructUnsafe.UNSAFE.putLong(addr + fieldOffset, value);
 	}
 
 	public static final long $get(long addr, int fieldOffset) {
-		checkPointer(addr);
-		return StructUnsafe.UNSAFE.getLong(addr + fieldOffset);
+		if (StructEnv.SAFETY_FIRST)
+			checkPointer(addr);
+		long value = StructUnsafe.UNSAFE.getLong(addr + fieldOffset);
+		System.out.println("$get: " + addr + ", " + fieldOffset + " -> " + value);
+		return value;
 	}
 
 	// boolean[]

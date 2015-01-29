@@ -55,10 +55,10 @@ public class StructHeap {
 	public boolean freeHandle(long handle) {
 		if (!this.isOnHeap(handle))
 			return false;
-		if (StructEnv.SAFETY_FIRST) {
+		if (StructEnv.SAFETY_FIRST)
 			if (!activeHandles.removeValue(handle))
 				throw new IllegalStateException();
-		}
+
 		if (++freeCount == allocCount) {
 			allocCount = 0;
 			freeCount = 0;
@@ -85,6 +85,10 @@ public class StructHeap {
 			if (count != activeHandles.size())
 				throw new IllegalStateException();
 		return count;
+	}
+
+	public int getHandleCountEstimate() {
+		return (allocCount - freeCount);
 	}
 
 	@Override

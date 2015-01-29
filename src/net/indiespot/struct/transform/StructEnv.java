@@ -90,7 +90,7 @@ public class StructEnv {
 		final Set<String> fieldsWithStructType = new HashSet<>();
 		final Set<String> methodsWithStructAccess = new HashSet<>();
 		final Set<String> methodsWithStructCreation = new HashSet<>();
-		final Map<String, Integer> methodNameDesc2locals = new HashMap<>();
+		final Map<String, Integer> methodNameDesc2localCount = new HashMap<>();
 
 		public boolean needsRewrite() {
 			return !fieldsWithStructType.isEmpty() || !methodsWithStructAccess.isEmpty() || !methodsWithStructCreation.isEmpty();
@@ -237,7 +237,7 @@ public class StructEnv {
 
 						@Override
 						public void visitMaxs(int maxStack, int maxLocals) {
-							methodNameDesc2locals.put(methodName + methodDesc, Integer.valueOf(maxLocals));
+							methodNameDesc2localCount.put(methodName + methodDesc, Integer.valueOf(maxLocals));
 							super.visitMaxs(maxStack, maxLocals);
 						}
 					};
@@ -406,7 +406,12 @@ public class StructEnv {
 						return mv; // nope!
 				}
 				final boolean hasStructCreation = info.methodsWithStructCreation.contains(origMethodName + origMethodDesc);
-				final int usedLocalvarSlots = (hasStructCreation ? 1 : 0) + info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue();
+				final int origLocalvarSlots = info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue();
+				final int usedLocalvarSlots = //
+				origLocalvarSlots + //
+						(hasStructCreation ? 1 : 0) + // TL-SAS
+						(StructEnv.SAFETY_FIRST ? 4 : 0); // check suspicious
+															// field assignment
 
 				final String _methodName = methodName;
 				final int _access = access;
@@ -461,7 +466,7 @@ public class StructEnv {
 							// ...
 							super.visitMethodInsn(INVOKESTATIC, jvmClassName(StructThreadLocalStack.class), "saveStack", "()L" + StructAllocationStack.class.getName().replace('.', '/') + ";", false);
 							// ..., sas
-							super.visitVarInsn(ASTORE, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
+							super.visitVarInsn(ASTORE, origLocalvarSlots);
 						}
 					}
 
@@ -475,34 +480,11 @@ public class StructEnv {
 							case FRETURN:
 							case LRETURN:
 							case DRETURN:
-								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
+								super.visitVarInsn(ALOAD, origLocalvarSlots);
 								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()I", false);
 								super.visitInsn(Opcodes.POP);
 								break;
 							}
-						}
-
-						if (opcode >= 79 && opcode <= 86) { // Opcodes.*ASTORE
-							boolean isWide = (opcode == Opcodes.LASTORE || opcode == Opcodes.DASTORE);
-							if (_astore2type.containsKey(Integer.valueOf(opcode)) && flow.stack.peek(isWide ? 3 : 2) == VarType.EMBEDDED_ARRAY) {
-								flow.stack.set(isWide ? 3 : 2, VarType.INT);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), _astore2type.get(opcode).toLowerCase() + "aput", "(II" + _astore2type.get(opcode) + ")V", false);
-								return;
-							}
-						}
-						if (opcode >= 46 && opcode <= 53) { // Opcodes.*ALOAD
-							if (_aload2type.containsKey(Integer.valueOf(opcode)) && flow.stack.peek(1) == VarType.EMBEDDED_ARRAY) {
-								flow.stack.set(1, VarType.INT);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), _aload2type.get(opcode).toLowerCase() + "aget", "(II)" + _aload2type.get(opcode), false);
-								return;
-							}
-						}
-						if (opcode == ARRAYLENGTH && flow.stack.peek() == VarType.EMBEDDED_ARRAY) {
-							throw new IllegalStateException("cannot fetch length of embedded array, as the array does not exist");
-						}
-
-						if (opcode == ARETURN && flow.stack.peek() == VarType.EMBEDDED_ARRAY) {
-							throw new IllegalStateException("cannot return embedded array, as the array does not exist");
 						}
 
 						if (opcode == ARETURN && flow.stack.peek() == VarType.STRUCT_LO) {
@@ -564,17 +546,17 @@ public class StructEnv {
 						if (opcode == NEW) {
 							if (struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
-								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
-								if (struct2info.get(type).skipZeroFill)
-									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateSkipZeroFill", "(IL" + StructEnv.jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag, false);
+								super.visitVarInsn(ALOAD, info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue());
+								if (struct2info.get(type).disableClearMemory)
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "malloc", "(IL" + StructEnv.jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag, false);
 								else
-									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocate", "(IL" + StructEnv.jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag, false);
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "calloc", "(IL" + StructEnv.jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag, false);
 								return;
 							}
 						} else if (opcode == ANEWARRAY) {
 							if (struct2info.containsKey(type)) {
 								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
-								super.visitVarInsn(ALOAD, info.methodNameDesc2locals.get(origMethodName + origMethodDesc).intValue());
+								super.visitVarInsn(ALOAD, info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue());
 								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(IIL" + jvmClassName(StructAllocationStack.class) + ";)" + array_wrapped_struct_flag, false);
 								flow.stack.popEQ(VarType.STRUCT_ARRAY);
 								flow.stack.push(VarType.STRUCT_ARRAY);
@@ -594,12 +576,18 @@ public class StructEnv {
 
 					@Override
 					public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-						if (StructEnv.SAFETY_FIRST && false) {
+						if (StructEnv.SAFETY_FIRST) {
 							if (opcode == PUTFIELD || opcode == PUTSTATIC) {
 								if (wrapped_struct_types.contains(desc)) {
 									if (plain_struct_types.contains(owner)) {
-										super.visitInsn(DUP2);
+										int base = origLocalvarSlots + (hasStructCreation ? 1 : 0);
+										super.visitVarInsn(ASTORE, 1 + base);
+										super.visitVarInsn(ASTORE, 0 + base);
+										super.visitVarInsn(ALOAD, 0 + base);
+										super.visitVarInsn(ALOAD, 1 + base);
 										super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "checkFieldAssignment", "(" + wrapped_struct_flag + "" + wrapped_struct_flag + ")V", false);
+										super.visitVarInsn(ALOAD, 0 + base);
+										super.visitVarInsn(ALOAD, 1 + base);
 									} else {
 										super.visitInsn(DUP);
 										super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "checkFieldAssignment", "(" + wrapped_struct_flag + ")V", false);
@@ -655,12 +643,8 @@ public class StructEnv {
 									flow.stack.popEQ(VarType.MISC);
 									flow.stack.popEQ(VarType.MISC);
 
-									if (type.startsWith("[") && type.length() == 2) {
-										flow.stack.push(VarType.EMBEDDED_ARRAY); // FIXME?
-									} else {
-										flow.stack.push(VarType.STRUCT_HI);
-										flow.stack.push(VarType.STRUCT_LO);
-									}
+									flow.stack.push(VarType.STRUCT_HI);
+									flow.stack.push(VarType.STRUCT_LO);
 									return;
 								}
 
@@ -931,7 +915,7 @@ public class StructEnv {
 								flow.visitInsn(Opcodes.SWAP);
 								// ...,sizeof,stack
 								owner = StructEnv.jvmClassName(StructMemory.class);
-								name = "allocateSkipZeroFill";
+								name = "malloc";
 								desc = "(IL" + jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag;
 							}
 						}

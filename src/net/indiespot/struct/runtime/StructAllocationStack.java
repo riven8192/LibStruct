@@ -18,12 +18,19 @@ public class StructAllocationStack extends StructAllocationBlock {
 		return (int) (was - next);
 	}
 
+	public void flush() { // restore & save
+		next = stack[level - 1];
+	}
+
 	public int level() {
 		return level;
 	}
 
-	public boolean isOnStack(long handle) {
-		// whether handle is in parent stack
-		return (handle < next);
+	public boolean isValid(long pntr) {
+		return this.isOnBlock(pntr) && (pntr < next);
+	}
+
+	public boolean isInvalid(long pntr) {
+		return this.isOnBlock(pntr) && (pntr >= next);
 	}
 }
