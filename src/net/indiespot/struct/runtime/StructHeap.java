@@ -25,50 +25,46 @@ public class StructHeap {
 	}
 
 	public long malloc(int sizeof) {
-		if (block.canAllocate(sizeof)) {
-			long handle = block.allocate(sizeof);
-			if (StructEnv.SAFETY_FIRST) {
+		if (!block.canAllocate(sizeof))
+			return 0;
+		long handle = block.allocate(sizeof);
+		if (StructEnv.SAFETY_FIRST) {
+			if (activeHandles.contains(handle))
+				throw new IllegalStateException();
+			activeHandles.add(handle);
+		}
+		allocCount++;
+		return handle;
+	}
+
+	public long malloc(int sizeof, int length) {
+		if (!block.canAllocate(sizeof * length))
+			return 0;
+		long offset = block.allocate(sizeof * length);
+		if (StructEnv.SAFETY_FIRST) {
+			for (long handle : StructMemory.createPointerArray(offset, sizeof, length)) {
 				if (activeHandles.contains(handle))
 					throw new IllegalStateException();
 				activeHandles.add(handle);
 			}
-			allocCount++;
-			return handle;
 		}
-		return 0;
-	}
-
-	public long malloc(int sizeof, int length) {
-		if (block.canAllocate(sizeof * length)) {
-			long offset = block.allocate(sizeof * length);
-			if (StructEnv.SAFETY_FIRST) {
-				for (int i = 0; i < length; i++) {
-					long handle = offset + (long) i * sizeof;
-					if (activeHandles.contains(handle))
-						throw new IllegalStateException();
-					activeHandles.add(handle);
-				}
-			}
-			allocCount += length;
-			return offset;
-		}
-		return 0;
+		allocCount += length;
+		return offset;
 	}
 
 	public boolean freeHandle(long handle) {
-		if (this.isOnHeap(handle)) {
-			if (StructEnv.SAFETY_FIRST) {
-				if (!activeHandles.removeValue(handle))
-					throw new IllegalStateException();
-			}
-			if (++freeCount == allocCount) {
-				allocCount = 0;
-				freeCount = 0;
-				block.reset();
-			}
-			return true;
+		if (!this.isOnHeap(handle))
+			return false;
+		if (StructEnv.SAFETY_FIRST) {
+			if (!activeHandles.removeValue(handle))
+				throw new IllegalStateException();
 		}
-		return false;
+		if (++freeCount == allocCount) {
+			allocCount = 0;
+			freeCount = 0;
+			block.reset();
+		}
+		return true;
 	}
 
 	public boolean isOnHeap(long handle) {

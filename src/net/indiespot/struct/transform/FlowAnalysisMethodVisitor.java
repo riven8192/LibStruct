@@ -26,7 +26,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	private int maxLocals;
 
 	private final String callsiteDescription;
-	private final int paramSizeof;
+	private final int expandedParamSizeof;
 
 	public FlowAnalysisMethodVisitor(int usedLocalvarSlots, MethodVisitor mv, int access, String owner, String name, String desc, String signature, String[] exceptions) {
 		super(Opcodes.ASM5, mv);
@@ -46,8 +46,12 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		for (String paramDesc : splitDescArray(params)) {
 			offset = setLocalvarFromParam(local, offset, descToType(paramDesc));
 		}
-		paramSizeof = offset;
-		local.setupParamsRemapTable(paramSizeof, usedLocalvarSlots);
+
+		expandedParamSizeof = local.setupParamsRemapTable(offset, usedLocalvarSlots);
+		if (StructEnv.PRINT_LOG)
+			System.out.println("offset=" + offset);
+		if (StructEnv.PRINT_LOG)
+			System.out.println("expandedParamSizeof=" + expandedParamSizeof);
 	}
 
 	@Override
@@ -73,12 +77,15 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 	@Override
 	public void visitCode() {
 		super.visitCode();
+		if (StructEnv.PRINT_LOG)
+			local.dump("visitcode", true);
+		for (int slot = 0; slot < expandedParamSizeof; slot++) {
+			if (local.getUnmapped(slot) == VarType.STRUCT_LOCALVAR) {
+				int src = slot;
+				int dst = local.getStructBaseIndexUnmapped(slot);
 
-		for (int slot = 0; slot < paramSizeof; slot++) {
-			if (local.getOriginal(slot) == VarType.STRUCT_LOCALVAR) {
-				int src = local.remap(slot, VarType.STRUCT_LOCALVAR);
-				int dst = local.getStructBaseIndex(slot);
-
+				if (StructEnv.PRINT_LOG)
+					System.out.println("\t\t\tcopying struct-pointer from " + src + " to " + dst);
 				super.visitVarInsn(LLOAD, src);
 				super.visitVarInsn(LSTORE, dst);
 			}
@@ -87,7 +94,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
-		System.out.println("Flow.visitFrame: local=" + Arrays.toString(local) + ", stack=" + Arrays.toString(stack));
+		// System.out.println("Flow.visitFrame: local=" + Arrays.toString(local)
+		// + ", stack=" + Arrays.toString(stack));
 
 		super.visitFrame(type, nLocal, local, nStack, stack);
 	}
@@ -555,12 +563,14 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		switch (opcode) {
 		case ILOAD:
-			var = local.remap(var, local.getEQ(var, VarType.INT));
+			local.getEQ(var, VarType.INT);
+			var = local.remap(var);
 			stack.push(VarType.INT);
 			break;
 
 		case FLOAD:
-			var = local.remap(var, local.getEQ(var, VarType.MISC));
+			local.getEQ(var, VarType.MISC);
+			var = local.remap(var);
 			stack.push(VarType.MISC);
 			break;
 
@@ -568,30 +578,38 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		case DLOAD:
 			local.getEQ(var + 0, VarType.MISC);
 			local.getEQ(var + 1, VarType.MISC);
-			var = local.remap(var, VarType.MISC);
+			var = local.remap(var);
 			stack.push(VarType.MISC);
 			stack.push(VarType.MISC);
 			break;
 
 		case ALOAD: {
-			System.out.println("\t\t\t" + local.get(var));
-			if (local.get(var) == VarType.STRUCT_LOCALVAR) {
+			if (StructEnv.PRINT_LOG)
+				System.out.println("\t\t\t" + local.get(var));
+			if (local.get(var) == VarType.STRUCT_HI) {
 				opcode = LLOAD;
-				var = local.getStructBaseIndex(var);
+				var = local.remap(var);
+				if (local.getUnmapped(var + 0) != VarType.STRUCT_HI)
+					throw new IllegalStateException();
+				if (local.getUnmapped(var + 1) != VarType.STRUCT_LO)
+					throw new IllegalStateException();
 				if (StructEnv.PRINT_LOG)
 					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
+				stack.push(VarType.STRUCT_HI);
+				stack.push(VarType.STRUCT_LO);
+			} else if (local.get(var) == VarType.STRUCT_LOCALVAR) {
+				opcode = LLOAD;
+				var = local.getStructBaseIndexMapped(var);
 				stack.push(VarType.STRUCT_HI);
 				stack.push(VarType.STRUCT_LO);
 			} else {
 				VarType got = local.getEQ(var, EnumSet.of(VarType.REFERENCE, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL, VarType.EMBEDDED_ARRAY));
 				if (got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
 					opcode = ILOAD;
-					var = local.remap(var, got);
-					if (StructEnv.PRINT_LOG)
-						System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
+					var = local.remap(var);
 					stack.push(got);
 				} else {
-					var = local.remap(var, got);
+					var = local.remap(var);
 					stack.push(got);
 				}
 			}
@@ -614,23 +632,21 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		case DSTORE:
 			stack.popEQ(VarType.MISC);
 			stack.popEQ(VarType.MISC);
-			var = local.set(var + 0, VarType.MISC);
+			local.set(var + 0, VarType.MISC);
 			local.set(var + 1, VarType.MISC);
+			var = local.remap(var);
 			break;
 
 		case ASTORE: {
 			VarType got = stack.popEQ(EnumSet.of(VarType.REFERENCE, VarType.STRUCT_LO, VarType.STRUCT_ARRAY, VarType.STRUCT_TYPE, VarType.NULL, VarType.EMBEDDED_ARRAY));
-			System.out.println("\t\t\t" + got);
+			if (StructEnv.PRINT_LOG)
+				System.out.println("\t\t\t" + got);
 			if (got == VarType.STRUCT_LO) {
 				stack.popEQ(VarType.STRUCT_HI);
 				var = local.set(var, VarType.STRUCT_LOCALVAR);
 				opcode = LSTORE;
-				if (StructEnv.PRINT_LOG)
-					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
 			} else if (got == VarType.STRUCT_TYPE || got == VarType.EMBEDDED_ARRAY) {
 				opcode = ISTORE;
-				if (StructEnv.PRINT_LOG)
-					System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
 				var = local.set(var, got);
 			} else {
 				var = local.set(var, got);
@@ -645,6 +661,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
 
+		if (StructEnv.PRINT_LOG)
+			System.out.println("\t2)\t" + opcodeToString(opcode) + " " + var);
 		super.visitVarInsn(opcode, var);
 	}
 

@@ -36,6 +36,6 @@ public class StructAllocationBlock {
 	}
 
 	public boolean isOnBlock(long handle) {
-		return (handle > base && handle < next);
+		return (handle >= base && handle < next);
 	}
 }

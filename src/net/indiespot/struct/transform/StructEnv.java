@@ -579,7 +579,7 @@ public class StructEnv {
 
 					@Override
 					public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
-						System.out.println("visitFrame: local=" + Arrays.toString(local) + ", stack=" + Arrays.toString(stack));
+						//System.out.println("visitFrame: local=" + Arrays.toString(local) + ", stack=" + Arrays.toString(stack));
 						if (local != null) {
 							for (int i = 0; i < local.length; i++) {
 								if (array_wrapped_struct_types.contains(local[i]))
@@ -622,7 +622,6 @@ public class StructEnv {
 								return;
 							}
 						} else if (opcode == CHECKCAST) {
-							System.out.println(flow.stack.toString());
 							if (flow.stack.peek() == VarType.STRUCT_LO) {
 								return;
 							}

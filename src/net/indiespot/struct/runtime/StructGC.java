@@ -147,27 +147,7 @@ public class StructGC {
 			}
 		}
 
-		if (StructEnv.SAFETY_FIRST) {
-			testMemoryAccess(handle, stride, count);
-		}
-
 		return handle;
-	}
-
-	private static long testMemoryAccess(long base, long stride, int count) {
-		long sizeof = stride * count;
-
-		System.out.println("memtest.init: " + base + ", sizeof=" + sizeof);
-		int sum = 0;
-		for (long offset = 0; offset < sizeof; offset++)
-			sum ^= StructUnsafe.UNSAFE.getByte(base + offset);
-		for (long offset = 0; offset < sizeof - 4; offset += 4)
-			sum ^= StructUnsafe.UNSAFE.getInt(base + offset);
-
-		long lastValidAddress = base + stride * count - 1;
-		sum ^= StructUnsafe.UNSAFE.getByte(lastValidAddress);
-		System.out.println("memtest.init.sum=" + sum);
-		return lastValidAddress;
 	}
 
 	public static long malloc(int sizeof) {
@@ -261,7 +241,6 @@ public class StructGC {
 					if (!activeHandles.removeValue(pntr))
 						throw new IllegalStateException();
 				if (--unfreedHandles == 0) {
-					System.out.println("free-base: " + base);
 					StructUnsafe.UNSAFE.freeMemory(base);
 				}
 				return true;
@@ -640,10 +619,9 @@ public class StructGC {
 				failed.push(handle);
 			}
 
-			int freed = (originalToFree - toFree.size);
 			while (!failed.isEmpty())
 				toFree.push(failed.pop());
-			return freed;
+			return originalToFree - toFree.size;
 		}
 
 		public int getHandleCount() {

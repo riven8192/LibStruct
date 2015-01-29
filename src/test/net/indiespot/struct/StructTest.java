@@ -50,13 +50,74 @@ public class StructTest {
 		}
 	}
 
+	public static class WideHandleParamsLocalsTest {
+		public static void test() {
+			test1(new Vec3(), new Vec3());
+			test2(new Object(), new Vec3(), new Vec3());
+			test3(new Object(), new Vec3(), new Vec3());
+			test4(new Vec3(), new Object(), new Vec3());
+			test5(new Vec3(), new Vec3(), new Object());
+			test6(new Vec3(), new Vec3(), new Object());
+		}
+
+		public static void test1(Vec3 a, Vec3 b) {
+			Vec3 c = Struct.fromPointer(0L);
+			Vec3 d = Struct.fromPointer(0L);
+		}
+
+		public static void test2(Object obj, Vec3 a, Vec3 b) {
+			Vec3 c = Struct.fromPointer(0L);
+			Vec3 d = Struct.fromPointer(0L);
+		}
+
+		public static void test3(Object obj, Vec3 a, Vec3 b) {
+			long pa = Struct.getPointer(a);
+			long pb = Struct.getPointer(b);
+			assert (pa != pb);
+
+			a = b;
+			assert pb == Struct.getPointer(a);
+			assert pb == Struct.getPointer(b);
+		}
+
+		public static void test4(Vec3 a, Object obj, Vec3 b) {
+			long pa = Struct.getPointer(a);
+			long pb = Struct.getPointer(b);
+			assert (pa != pb);
+
+			a = b;
+			assert pb == Struct.getPointer(a);
+			assert pb == Struct.getPointer(b);
+		}
+
+		public static void test5(Vec3 a, Vec3 b, Object obj) {
+			long pa = Struct.getPointer(a);
+			long pb = Struct.getPointer(b);
+			assert (pa != pb);
+
+			a = b;
+			assert pb == Struct.getPointer(a);
+			assert pb == Struct.getPointer(b);
+		}
+
+		public static void test6(Vec3 a, Vec3 b, Object obj) {
+			long pa = Struct.getPointer(a);
+			long pb = Struct.getPointer(b);
+			assert (pa != pb);
+
+			b = a;
+			assert pa == Struct.getPointer(a);
+			assert pa == Struct.getPointer(b);
+		}
+	}
+
 	public static void main(String[] args) {
 
 		StructGC.addListener(new StructGC.GcInfo() {
 
 			@Override
 			public void onGC(int freedHandles, int remainingHandles, int gcHeaps, int emptyHeaps, long tookNanos) {
-				System.out.println("LibStruct GC: freed=" + freedHandles / 1024 + "K, remaining=" + remainingHandles / 1024 + "K, took: " + tookNanos / 1000 / 1000 + "ms");
+				System.out.println("LibStruct GC: freed=" + freedHandles + ", remaining=" + remainingHandles + ", took: " + tookNanos / 1000 / 1000 + "ms");
 			}
 
 			@Override
@@ -71,7 +132,12 @@ public class StructTest {
 
 		});
 
-		TestStructEnv.test();
+		// TestStructEnv.test();
+		WideHandleParamsLocalsTest.test();
+
+		if (true) {
+			return;
+		}
 
 		if (true) {
 			TestCalloc.test();
@@ -107,7 +173,7 @@ public class StructTest {
 
 			if (StructEnv.SAFETY_FIRST) {
 				try {
-					TestStack.test();
+					// TestStack.test();
 					// throw new IllegalStateException(); // FIXME
 				} catch (IllegalStackAccessError expected) {
 					// okay!
@@ -137,14 +203,14 @@ public class StructTest {
 		// TestEmbedArray.test();
 		// TestEmbedArray.testPerf();
 		TestEmbedStruct.test();
-		//if (StructEnv.SAFETY_FIRST)
-			//TestSuspiciousFieldAssignment.test();
+		// if (StructEnv.SAFETY_FIRST)
+		// TestSuspiciousFieldAssignment.test();
 		TestFromPointer.test();
 		TestCollectionAPI.test();
 
-		// TestEmbeddedArrayUsage.test();
-		//TestRealloc.test();
-		//TestLargeAlloc.test();
+		TestEmbeddedArrayUsage.test();
+		TestRealloc.test();
+		TestLargeAlloc.test();
 
 		if (false)
 			TestDuplicateOverloadedMethod.test();
