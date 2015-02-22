@@ -14,7 +14,7 @@ public class StructHeap {
 	private LongList activeHandles;
 
 	public StructHeap(ByteBuffer buffer) {
-		long addr = StructMemory.alignBufferToWord(buffer);
+		long addr = StructMemory.alignBuffer(buffer, StructMemory.JVMWORD_ALIGNMENT);
 
 		this.buffer = buffer;
 		this.block = new StructAllocationBlock(addr, buffer.remaining());

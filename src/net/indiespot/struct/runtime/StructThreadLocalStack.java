@@ -37,7 +37,7 @@ public class StructThreadLocalStack {
 			threadid2buffer[id] = buffer;
 		}
 
-		long addr = StructMemory.alignBufferToWord(buffer);
+		long addr = StructMemory.alignBuffer(buffer, StructMemory.JVMWORD_ALIGNMENT);
 		return new StructAllocationStack(addr, buffer.remaining());
 	}
 

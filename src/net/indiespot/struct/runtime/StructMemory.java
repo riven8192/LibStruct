@@ -57,8 +57,12 @@ public class StructMemory {
 		return createPointerArray(addr, stride, count);
 	}
 
-	public static final int DEFAULT_ALIGNMENT  =4;
-	
+	public static final int JVMWORD_ALIGNMENT = 4;
+	public static final int CACHELINE_ALIGNMENT = 64;
+	public static final int PAGE_ALIGNMENT = 4096;
+
+	public static final int DEFAULT_ALIGNMENT = JVMWORD_ALIGNMENT;
+
 	public static void copy(int sizeof, long srcHandle, long dstHandle) {
 		copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
 	}
@@ -83,46 +87,30 @@ public class StructMemory {
 		return "<struct@" + handle + ">";
 	}
 
-	public static long alignAddress(long addr, int pow) {
-		if (StructEnv.SAFETY_FIRST)
-			verifyAlignment(pow);
+	public static long alignAddress(long addr, int alignment) {
+		if ((alignment == JVMWORD_ALIGNMENT) & ((addr & 3) == 0))
+			return addr; // common case - performance optimization
 
-		int error = (int) (addr & (pow - 1));
+		if (StructEnv.SAFETY_FIRST)
+			verifyAlignment(alignment);
+
+		int error = (int) (addr & (alignment - 1));
 		if (error != 0)
-			addr += (pow - error);
+			addr += (alignment - error);
 		return addr;
 	}
 
 	public static void verifyAlignment(int alignment) {
-		if (alignment <= 0)
-			throw new IllegalStateException();
-		if (alignment < 4)
-			throw new IllegalStateException();
+		if (alignment < JVMWORD_ALIGNMENT)
+			throw new IllegalStateException("alignment must least 4");
 		if (Integer.bitCount(alignment) != 1)
-			throw new IllegalStateException();
-	}
-
-	public static long alignAddressToWord(long addr) {
-		return alignAddress(addr, 4);
-	}
-
-	public static long alignAddressToCacheLine(long addr) {
-		return alignAddress(addr, 64);
-	}
-
-	public static long alignAddressToPage(long addr) {
-		return alignAddress(addr, 4096);
-	}
-
-	public static long alignBufferToWord(ByteBuffer bb) {
-		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
-		long aligned = alignAddressToWord(addr);
-		if (addr != aligned)
-			bb.position(bb.position() + (int) (aligned - addr));
-		return addr;
+			throw new IllegalStateException("alignment must be a power of two");
 	}
 
 	public static long alignBuffer(ByteBuffer bb, int alignment) {
+		if (StructEnv.SAFETY_FIRST)
+			verifyAlignment(alignment);
+
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		int error = (int) (addr % alignment);
 		if (error != 0) {
@@ -253,7 +241,7 @@ public class StructMemory {
 
 	public static StructAllocationStack createStructAllocationStack(int bytes) {
 		ByteBuffer buffer = ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
-		long addr = StructMemory.alignBufferToWord(buffer);
+		long addr = StructMemory.alignBuffer(buffer, JVMWORD_ALIGNMENT);
 		StructAllocationStack stack = new StructAllocationStack(addr, buffer.remaining());
 		synchronized (immortal) {
 			immortal.add(new Holder(buffer, stack));
