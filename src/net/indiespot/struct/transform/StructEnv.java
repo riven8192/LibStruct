@@ -2,13 +2,7 @@ package net.indiespot.struct.transform;
 
 import static org.objectweb.asm.Opcodes.*;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintWriter;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -409,9 +403,9 @@ public class StructEnv {
 				final int origLocalvarSlots = info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue();
 				final int usedLocalvarSlots = //
 				origLocalvarSlots + //
-						(hasStructCreation ? 1 : 0) + // TL-SAS
-						(StructEnv.SAFETY_FIRST ? 4 : 0); // check suspicious
-															// field assignment
+				   (hasStructCreation ? 1 : 0) + // TL-SAS
+				   (StructEnv.SAFETY_FIRST ? 4 : 0); // check suspicious
+				// field assignment
 
 				final String _methodName = methodName;
 				final int _access = access;
@@ -474,16 +468,16 @@ public class StructEnv {
 					public void visitInsn(int opcode) {
 						if (hasStructCreation) {
 							switch (opcode) {
-							case RETURN:
-							case ARETURN:
-							case IRETURN:
-							case FRETURN:
-							case LRETURN:
-							case DRETURN:
-								super.visitVarInsn(ALOAD, origLocalvarSlots);
-								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()I", false);
-								super.visitInsn(Opcodes.POP);
-								break;
+								case RETURN:
+								case ARETURN:
+								case IRETURN:
+								case FRETURN:
+								case LRETURN:
+								case DRETURN:
+									super.visitVarInsn(ALOAD, origLocalvarSlots);
+									super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()I", false);
+									super.visitInsn(Opcodes.POP);
+									break;
 							}
 						}
 
@@ -498,7 +492,8 @@ public class StructEnv {
 								// no-op
 							} else if (strategy == ReturnValueStrategy.COPY) {
 								super.visitIntInsn(SIPUSH, struct2info.get(_returnsStructType).sizeof);
-								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateCopy", "(" + wrapped_struct_flag + "I)" + wrapped_struct_flag, false);
+								super.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								super.visitMethodInsn(INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateCopy", "(" + wrapped_struct_flag + "II)" + wrapped_struct_flag, false);
 							} else {
 								throw new IllegalStateException();
 							}
@@ -545,19 +540,23 @@ public class StructEnv {
 					public void visitTypeInsn(int opcode, String type) {
 						if (opcode == NEW) {
 							if (struct2info.containsKey(type)) {
-								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
 								super.visitVarInsn(ALOAD, info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue());
+								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
+								super.visitIntInsn(Opcodes.BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
 								if (struct2info.get(type).disableClearMemory)
-									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "malloc", "(IL" + StructEnv.jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag, false);
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "malloc", "(L" + StructEnv.jvmClassName(StructAllocationStack.class) + ";II)" + wrapped_struct_flag, false);
 								else
-									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "calloc", "(IL" + StructEnv.jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag, false);
+									super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "calloc", "(L" + StructEnv.jvmClassName(StructAllocationStack.class) + ";II)" + wrapped_struct_flag, false);
 								return;
 							}
 						} else if (opcode == ANEWARRAY) {
 							if (struct2info.containsKey(type)) {
-								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
 								super.visitVarInsn(ALOAD, info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue());
-								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(IIL" + jvmClassName(StructAllocationStack.class) + ";)" + array_wrapped_struct_flag, false);
+								super.visitInsn(Opcodes.SWAP);
+								super.visitIntInsn(Opcodes.SIPUSH, struct2info.get(type).sizeof);
+								super.visitIntInsn(Opcodes.BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// stack,length,sizeof,alignment
+								super.visitMethodInsn(Opcodes.INVOKESTATIC, StructEnv.jvmClassName(StructMemory.class), "allocateArray", "(L" + jvmClassName(StructAllocationStack.class) + ";III)" + array_wrapped_struct_flag, false);
 								flow.stack.popEQ(VarType.STRUCT_ARRAY);
 								flow.stack.push(VarType.STRUCT_ARRAY);
 								return;
@@ -739,50 +738,106 @@ public class StructEnv {
 							} else if (name.equals("malloc") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
 								flow.stack.cas(0, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,sizeof
+								flow.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// ...,sizeof,alignment
 								owner = StructEnv.jvmClassName(StructGC.class);
 								name = "malloc";
-								desc = "(I)" + wrapped_struct_flag;
+								desc = "(II)" + wrapped_struct_flag;
+							} else if (name.equals("malloc") && desc.equals("(Ljava/lang/Class;I)Ljava/lang/Object;")) {
+								flow.stack.cas(1, VarType.STRUCT_TYPE, VarType.INT);
+								// ...,sizeof,alignment
+								owner = StructEnv.jvmClassName(StructGC.class);
+								name = "malloc";
+								desc = "(II)" + wrapped_struct_flag;
 							} else if (name.equals("mallocArray") && desc.equals("(Ljava/lang/Class;I)[Ljava/lang/Object;")) {
 								flow.stack.cas(1, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,sizeof,length
+								flow.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// ...,sizeof,length,alignment
 								owner = StructEnv.jvmClassName(StructGC.class);
 								name = "mallocArray";
-								desc = "(II)[" + wrapped_struct_flag;
+								desc = "(III)[" + wrapped_struct_flag;
+							} else if (name.equals("mallocArray") && desc.equals("(Ljava/lang/Class;II)[Ljava/lang/Object;")) {
+								flow.stack.cas(2, VarType.STRUCT_TYPE, VarType.INT);
+								// ...,sizeof,length,alignment
+								owner = StructEnv.jvmClassName(StructGC.class);
+								name = "mallocArray";
+								desc = "(III)[" + wrapped_struct_flag;
 							} else if (name.equals("calloc") && desc.equals("(Ljava/lang/Class;)Ljava/lang/Object;")) {
 								flow.stack.cas(0, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,sizeof
+								flow.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// ...,sizeof,alignment
 								owner = StructEnv.jvmClassName(StructGC.class);
 								name = "calloc";
-								desc = "(I)" + wrapped_struct_flag;
+								desc = "(II)" + wrapped_struct_flag;
+							} else if (name.equals("calloc") && desc.equals("(Ljava/lang/Class;I)Ljava/lang/Object;")) {
+								flow.stack.cas(1, VarType.STRUCT_TYPE, VarType.INT);
+								// ...,sizeof,alignment
+								owner = StructEnv.jvmClassName(StructGC.class);
+								name = "calloc";
+								desc = "(II)" + wrapped_struct_flag;
 							} else if (name.equals("callocArray") && desc.equals("(Ljava/lang/Class;I)[Ljava/lang/Object;")) {
 								flow.stack.cas(1, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,sizeof,length
+								flow.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// ...,sizeof,length,alignment
 								owner = StructEnv.jvmClassName(StructGC.class);
 								name = "callocArray";
-								desc = "(II)[" + wrapped_struct_flag;
+								desc = "(III)[" + wrapped_struct_flag;
+							} else if (name.equals("callocArray") && desc.equals("(Ljava/lang/Class;II)[Ljava/lang/Object;")) {
+								flow.stack.cas(2, VarType.STRUCT_TYPE, VarType.INT);
+								// ...,sizeof,length,alignment
+								owner = StructEnv.jvmClassName(StructGC.class);
+								name = "callocArray";
+								desc = "(III)[" + wrapped_struct_flag;
 							} else if (name.equals("reallocArray") && desc.equals("(Ljava/lang/Class;[Ljava/lang/Object;I)[Ljava/lang/Object;")) {
 								flow.stack.cas(2, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,sizeof,struct[],length
+								flow.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// ...,sizeof,struct[],length,alignment
 								owner = StructEnv.jvmClassName(StructGC.class);
 								name = "reallocArray";
-								desc = "(I[" + wrapped_struct_flag + "I)[" + wrapped_struct_flag;
+								desc = "(I[" + wrapped_struct_flag + "II)[" + wrapped_struct_flag;
+							} else if (name.equals("reallocArray") && desc.equals("(Ljava/lang/Class;[Ljava/lang/Object;II)[Ljava/lang/Object;")) {
+								flow.stack.cas(3, VarType.STRUCT_TYPE, VarType.INT);
+								// ...,sizeof,struct[],length,alignment
+								owner = StructEnv.jvmClassName(StructGC.class);
+								name = "reallocArray";
+								desc = "(I[" + wrapped_struct_flag + "II)[" + wrapped_struct_flag;
 							} else if (name.equals("mallocArrayBase") && desc.equals("(Ljava/lang/Class;I)Ljava/lang/Object;")) {
 								flow.stack.cas(1, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,sizeof,length
+								flow.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// ...,sizeof,length,alignment
 								owner = StructEnv.jvmClassName(StructGC.class);
 								name = "mallocArrayBase";
-								desc = "(II)" + wrapped_struct_flag;
+								desc = "(III)" + wrapped_struct_flag;
+							} else if (name.equals("mallocArrayBase") && desc.equals("(Ljava/lang/Class;II)Ljava/lang/Object;")) {
+								flow.stack.cas(2, VarType.STRUCT_TYPE, VarType.INT);
+								// ...,sizeof,length,alignment
+								owner = StructEnv.jvmClassName(StructGC.class);
+								name = "mallocArrayBase";
+								desc = "(III)" + wrapped_struct_flag;
 							} else if (name.equals("callocArrayBase") && desc.equals("(Ljava/lang/Class;I)Ljava/lang/Object;")) {
 								flow.stack.cas(1, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,sizeof,length
+								flow.visitIntInsn(BIPUSH, StructMemory.DEFAULT_ALIGNMENT);
+								// ...,sizeof,length,alignment
 								owner = StructEnv.jvmClassName(StructGC.class);
 								name = "callocArrayBase";
-								desc = "(II)" + wrapped_struct_flag;
+								desc = "(III)" + wrapped_struct_flag;
+							} else if (name.equals("callocArrayBase") && desc.equals("(Ljava/lang/Class;II)Ljava/lang/Object;")) {
+								flow.stack.cas(2, VarType.STRUCT_TYPE, VarType.INT);
+								// ...,sizeof,length,alignment
+								owner = StructEnv.jvmClassName(StructGC.class);
+								name = "callocArrayBase";
+								desc = "(III)" + wrapped_struct_flag;
 							} else if (name.equals("free") && desc.equals("(Ljava/lang/Object;)V")) {
 								if (flow.stack.peek() == VarType.NULL_REFERENCE) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP); // right thing
-																	// to do?
+									// to do?
 									// ...
 									return;
 								} else if (flow.stack.peek() == VarType.STRUCT_LO) {
@@ -796,7 +851,7 @@ public class StructEnv {
 								if (flow.stack.peek() == VarType.NULL_REFERENCE) {
 									// ..., NULL
 									super.visitInsn(Opcodes.POP); // right thing
-																	// to do?
+									// to do?
 									// ...
 									return;
 								} else if (flow.stack.peek() == VarType.STRUCT_ARRAY) {
@@ -916,11 +971,11 @@ public class StructEnv {
 							} else if (name.equals("stackAlloc") && desc.equals("(L" + jvmClassName(StructAllocationStack.class) + ";Ljava/lang/Class;)Ljava/lang/Object;")) {
 								flow.stack.cas(0, VarType.STRUCT_TYPE, VarType.INT);
 								// ...,stack,sizeof
-								flow.visitInsn(Opcodes.SWAP);
-								// ...,sizeof,stack
+								flow.visitIntInsn(Opcodes.BIPUSH, 4);
+								// ...,stack,sizeof,alignment
 								owner = StructEnv.jvmClassName(StructMemory.class);
 								name = "malloc";
-								desc = "(IL" + jvmClassName(StructAllocationStack.class) + ";)" + wrapped_struct_flag;
+								desc = "(L" + jvmClassName(StructAllocationStack.class) + ";II)" + wrapped_struct_flag;
 							}
 						}
 

@@ -70,12 +70,12 @@ public class StructGC {
 	}
 
 	public static void configureGarbageCollector(//
-			long minIntervalMillis, //
-			long maxIntervalMillis, //
-			float incIntervalFactor, //
-			long maxDurationMicros,//
-			int heapSize,//
-			int maxEmptyHeaps//
+	   long minIntervalMillis, //
+	   long maxIntervalMillis, //
+	   float incIntervalFactor, //
+	   long maxDurationMicros,//
+	   int heapSize,//
+	   int maxEmptyHeaps//
 	) {
 		if (minIntervalMillis < 0)
 			throw new IllegalArgumentException();
@@ -120,7 +120,7 @@ public class StructGC {
 		}
 	}
 
-	private static long mallocImpl(long stride, int count) {
+	private static long mallocImpl(long stride, int count, int alignment) {
 		if (StructEnv.SAFETY_FIRST)
 			if (stride <= 0)
 				throw new IllegalArgumentException();
@@ -131,17 +131,17 @@ public class StructGC {
 		long handle;
 
 		if (stride * count > gc_heap_size) {
-			LargeMalloc largeMalloc = new LargeMalloc(stride, count);
+			LargeMalloc largeMalloc = new LargeMalloc(stride, count, alignment);
 			synchronized (large_mallocs) {
 				large_mallocs.add(largeMalloc);
 			}
 			handle = largeMalloc.addr;
 		} else {
-			handle = local_heaps.get().malloc((int) stride, count);
+			handle = local_heaps.get().malloc((int) stride, count, alignment);
 			if (handle == 0) {
 				// try again with a new heap
 				local_heaps.set(newHeap());
-				handle = local_heaps.get().malloc((int) stride, count);
+				handle = local_heaps.get().malloc((int) stride, count, alignment);
 				if (handle == 0)
 					throw new IllegalStateException();
 			}
@@ -150,44 +150,44 @@ public class StructGC {
 		return handle;
 	}
 
-	public static long malloc(int sizeof) {
-		return mallocImpl(sizeof, 1);
+	public static long malloc(int sizeof, int alignment) {
+		return mallocImpl(sizeof, 1, alignment);
 	}
 
-	public static long calloc(int sizeof) {
-		long handle = malloc(sizeof);
+	public static long calloc(int sizeof, int alignment) {
+		long handle = malloc(sizeof, alignment);
 		StructMemory.clearMemory(handle, sizeof);
 		return handle;
 	}
 
-	public static long[] mallocArray(int sizeof, int length) {
-		long pointer = mallocImpl(sizeof, length);
+	public static long[] mallocArray(int sizeof, int length, int alignment) {
+		long pointer = mallocImpl(sizeof, length, alignment);
 		return StructMemory.createPointerArray(pointer, sizeof, length);
 	}
 
-	public static long[] callocArray(int sizeof, int length) {
-		long[] handles = mallocArray(sizeof, length);
+	public static long[] callocArray(int sizeof, int length, int alignment) {
+		long[] handles = mallocArray(sizeof, length, alignment);
 		StructMemory.clearMemory(handles[0], (long) sizeof * length);
 		return handles;
 	}
 
-	public static long mallocArrayBase(int sizeof, int length) {
-		return mallocImpl((long) sizeof * length, 1);
+	public static long mallocArrayBase(int sizeof, int length, int alignment) {
+		return mallocImpl((long) sizeof * length, 1, alignment);
 	}
 
-	public static long callocArrayBase(int sizeof, int length) {
-		long baseHandle = mallocArrayBase(sizeof, length);
+	public static long callocArrayBase(int sizeof, int length, int alignment) {
+		long baseHandle = mallocArrayBase(sizeof, length, alignment);
 		StructMemory.clearMemory(baseHandle, (long) sizeof * length);
 		return baseHandle;
 	}
 
-	public static long[] reallocArray(int sizeof, long[] src, int newLength) {
+	public static long[] reallocArray(int sizeof, long[] src, int newLength, int alignment) {
 		if (StructEnv.SAFETY_FIRST)
 			for (int i = 0; i < src.length; i++)
 				if (src[i] == 0x00)
 					throw new NullPointerException("index=" + i);
 
-		long[] dst = mallocArray(sizeof, newLength);
+		long[] dst = mallocArray(sizeof, newLength, alignment);
 		int min = Math.min(src.length, newLength);
 		for (int i = 0; i < min; i++)
 			StructMemory.copy(sizeof, src[i], dst[i]);
@@ -203,21 +203,22 @@ public class StructGC {
 		public int unfreedHandles;
 		private LongList activeHandles;
 
-		public LargeMalloc(long stride, int count) {
+		public LargeMalloc(long stride, int count, int alignment) {
 			if (StructEnv.SAFETY_FIRST) {
 				if (stride <= 0L)
 					throw new IllegalStateException();
 				if (count <= 0L)
 					throw new IllegalStateException();
+				StructMemory.verifyAlignment(alignment);
 			}
 
 			this.sizeof = stride * count;
 			try {
-				this.base = StructUnsafe.UNSAFE.allocateMemory(sizeof + 4L);
+				this.base = StructUnsafe.UNSAFE.allocateMemory(sizeof + alignment);
 			} catch (OutOfMemoryError err) {
 				throw new OutOfMemoryError("failed to allocate " + sizeof + " bytes");
 			}
-			this.addr = StructMemory.alignAddressToWord(base);
+			this.addr = StructMemory.alignAddress(base, alignment);
 			this.unfreedHandles = count;
 
 			if (StructEnv.SAFETY_FIRST) {
@@ -679,7 +680,7 @@ public class StructGC {
 					long tBegin = System.nanoTime();
 					Memory.gc(tBegin, stats);
 					stats.tookNanos = System.nanoTime() - tBegin;
-					
+
 					if (stats.freed > 0) {
 						stats.remaining = Memory.getHandleCount();
 

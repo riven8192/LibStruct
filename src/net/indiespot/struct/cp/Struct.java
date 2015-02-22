@@ -44,8 +44,8 @@ public class Struct {
 	}
 
 	/**
-	 * Allocates a struct on the LibStruct heap, of which the memory will
-	 * contain garbage.
+	 * Allocates a struct on the LibStruct heap, of which the memory will contain
+	 * garbage.
 	 */
 
 	public static <T> T malloc(Class<T> structType) {
@@ -54,11 +54,31 @@ public class Struct {
 	}
 
 	/**
-	 * Operates like <code>Struct.malloc(type)</code>, but has its backing
-	 * memory cleared.
+	 * Operates like <code>Struct.malloc(type)</code>, but has its backing memory
+	 * aligned.
+	 */
+
+	public static <T> T malloc(Class<T> structType, int alignment) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.malloc(type)</code>, but has its backing memory
+	 * cleared.
 	 */
 
 	public static <T> T calloc(Class<T> structType) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.calloc(type)</code>, but has its backing memory
+	 * cleared.
+	 */
+
+	public static <T> T calloc(Class<T> structType, int alignment) {
 		throwFit();
 		return null;
 	}
@@ -75,11 +95,31 @@ public class Struct {
 	}
 
 	/**
-	 * Operates like <code>Struct.malloc(type,length)</code>, but has its
-	 * backing memory cleared.
+	 * Operates like <code>Struct.mallocArray(type,length)</code>, but has its
+	 * backing memory aligned.
+	 */
+
+	public static <T> T[] mallocArray(Class<T> structType, int length, int alignment) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.malloc(type,length)</code>, but has its backing
+	 * memory cleared.
 	 */
 
 	public static <T> T[] callocArray(Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.callocArray(type,length)</code>, but has its
+	 * backing memory aligned.
+	 */
+
+	public static <T> T[] callocArray(Class<T> structType, int length, int alignment) {
 		throwFit();
 		return null;
 	}
@@ -94,6 +134,16 @@ public class Struct {
 	 */
 
 	public static <T> T[] reallocArray(Class<T> structType, T[] currentArray, int newLength) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.reallocArray(type,array,length)</code>, but has
+	 * its backing memory aligned.
+	 */
+
+	public static <T> T[] reallocArray(Class<T> structType, T[] currentArray, int newLength, int alignment) {
 		throwFit();
 		return null;
 	}
@@ -121,10 +171,30 @@ public class Struct {
 
 	/**
 	 * Operates like <code>Struct.mallocArrayBase(type,length)</code>, but has
+	 * its backing memory aligned.
+	 */
+
+	public static <T> T mallocArrayBase(Class<T> structType, int length, int alignment) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.mallocArrayBase(type,length)</code>, but has
 	 * its backing memory cleared.
 	 */
 
 	public static <T> T callocArrayBase(Class<T> structType, int length) {
+		throwFit();
+		return null;
+	}
+
+	/**
+	 * Operates like <code>Struct.callocArrayBase(type,length,alignment)</code>,
+	 * but has its backing memory aligned.
+	 */
+
+	public static <T> T callocArrayBase(Class<T> structType, int length, int alignment) {
 		throwFit();
 		return null;
 	}
@@ -166,8 +236,8 @@ public class Struct {
 	}
 
 	/**
-	 * Operates like <code>Struct.copy(type, src, dst)</code>, but copies a
-	 * block of memory with size <code>sizeof(type)*count</code>.
+	 * Operates like <code>Struct.copy(type, src, dst)</code>, but copies a block
+	 * of memory with size <code>sizeof(type)*count</code>.
 	 */
 
 	public static <T> void copy(Class<T> structType, T src, T dst, int count) {
@@ -184,8 +254,8 @@ public class Struct {
 
 	/**
 	 * Reinterpret the memory relative to a struct, as another struct of any
-	 * type. Typically used to <i>dynamically</i> embed structs into structs.
-	 * For <i>statically</i> embedded structs into structs, use:
+	 * type. Typically used to <i>dynamically</i> embed structs into structs. For
+	 * <i>statically</i> embedded structs into structs, use:
 	 * <code>class Ship { @StructField(embed=true) Point position; }</code>
 	 * 
 	 * <pre>
@@ -202,9 +272,9 @@ public class Struct {
 
 	/**
 	 * Reinterpret the memory relative to the specified base struct, as another
-	 * struct of the same type, where the <code>index</code> parameter is used
-	 * to calculate the offset: <code>sizeof(type)*index</code>. This can be
-	 * used to reference structs in a block of memory returned by
+	 * struct of the same type, where the <code>index</code> parameter is used to
+	 * calculate the offset: <code>sizeof(type)*index</code>. This can be used to
+	 * reference structs in a block of memory returned by
 	 * <code>Struct.mallocArrayBase(type, length)</code>. *
 	 * 
 	 * <pre>
@@ -225,8 +295,8 @@ public class Struct {
 	/**
 	 * Creates a struct array of which the elements are backed by the memory in
 	 * the buffer, with a stride of <code>Struct.sizeof(type)</code>. Keep a
-	 * strong reference to this buffer, to prevent accessing the returned
-	 * structs when the Java GC may have reclaimed the backing memory.
+	 * strong reference to this buffer, to prevent accessing the returned structs
+	 * when the Java GC may have reclaimed the backing memory.
 	 */
 
 	public static <T> T[] map(Class<T> structType, ByteBuffer bb) {
@@ -264,8 +334,8 @@ public class Struct {
 	}
 
 	/**
-	 * Operates like <code>Struct.fromPointer(pointer, type, length)</code>, except that it
-	 * uses the specified stride, as opposed to sizeof(type).
+	 * Operates like <code>Struct.fromPointer(pointer, type, length)</code>,
+	 * except that it uses the specified stride, as opposed to sizeof(type).
 	 */
 
 	public static <T> T[] fromPointer(long pointer, int stride, int length) {
@@ -304,6 +374,11 @@ public class Struct {
 	}
 
 	public static <T> T stackAlloc(StructAllocationStack stack, Class<T> structType) {
+		throwFit();
+		return null;
+	}
+
+	public static <T> T stackAlloc(StructAllocationStack stack, Class<T> structType, int alignment) {
 		throwFit();
 		return null;
 	}

@@ -17,10 +17,12 @@ public class StructAllocationBlock {
 		this.next = base;
 	}
 
-	public long allocate(int sizeof) {
+	public long allocate(int sizeof, int alignment) {
 		if (StructEnv.SAFETY_FIRST)
 			if (sizeof <= 0)
 				throw new IllegalArgumentException();
+
+		next = StructMemory.alignAddress(next, alignment);
 
 		if (StructEnv.SAFETY_FIRST)
 			if (!this.canAllocate(sizeof))

@@ -15,25 +15,25 @@ public class StructMemory {
 
 	// ---
 
-	public static long calloc(int sizeof, StructAllocationStack stack) {
-		long handle = stack.allocate(sizeof);
+	public static long calloc(StructAllocationStack stack, int sizeof, int alignment) {
+		long handle = stack.allocate(sizeof, alignment);
 		fillMemoryByWord(handle, bytes2words(sizeof), 0x00000000);
 		return handle;
 	}
 
-	public static long malloc(int sizeof, StructAllocationStack stack) {
-		return stack.allocate(sizeof);
+	public static long malloc(StructAllocationStack stack, int sizeof, int alignment) {
+		return stack.allocate(sizeof, alignment);
 	}
 
-	public static long allocateCopy(long srcHandle, int sizeof) {
-		long dstHandle = StructThreadLocalStack.getStack().allocate(sizeof);
+	public static long allocateCopy(long srcHandle, int sizeof, int alignment) {
+		long dstHandle = StructThreadLocalStack.getStack().allocate(sizeof, alignment);
 		copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
 		return dstHandle;
 	}
 
-	public static long[] allocateArray(int length, int sizeof, StructAllocationStack stack) {
+	public static long[] allocateArray(StructAllocationStack stack, int length, int sizeof, int alignment) {
 		int sizeofWords = bytes2words(sizeof);
-		long handle = stack.allocate(sizeof * length);
+		long handle = stack.allocate(sizeof * length, alignment);
 		fillMemoryByWord(handle, sizeofWords * length, 0x00000000);
 		return createPointerArray(handle, sizeof, length);
 	}
@@ -57,6 +57,8 @@ public class StructMemory {
 		return createPointerArray(addr, stride, count);
 	}
 
+	public static final int DEFAULT_ALIGNMENT  =4;
+	
 	public static void copy(int sizeof, long srcHandle, long dstHandle) {
 		copyMemoryByWord(srcHandle, dstHandle, bytes2words(sizeof));
 	}
@@ -81,18 +83,42 @@ public class StructMemory {
 		return "<struct@" + handle + ">";
 	}
 
+	public static long alignAddress(long addr, int pow) {
+		if (StructEnv.SAFETY_FIRST)
+			verifyAlignment(pow);
+
+		int error = (int) (addr & (pow - 1));
+		if (error != 0)
+			addr += (pow - error);
+		return addr;
+	}
+
+	public static void verifyAlignment(int alignment) {
+		if (alignment <= 0)
+			throw new IllegalStateException();
+		if (alignment < 4)
+			throw new IllegalStateException();
+		if (Integer.bitCount(alignment) != 1)
+			throw new IllegalStateException();
+	}
+
+	public static long alignAddressToWord(long addr) {
+		return alignAddress(addr, 4);
+	}
+
+	public static long alignAddressToCacheLine(long addr) {
+		return alignAddress(addr, 64);
+	}
+
+	public static long alignAddressToPage(long addr) {
+		return alignAddress(addr, 4096);
+	}
+
 	public static long alignBufferToWord(ByteBuffer bb) {
 		long addr = StructUnsafe.getBufferBaseAddress(bb) + bb.position();
 		long aligned = alignAddressToWord(addr);
 		if (addr != aligned)
 			bb.position(bb.position() + (int) (aligned - addr));
-		return addr;
-	}
-
-	public static long alignAddressToWord(long addr) {
-		int error = (int) (addr & (4 - 1));
-		if (error != 0)
-			addr += (4 - error);
 		return addr;
 	}
 

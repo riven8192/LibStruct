@@ -162,7 +162,7 @@ public class StructTest {
 
 		if (true) {
 			// TestAllocPerformance.test();
-			return;
+			//return;
 		}
 
 		TestStructEnv.test();
@@ -172,6 +172,7 @@ public class StructTest {
 
 		if (true) {
 			TestCalloc.test();
+			TestAlignment.test();
 			TestSwap.test();
 
 			TestSizeof.test();
@@ -425,21 +426,21 @@ public class StructTest {
 			new Vec3();
 
 			switch (4) {
-			case 1:
-				break;
-			case 2:
-				break;
-			case 3:
-				break;
+				case 1:
+					break;
+				case 2:
+					break;
+				case 3:
+					break;
 			}
 
 			switch (4) {
-			case 1003:
-				break;
-			case 2003:
-				break;
-			case 3003:
-				break;
+				case 1003:
+					break;
+				case 2003:
+					break;
+				case 3003:
+					break;
 			}
 		}
 	}
@@ -791,6 +792,24 @@ public class StructTest {
 					}
 				}
 			}).start();
+		}
+	}
+
+	public static class TestAlignment {
+		public static void test() {
+			for (int alignment = 4; alignment <= 4096; alignment <<= 1) {
+				Vec3 v1 = Struct.malloc(Vec3.class, alignment);
+				Vec3 v2 = Struct.malloc(Vec3.class, alignment);
+				Vec3 v3 = Struct.malloc(Vec3.class, alignment);
+
+				assert (Struct.getPointer(v1) % alignment == 0);
+				assert (Struct.getPointer(v2) % alignment == 0);
+				assert (Struct.getPointer(v3) % alignment == 0);
+
+				Struct.free(v1);
+				Struct.free(v2);
+				Struct.free(v3);
+			}
 		}
 	}
 
@@ -1333,7 +1352,7 @@ public class StructTest {
 
 			System.out.println(sas.isOnBlock(Struct.getPointer(vec)));
 			vec.x = 5; // must crash, as the struct is on the part of the stack
-						// that was popped
+			           // that was popped
 			System.out.println("oo");
 			if (vec.y != 15)
 				throw new IllegalStateException();

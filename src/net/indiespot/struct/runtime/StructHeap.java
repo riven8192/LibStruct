@@ -24,32 +24,34 @@ public class StructHeap {
 		}
 	}
 
-	public long malloc(int sizeof) {
-		if (!block.canAllocate(sizeof))
+	public long malloc(int sizeof, boolean dummy, int alignment) {
+		if (!block.canAllocate(sizeof + (alignment - 1)))
 			return 0;
-		long handle = block.allocate(sizeof);
+		long address = block.allocate(sizeof, alignment);
+		
 		if (StructEnv.SAFETY_FIRST) {
-			if (activeHandles.contains(handle))
+			if (activeHandles.contains(address))
 				throw new IllegalStateException();
-			activeHandles.add(handle);
+			activeHandles.add(address);
 		}
 		allocCount++;
-		return handle;
+		return address;
 	}
 
-	public long malloc(int sizeof, int length) {
-		if (!block.canAllocate(sizeof * length))
+	public long malloc(int sizeof, int length, int alignment) {
+		if (!block.canAllocate(sizeof * length + (alignment - 1)))
 			return 0;
-		long offset = block.allocate(sizeof * length);
+		long address = block.allocate(sizeof * length, alignment);
+
 		if (StructEnv.SAFETY_FIRST) {
-			for (long handle : StructMemory.createPointerArray(offset, sizeof, length)) {
+			for (long handle : StructMemory.createPointerArray(address, sizeof, length)) {
 				if (activeHandles.contains(handle))
 					throw new IllegalStateException();
 				activeHandles.add(handle);
 			}
 		}
 		allocCount += length;
-		return offset;
+		return address;
 	}
 
 	public boolean freeHandle(long handle) {
