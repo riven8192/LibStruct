@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,32 +27,37 @@ public class StructPacker {
 			System.out.println("Usage:");
 			System.out.println(" -structdef [path]  (any number of times)");
 			System.out.println(" -jar [path]        (any number of times)");
+			System.out.println(" -out [path]        (once)");
 			System.out.println();
 			System.out.println("Example:");
-			System.out.println(" -structdef [path1] -jar [path2] -jar [path3] -jar [path4] -structdef [path5] -jar [path6]");
+			System.out.println("StructPacker -structdef [path1] -jar [path2] -jar [path3] -jar [path4] -structdef [path5] -jar [path6] -out [path7]");
 			return;
 		}
 
-		List<String> structdefs = new ArrayList<>();
-		List<String> jars = new ArrayList<>();
-
-		final Map<String, byte[]> fqcn2bytecode = new HashMap<>();
+		// process commandline arguments
+		List<String> structdefFiles = new ArrayList<>();
+		List<String> inJarFiles = new ArrayList<>();
+		String outJarFile = "./libstruct-cp-prefix.jar";
 
 		for (int i = 0; i < args.length; i += 2) {
 			String key = args[i + 0];
 			String val = args[i + 1];
 
 			if (key.equals("-structdef"))
-				structdefs.add(val);
+				structdefFiles.add(val);
 			else if (key.equals("-jar"))
-				jars.add(val);
+				inJarFiles.add(val);
+			else if (key.equals("-out"))
+				outJarFile = val;
 			else
 				throw new IllegalStateException();
 		}
 
-		System.out.println("processing " + jars.size() + " jar files...");
+		System.out.println("processing " + inJarFiles.size() + " jar files...");
 
-		for (String jar : jars) {
+		// gather all classnames and their bytecode
+		final Map<String, byte[]> fqcn2bytecode = new HashMap<>();
+		for (String jar : inJarFiles) {
 			System.out.println("\t processing jar file: " + jar);
 			try (JarInputStream jis = new JarInputStream(new FileInputStream(jar))) {
 				while (true) {
@@ -75,13 +81,15 @@ public class StructPacker {
 						continue;
 
 					byte[] bytecode = readFully(jis);
+					if (fqcn2bytecode.containsKey(fqcn) && !Arrays.equals(fqcn2bytecode.get(fqcn), bytecode))
+						throw new IllegalStateException("duplicate fqcn [" + fqcn + "] with different bytecode");
 					fqcn2bytecode.put(fqcn, bytecode);
 				}
 			}
 		}
 
 		if (!fqcn2bytecode.containsKey("net/indiespot/struct/cp/Struct"))
-			throw new IllegalStateException("LibStruct-jar required in jar-file list to process");
+			throw new IllegalStateException("LibStruct-jar required in input jar-file list, as it rewrites its own classes");
 
 		BytecodeLoader loader = new BytecodeLoader() {
 			@Override
@@ -92,9 +100,10 @@ public class StructPacker {
 			}
 		};
 
+		// gather struct info
 		{
-			System.out.println("\t processing " + structdefs.size() + " structdef files");
-			for (String structdef : structdefs) {
+			System.out.println("\t processing " + structdefFiles.size() + " structdef files");
+			for (String structdef : structdefFiles) {
 				System.out.println("\t processing structdef file: " + structdef);
 				try (BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(structdef), "ASCII"))) {
 					StructAgentDelegate.processStructDefinitionInfo(reader, loader);
@@ -106,10 +115,8 @@ public class StructPacker {
 			StructEnv.linkStructs();
 		}
 
-		String outJarFile = "./libstruct-cp-prefix.jar";
-
+		// generate jar with transformed classes
 		try (JarOutputStream jos = new JarOutputStream(new FileOutputStream(outJarFile))) {
-
 			for (Entry<String, byte[]> entry : fqcn2bytecode.entrySet()) {
 				String fqcn = entry.getKey();
 				byte[] bytecode = entry.getValue();
@@ -126,7 +133,7 @@ public class StructPacker {
 			}
 		}
 
-		System.out.println("Generated " + outJarFile);
+		System.out.println("Generated jar: " + outJarFile);
 		System.out.println("\t Full path: " + new File(outJarFile).getCanonicalPath());
 		System.out.println("\t Put generated file as first entry in the classpath of your application, so that rewritten classes take precedence.");
 		System.out.println("Done.");
