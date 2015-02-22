@@ -65,7 +65,8 @@ public class StructEnv {
 	public static void addStruct(StructInfo info) {
 		if (is_rewriting)
 			throw new IllegalStateException("cannot add struct definition when classes have been rewritten already");
-		struct2info.put(info.fqcn, info);
+		if (struct2info.put(info.fqcn, info) != null)
+			throw new IllegalStateException("duplicate struct definition: " + info.fqcn);
 		plain_struct_types.add(info.fqcn);
 		wrapped_struct_types.add("L" + info.fqcn + ";");
 		array_wrapped_struct_types.add("[L" + info.fqcn + ";");

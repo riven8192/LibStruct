@@ -1,6 +1,7 @@
 package net.indiespot.struct;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -25,8 +26,32 @@ public class StructAgentDelegate {
 	public static void premain(String args, Instrumentation inst) {
 		System.out.println("StructAgent: reading struct-defs from resource: '" + args + "'");
 
+		BytecodeLoader loader = new BytecodeLoader() {
+			@Override
+			public byte[] load(String fqcn) {
+				if (fqcn.contains("."))
+					throw new IllegalStateException();
+				String path = fqcn + ".class";
+				
+				try (ByteArrayOutputStream os = new ByteArrayOutputStream();//
+				   InputStream is = StructAgentDelegate.class.getClassLoader().getResourceAsStream(path)) {
+					byte[] tmp = new byte[4096];
+					while (true) {
+						int got = is.read(tmp);
+						if (got == -1)
+							break;
+						os.write(tmp, 0, got);
+					}
+					return os.toByteArray();
+				} catch (IOException exc) {
+					exc.printStackTrace();
+					return null;
+				}
+			}
+		};
+
 		try (InputStream in = StructAgentDelegate.class.getClassLoader().getResourceAsStream(args)) {
-			processStructDefinitionInfo(new BufferedReader(new InputStreamReader(in, "ASCII")));
+			processStructDefinitionInfo(new BufferedReader(new InputStreamReader(in, "ASCII")), loader);
 		} catch (Throwable cause) {
 			cause.printStackTrace();
 			return;
@@ -60,7 +85,11 @@ public class StructAgentDelegate {
 		});
 	}
 
-	private static void processStructDefinitionInfo(BufferedReader br) throws IOException {
+	static interface BytecodeLoader {
+		public byte[] load(String fqcn);
+	}
+
+	static void processStructDefinitionInfo(BufferedReader br, BytecodeLoader loader) throws IOException {
 
 		while (true) {
 			String line = br.readLine();
@@ -79,7 +108,7 @@ public class StructAgentDelegate {
 			StructInfo info = StructInfo.lookup(fqcn);
 
 			if (parts.length == 1) {
-				InputStream bytecode = StructAgentDelegate.class.getClassLoader().getResourceAsStream(fqcn + ".class");
+				byte[] bytecode = loader.load(fqcn);
 				if (bytecode == null) {
 					throw new IllegalStateException("failed to find '" + fqcn + "' in classpath");
 				}
@@ -105,14 +134,14 @@ public class StructAgentDelegate {
 					boolean embed = false;
 
 					switch (parts.length) {
-					case 6:
-						embed = Boolean.parseBoolean(parts[5]);
-						// fall through
-					case 5:
-						sizeof = Integer.parseInt(parts[4]);
-						break;
-					default:
-						throw new IllegalStateException("FIELD must have 2 or 3 parameters: name, type, offset [, embed]");
+						case 6:
+							embed = Boolean.parseBoolean(parts[5]);
+							// fall through
+						case 5:
+							sizeof = Integer.parseInt(parts[4]);
+							break;
+						default:
+							throw new IllegalStateException("FIELD must have 2 or 3 parameters: name, type, offset [, embed]");
 					}
 					info.addField(name, type, sizeof, embed);
 				} else if (prop.equals("DISABLE_CLEAR_MEMORY")) {
@@ -126,7 +155,7 @@ public class StructAgentDelegate {
 		}
 	}
 
-	private static StructInfo gatherStructInfo(final String fqcn, final InputStream bytecode) throws IOException {
+	private static StructInfo gatherStructInfo(final String fqcn, final byte[] bytecode) throws IOException {
 		final StructInfo info = new StructInfo(fqcn);
 
 		ClassWriter writer = new ClassWriter(0);

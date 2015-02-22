@@ -102,7 +102,7 @@ public class StructMemory {
 
 	public static void verifyAlignment(int alignment) {
 		if (alignment < JVMWORD_ALIGNMENT)
-			throw new IllegalStateException("alignment must least 4");
+			throw new IllegalStateException("alignment must be at least " + JVMWORD_ALIGNMENT);
 		if (Integer.bitCount(alignment) != 1)
 			throw new IllegalStateException("alignment must be a power of two");
 	}
