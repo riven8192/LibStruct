@@ -28,6 +28,7 @@ public class StructInfo {
 	public Map<String, Integer> field2offset = new HashMap<>();
 	public Map<String, String> field2type = new HashMap<>();
 	public Map<String, Boolean> field2embed = new HashMap<>();
+	public Map<String, Integer> field2elements = new HashMap<>();
 
 	public StructInfo(String fqcn) {
 		this.fqcn = fqcn;
@@ -52,7 +53,7 @@ public class StructInfo {
 		System.out.println("StructInfo[" + fqcn + "] disableClearMemory");
 	}
 
-	public void addField(String name, String type, int byteOffset, boolean embed) {
+	public void addField(String name, String type, int byteOffset, boolean embed, int elements) {
 		if (byteOffset < -1)
 			throw new IllegalArgumentException("field byte offset must not be negative");
 
@@ -60,6 +61,7 @@ public class StructInfo {
 		field2type.put(name, type);
 		field2offset.put(name, Integer.valueOf(byteOffset));
 		field2embed.put(name, Boolean.valueOf(embed));
+		field2elements.put(name, Integer.valueOf(elements));
 	}
 
 	public int calcSizeof() {
@@ -82,6 +84,7 @@ public class StructInfo {
 			int offset = field2offset.get(field).intValue();
 			boolean embed = field2embed.get(field).booleanValue();
 			String type = field2type.get(field);
+			int elements = field2elements.get(field);
 
 			if (offset == -1) {
 				offset = calcSizeof;
@@ -90,7 +93,7 @@ public class StructInfo {
 				offset = align(offset, alignment);
 				field2offset.put(field, Integer.valueOf(offset));
 			}
-			int fieldWidth = sizeof(type, embed);
+			int fieldWidth = sizeof(type, embed, elements);
 
 			System.out.println("StructInfo[" + fqcn + "] field=" + field + ", type=" + type + ", offset=" + offset + ", sizeof=" + fieldWidth + ", alignment=" + alignment(type));
 
@@ -118,16 +121,17 @@ public class StructInfo {
 			int offset = field2offset.get(field).intValue();
 			boolean embed = field2embed.get(field).booleanValue();
 			String type = field2type.get(field);
-			int range = sizeof(type, embed);
+			int elements = field2elements.get(field).intValue();
+			int fieldWidth = sizeof(type, embed, elements);
 
 			int alignment = alignment(type);
 			if (offset % alignment != 0)
 				throw new IllegalStateException("struct field must be aligned to " + alignment + " bytes: " + fqcn + "." + field);
 
-			if (offset < 0 || offset + range > sizeof)
+			if (offset < 0 || offset + fieldWidth > sizeof)
 				throw new IllegalStateException("struct field exceeds struct bounds: " + fqcn + "." + field);
 
-			for (int i = 0; i < range; i++) {
+			for (int i = 0; i < fieldWidth; i++) {
 				if (usage[offset + i] != null)
 					throw new IllegalStateException("struct field overlaps other field: " + fqcn + "." + field + " (." + usage[offset + i] + ")");
 				usage[offset + i] = field;
@@ -165,7 +169,9 @@ public class StructInfo {
 		return 4; // struct type
 	}
 
-	private static int sizeof(String type, boolean embed) {
+	private static int sizeof(String type, boolean embed, int elements) {
+		if (type.length() == 1 && elements != 1)
+			throw new IllegalStateException("cannot define elements for primitive: " + type);
 		if (type.equals("Z") || type.equals("B"))
 			return 1;
 		if (type.equals("S") || type.equals("C"))
@@ -175,12 +181,7 @@ public class StructInfo {
 		if (type.equals("J") || type.equals("D"))
 			return 8;
 		if (type.startsWith("["))
-			return sizeof(type.substring(1), embed); // unknown, but at least 1
-														// element, or it
-														// wouldn't
-														// make sense to define
-														// the
-														// array
+			return sizeof(type.substring(1), embed, 1) * elements;
 		if (type.length() == 2)
 			throw new IllegalStateException();
 

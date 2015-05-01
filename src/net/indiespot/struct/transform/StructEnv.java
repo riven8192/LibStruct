@@ -404,8 +404,8 @@ public class StructEnv {
 				final int origLocalvarSlots = info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue();
 				final int usedLocalvarSlots = //
 				origLocalvarSlots + //
-				   (hasStructCreation ? 1 : 0) + // TL-SAS
-				   (StructEnv.SAFETY_FIRST ? 4 : 0); // check suspicious
+						(hasStructCreation ? 1 : 0) + // TL-SAS
+						(StructEnv.SAFETY_FIRST ? 4 : 0); // check suspicious
 				// field assignment
 
 				final String _methodName = methodName;
@@ -469,17 +469,72 @@ public class StructEnv {
 					public void visitInsn(int opcode) {
 						if (hasStructCreation) {
 							switch (opcode) {
-								case RETURN:
-								case ARETURN:
-								case IRETURN:
-								case FRETURN:
-								case LRETURN:
-								case DRETURN:
-									super.visitVarInsn(ALOAD, origLocalvarSlots);
-									super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()I", false);
-									super.visitInsn(Opcodes.POP);
-									break;
+							case RETURN:
+							case ARETURN:
+							case IRETURN:
+							case FRETURN:
+							case LRETURN:
+							case DRETURN:
+								super.visitVarInsn(ALOAD, origLocalvarSlots);
+								super.visitMethodInsn(Opcodes.INVOKEVIRTUAL, StructEnv.jvmClassName(StructAllocationStack.class), "restore", "()I", false);
+								super.visitInsn(Opcodes.POP);
+								break;
 							}
+						}
+
+						switch (opcode) {
+						case BALOAD:
+						case SALOAD:
+						case CALOAD:
+						case IALOAD:
+						case FALOAD:
+						case DALOAD:
+						case LALOAD:
+							if (flow.stack.peek(1) == VarType.POINTER64) {
+								flow.stack.popEQ(VarType.INT); // index
+								flow.stack.popEQ(VarType.POINTER64); // pointer
+								flow.stack.popEQ(VarType.POINTER64);
+
+								flow.stack.push(VarType.MISC);
+								flow.stack.push(VarType.MISC);
+								flow.stack.push(VarType.INT);
+
+								String arrayElemType = _aload2type.get(Integer.valueOf(opcode));
+
+								flow.visitMethodInsn(Opcodes.INVOKESTATIC, "net/indiespot/struct/runtime/StructMemory", arrayElemType.toLowerCase() + "aget", "(JI)" + arrayElemType, false);
+								return;
+							}
+							break;
+
+						case BASTORE:
+						case SASTORE:
+						case CASTORE:
+						case IASTORE:
+						case FASTORE:
+						case DASTORE:
+						case LASTORE:
+							boolean isWide = (opcode == DASTORE || opcode == LASTORE);
+							if (flow.stack.peek(isWide ? 3 : 2) == VarType.POINTER64) {
+								VarType valueType1 = flow.stack.pop(); // value
+								VarType valueType2 = (isWide ? flow.stack.pop() : null); // value
+								flow.stack.popEQ(VarType.INT); // index
+
+								flow.stack.popEQ(VarType.POINTER64);
+								flow.stack.popEQ(VarType.POINTER64);
+
+								flow.stack.push(VarType.MISC);
+								flow.stack.push(VarType.MISC);
+								flow.stack.push(VarType.INT);
+								if (isWide)
+									flow.stack.push(valueType2);
+								flow.stack.push(valueType1);
+
+								String arrayElemType = _astore2type.get(Integer.valueOf(opcode));
+
+								flow.visitMethodInsn(Opcodes.INVOKESTATIC, "net/indiespot/struct/runtime/StructMemory", arrayElemType.toLowerCase() + "aput", "(JI" + arrayElemType + ")V", false);
+								return;
+							}
+							break;
 						}
 
 						if (opcode == ARETURN && flow.stack.peek() == VarType.STRUCT_LO) {
@@ -611,6 +666,10 @@ public class StructEnv {
 									throw new IllegalStateException("cannot assign to embedded struct field");
 								}
 
+								if (type.startsWith("[") && type.length() == 2) {
+									throw new IllegalStateException("cannot assign to embedded arrays field");
+								}
+
 								String methodName, paramType, returnType;
 								if (wrapped_struct_types.contains(type)) {
 									methodName = "$put";
@@ -649,6 +708,25 @@ public class StructEnv {
 
 									flow.stack.push(VarType.STRUCT_HI);
 									flow.stack.push(VarType.STRUCT_LO);
+									return;
+								}
+
+								if (type.startsWith("[") && type.length() == 2) {
+									flow.stack.popEQ(VarType.STRUCT_LO);
+									flow.stack.popEQ(VarType.STRUCT_HI);
+
+									flow.stack.push(VarType.MISC);
+									flow.stack.push(VarType.MISC);
+
+									super.visitIntInsn(SIPUSH, offset);
+									super.visitInsn(I2L);
+									super.visitInsn(LADD);
+
+									flow.stack.popEQ(VarType.MISC);
+									flow.stack.popEQ(VarType.MISC);
+
+									flow.stack.push(VarType.POINTER64);
+									flow.stack.push(VarType.POINTER64);
 									return;
 								}
 

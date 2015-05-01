@@ -32,9 +32,9 @@ public class StructAgentDelegate {
 				if (fqcn.contains("."))
 					throw new IllegalStateException();
 				String path = fqcn + ".class";
-				
+
 				try (ByteArrayOutputStream os = new ByteArrayOutputStream();//
-				   InputStream is = StructAgentDelegate.class.getClassLoader().getResourceAsStream(path)) {
+						InputStream is = StructAgentDelegate.class.getClassLoader().getResourceAsStream(path)) {
 					byte[] tmp = new byte[4096];
 					while (true) {
 						int got = is.read(tmp);
@@ -132,18 +132,22 @@ public class StructAgentDelegate {
 					String type = parts[3];
 					int sizeof;
 					boolean embed = false;
+					int elements = 1;
 
 					switch (parts.length) {
-						case 6:
-							embed = Boolean.parseBoolean(parts[5]);
-							// fall through
-						case 5:
-							sizeof = Integer.parseInt(parts[4]);
-							break;
-						default:
-							throw new IllegalStateException("FIELD must have 2 or 3 parameters: name, type, offset [, embed]");
+					case 7:
+						elements = Integer.parseInt(parts[6]);
+						// fall through
+					case 6:
+						embed = Boolean.parseBoolean(parts[5]);
+						// fall through
+					case 5:
+						sizeof = Integer.parseInt(parts[4]);
+						break;
+					default:
+						throw new IllegalStateException("FIELD must have 2, 3 or 4 parameters: name, type, offset [, embed [, elements]]");
 					}
-					info.addField(name, type, sizeof, embed);
+					info.addField(name, type, sizeof, embed, elements);
 				} else if (prop.equals("DISABLE_CLEAR_MEMORY")) {
 					if (parts.length != 2)
 						throw new IllegalStateException("DISABLE_CLEAR_MEMORY must have no parameters");
@@ -194,19 +198,22 @@ public class StructAgentDelegate {
 								return new AnnotationVisitor(Opcodes.ASM5, super.visitAnnotation(desc, visible)) {
 									int offset = -1;
 									boolean embed = false;
+									int elements = 1;
 
 									public void visit(String name, Object value) {
 										if (name.equals("offset")) {
 											offset = ((Integer) value).intValue();
 										} else if (name.equals("embed")) {
 											embed = ((Boolean) value).booleanValue();
+										} else if (name.equals("elements")) {
+											elements = ((Integer) value).intValue();
 										}
 										super.visit(name, value);
 									};
 
 									@Override
 									public void visitEnd() {
-										info.addField(fieldName, fieldDesc, offset, embed);
+										info.addField(fieldName, fieldDesc, offset, embed, elements);
 
 										super.visitEnd();
 									}

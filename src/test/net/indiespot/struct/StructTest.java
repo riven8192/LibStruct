@@ -134,8 +134,39 @@ public class StructTest {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static class EmbeddedArrayTest {
+		public static void test() {
+			EmbeddedArray ea = new EmbeddedArray();
 
+			ea.farr[0] = 12.34f;
+			ea.farr[1] = 23.45f;
+			System.out.println(ea.farr[0]);
+			System.out.println(ea.farr[1]);
+			System.out.println(ea.farr[0]);
+			System.out.println(ea.farr[1]);
+
+			ea.darr[0] = 10012.34;
+			ea.darr[1] = 10023.45;
+			System.out.println(ea.darr[0]);
+			System.out.println(ea.darr[1]);
+			System.out.println(ea.darr[0]);
+			System.out.println(ea.darr[1]);
+
+			System.out.println(ea.farr[0]);
+			System.out.println(ea.farr[1]);
+		}
+	}
+
+	@StructType
+	public static class EmbeddedArray {
+		@StructField(elements = 5)
+		public float[] farr;
+
+		@StructField(elements = 3)
+		public double[] darr;
+	}
+
+	public static void main(String[] args) {
 		StructGC.addListener(new StructGC.GcInfo() {
 
 			@Override
@@ -162,13 +193,14 @@ public class StructTest {
 
 		if (true) {
 			// TestAllocPerformance.test();
-			//return;
+			// return;
 		}
 
 		TestStructEnv.test();
 		TestSuspiciousFieldAssignment.test();
 		WideHandleTest.test();
 		WideHandleParamsLocalsTest.test();
+		EmbeddedArrayTest.test();
 
 		if (true) {
 			TestCalloc.test();
@@ -426,21 +458,21 @@ public class StructTest {
 			new Vec3();
 
 			switch (4) {
-				case 1:
-					break;
-				case 2:
-					break;
-				case 3:
-					break;
+			case 1:
+				break;
+			case 2:
+				break;
+			case 3:
+				break;
 			}
 
 			switch (4) {
-				case 1003:
-					break;
-				case 2003:
-					break;
-				case 3003:
-					break;
+			case 1003:
+				break;
+			case 2003:
+				break;
+			case 3003:
+				break;
 			}
 		}
 	}
@@ -1352,7 +1384,7 @@ public class StructTest {
 
 			System.out.println(sas.isOnBlock(Struct.getPointer(vec)));
 			vec.x = 5; // must crash, as the struct is on the part of the stack
-			           // that was popped
+						// that was popped
 			System.out.println("oo");
 			if (vec.y != 15)
 				throw new IllegalStateException();

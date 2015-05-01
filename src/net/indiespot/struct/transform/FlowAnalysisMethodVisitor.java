@@ -807,7 +807,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 				try {
 					popDescType(stack, descToType(arr[i]));
 				} catch (Exception exc) {
-					throw new IllegalStateException("failed to pop parameter: " + arr[i], exc);
+					throw new IllegalStateException("failed to pop parameter: " + arr[i] + " (all: " + params + ")", exc);
 				}
 			}
 

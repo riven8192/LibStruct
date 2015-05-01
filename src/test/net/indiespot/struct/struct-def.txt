@@ -3,3 +3,4 @@ test.net.indiespot.struct.StructTest$Ship
 test.net.indiespot.struct.StructTest$PosVelRef
 test.net.indiespot.struct.StructTest$PosVelView
 test.net.indiespot.struct.StructTest$StructEmbed
+test.net.indiespot.struct.StructTest$EmbeddedArray
