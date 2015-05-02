@@ -98,7 +98,8 @@ public class StructEnv {
 
 			ClassWriter writer = new ClassWriter(0);
 			ClassVisitor visitor = new ClassVisitor(Opcodes.ASM5, writer) {
-
+				private boolean isInterface;
+				
 				@Override
 				public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
 					if (plain_struct_types.contains(fqcn)) {
@@ -109,6 +110,8 @@ public class StructEnv {
 							throw new IllegalStateException("struct [" + fqcn + "] must not implement any interfaces");
 						}
 					}
+					
+					isInterface = (access & Opcodes.ACC_INTERFACE)!=0;
 
 					super.visit(version, access, name, signature, superName, interfaces);
 				}
@@ -156,6 +159,10 @@ public class StructEnv {
 								if (methodDesc.contains(wrappedStructType)) {
 									this.flagRewriteMethod(false);
 								}
+							}
+							
+							if(isInterface){								
+								methodNameDesc2localCount.put(methodName + methodDesc, Integer.valueOf(-1));
 							}
 						}
 
@@ -402,7 +409,7 @@ public class StructEnv {
 				}
 				final boolean hasStructCreation = info.methodsWithStructCreation.contains(origMethodName + origMethodDesc);
 				final int origLocalvarSlots = info.methodNameDesc2localCount.get(origMethodName + origMethodDesc).intValue();
-				final int usedLocalvarSlots = //
+				final int usedLocalvarSlots = origLocalvarSlots==-1?0://
 				origLocalvarSlots + //
 						(hasStructCreation ? 1 : 0) + // TL-SAS
 						(StructEnv.SAFETY_FIRST ? 4 : 0); // check suspicious
