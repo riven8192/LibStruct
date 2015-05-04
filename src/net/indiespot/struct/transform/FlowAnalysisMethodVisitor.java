@@ -357,12 +357,16 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 					// [.., ABB]
 					super.visitInsn(DUP2_X1);
 					// [.., BBABB]
-					super.visitInsn(DUP2_X1);
-					// [.., BBBBABB]
 					super.visitInsn(POP2);
-					// [.., BBBBA]
+					// [.., BBA]
 					super.visitInsn(DUP_X2);
-					// [.., BBABBA]
+					// [.., ABBA]
+					super.visitInsn(DUP_X2);
+					// [.., AABBA]
+					super.visitInsn(POP);
+					// [.., AABB]
+					super.visitInsn(DUP2_X1);
+					// [.., ABBABB]
 				}
 				return;
 			} else if (stack.peek(1) == VarType.STRUCT_LO) {
