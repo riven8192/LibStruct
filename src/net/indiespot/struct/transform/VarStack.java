@@ -102,7 +102,7 @@ public class VarStack {
 
 	public void eqEmpty() {
 		if (!isEmpty())
-			throw new IllegalStateException("not empty: stack size = " + index);
+			throw new IllegalStateException("not empty: " + this.toString());
 	}
 
 	@Override

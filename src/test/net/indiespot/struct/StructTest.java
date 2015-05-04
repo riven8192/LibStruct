@@ -25,32 +25,29 @@ public class StructTest {
 		public static void test() {
 			ByteBuffer bb = ByteBuffer.allocateDirect(1024);
 			long addr = StructUnsafe.getBufferBaseAddress(bb);
-			System.out.println(addr);
 
 			Vec3 vec0 = Struct.fromPointer(addr);
-			System.out.println(vec0.x);
 			vec0.x = 45.67f;
-			System.out.println(vec0.x);
 			long pntr = Struct.getPointer(vec0);
-			System.out.println(pntr);
+			assert addr == pntr;
 
 			Vec3 vec1 = Struct.fromPointer(addr + 12);
 			vec1.x = 13.37f;
 
 			Vec3[] arr = Struct.fromPointer(addr, 12, 10);
-			System.out.println(arr[0].x);
-			System.out.println(arr[1].x);
+			assert arr[0].x == 45.67f;
+			assert arr[1].x == 13.37f;
 
 			arr = Struct.fromPointer(addr, Struct.sizeof(Vec3.class), 10);
-			System.out.println(arr[0].x);
-			System.out.println(arr[1].x);
+			assert arr[0].x == 45.67f;
+			assert arr[1].x == 13.37f;
 
 			arr = Struct.fromPointer(addr, Vec3.class, 10);
-			System.out.println(arr[0].x);
-			System.out.println(arr[1].x);
+			assert arr[0].x == 45.67f;
+			assert arr[1].x == 13.37f;
 
-			System.out.println(Struct.index(vec0, Vec3.class, 0).x);
-			System.out.println(Struct.index(vec0, Vec3.class, 1).x);
+			assert Struct.index(vec0, Vec3.class, 0).x == 45.67f;
+			assert Struct.index(vec0, Vec3.class, 1).x == 13.37f;
 		}
 	}
 
@@ -140,20 +137,20 @@ public class StructTest {
 
 			ea.farr[0] = 12.34f;
 			ea.farr[1] = 23.45f;
-			System.out.println(ea.farr[0]);
-			System.out.println(ea.farr[1]);
-			System.out.println(ea.farr[0]);
-			System.out.println(ea.farr[1]);
+			assert ea.farr[0] == 12.34f;
+			assert ea.farr[1] == 23.45f;
+			assert ea.farr[0] == 12.34f;
+			assert ea.farr[1] == 23.45f;
 
 			ea.darr[0] = 10012.34;
 			ea.darr[1] = 10023.45;
-			System.out.println(ea.darr[0]);
-			System.out.println(ea.darr[1]);
-			System.out.println(ea.darr[0]);
-			System.out.println(ea.darr[1]);
+			assert ea.darr[0] == 10012.34;
+			assert ea.darr[1] == 10023.45;
+			assert ea.darr[0] == 10012.34;
+			assert ea.darr[1] == 10023.45;
 
-			System.out.println(ea.farr[0]);
-			System.out.println(ea.farr[1]);
+			assert ea.farr[0] == 12.34f;
+			assert ea.farr[1] == 23.45f;
 		}
 	}
 
@@ -166,7 +163,46 @@ public class StructTest {
 		public double[] darr;
 	}
 
+	public static class TestStackOps {
+		public static void test1() {
+			Vec3 vec = new Vec3();
+			vec.x = vec.y = vec.z = 1;
+		}
+	}
+
+	public static interface Interf {
+		public void i(Vec3 a);
+	}
+
+	public static abstract class Abstract {
+		public abstract void i(Vec3 a);
+
+		public void a(Vec3 a) {
+			i(a);
+		}
+	}
+
+	public static class TestInterf {
+		public static void test1() {
+			new Interf() {
+				@Override
+				public void i(Vec3 a) {
+					// TODO Auto-generated method stub
+
+				}
+			}.i(new Vec3(1, 2, 3));
+
+			new Abstract() {
+				@Override
+				public void i(Vec3 a) {
+					System.out.println(a.toString());
+				}
+			}.a(new Vec3(1, 2, 3));
+		}
+	}
+
 	public static void main(String[] args) {
+
 		StructGC.addListener(new StructGC.GcInfo() {
 
 			@Override
@@ -201,6 +237,8 @@ public class StructTest {
 		WideHandleTest.test();
 		WideHandleParamsLocalsTest.test();
 		EmbeddedArrayTest.test();
+		TestStackOps.test1();
+		TestInterf.test1();
 
 		if (true) {
 			TestCalloc.test();
@@ -389,7 +427,8 @@ public class StructTest {
 		public static void test() {
 			try {
 				field = new Vec3();
-				assert false;
+				if (StructEnv.SAFETY_FIRST)
+					assert false;
 			} catch (SuspiciousFieldAssignmentError err) {
 				assert true;
 			}
@@ -404,7 +443,8 @@ public class StructTest {
 			ship.pos = field;
 			try {
 				ship.pos = new Vec3();
-				assert false;
+				if (StructEnv.SAFETY_FIRST)
+					assert false;
 			} catch (SuspiciousFieldAssignmentError err) {
 				assert true;
 			}

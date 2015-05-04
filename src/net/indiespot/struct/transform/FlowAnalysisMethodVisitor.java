@@ -208,8 +208,8 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 		case POP:
 			if (stack.peek() == VarType.STRUCT_LO) {
-				stack.pop();
-				stack.pop();
+				stack.popEQ(VarType.STRUCT_LO);
+				stack.popEQ(VarType.STRUCT_HI);
 				opcode = POP2;
 			} else {
 				stack.pop();
@@ -217,11 +217,14 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case POP2:
-			for (int i = 0; i < 2; i++)
-				if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
-					throw new IllegalStateException();
-			stack.pop();
-			stack.pop();
+			if (stack.pop() == VarType.STRUCT_LO) {
+				stack.popEQ(VarType.STRUCT_HI);
+				super.visitInsn(POP);
+			}
+			if (stack.pop() == VarType.STRUCT_LO) {
+				stack.popEQ(VarType.STRUCT_HI);
+				super.visitInsn(POP);
+			}
 			break;
 
 		case DUP:
@@ -236,49 +239,164 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 			break;
 
 		case DUP_X1: {
-			for (int i = 0; i < 2; i++)
-				if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
-					throw new IllegalStateException();
-			VarType got1 = stack.pop();
-			VarType got2 = stack.pop();
-			stack.push(got1);
-			stack.push(got2);
-			stack.push(got1);
+			if (stack.peek(0) == VarType.STRUCT_LO) {
+				if (stack.peek(2) == VarType.STRUCT_LO) {
+					// stack.popEQ(VarType.STRUCT_LO);
+					// stack.popEQ(VarType.STRUCT_HI);
+					// stack.popEQ(VarType.STRUCT_LO);
+					// stack.popEQ(VarType.STRUCT_HI);
+					//
+					// stack.push(VarType.STRUCT_HI);
+					// stack.push(VarType.STRUCT_LO);
+					// stack.push(VarType.STRUCT_HI);
+					// stack.push(VarType.STRUCT_LO);
+					stack.push(VarType.STRUCT_HI);
+					stack.push(VarType.STRUCT_LO);
+
+					opcode = DUP2_X2;
+				} else {
+					stack.popEQ(VarType.STRUCT_LO);
+					stack.popEQ(VarType.STRUCT_HI);
+					VarType got = stack.pop();
+
+					stack.push(VarType.STRUCT_HI);
+					stack.push(VarType.STRUCT_LO);
+					stack.push(got);
+					stack.push(VarType.STRUCT_HI);
+					stack.push(VarType.STRUCT_LO);
+
+					opcode = DUP2_X1;
+				}
+			} else if (stack.peek(1) == VarType.STRUCT_LO) {
+				VarType got = stack.pop();
+
+				stack.popEQ(VarType.STRUCT_LO);
+				stack.popEQ(VarType.STRUCT_HI);
+
+				stack.push(got);
+				stack.push(VarType.STRUCT_HI);
+				stack.push(VarType.STRUCT_LO);
+				stack.push(got);
+
+				opcode = DUP_X2;
+
+			} else {
+				VarType got1 = stack.pop();
+				VarType got2 = stack.pop();
+				stack.push(got1);
+				stack.push(got2);
+				stack.push(got1);
+			}
 			break;
 		}
 
 		case DUP_X2: {
-			for (int i = 0; i < 3; i++)
-				if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
-					throw new IllegalStateException();
-			VarType got1 = stack.pop();
-			VarType got2 = stack.pop();
-			VarType got3 = stack.pop();
+			if (stack.peek(0) == VarType.STRUCT_LO) {
+				if (stack.peek(2) == VarType.STRUCT_LO || stack.peek(3) == VarType.STRUCT_LO) {
+					throw new UnsupportedOperationException();
+				}
 
-			stack.push(got1);
-			stack.push(got3);
-			stack.push(got2);
-			stack.push(got1);
+				stack.popEQ(VarType.STRUCT_LO);
+				stack.popEQ(VarType.STRUCT_HI);
+				VarType got1 = stack.pop();
+				VarType got2 = stack.pop();
+
+				stack.push(VarType.STRUCT_HI);
+				stack.push(VarType.STRUCT_LO);
+				stack.push(got2);
+				stack.push(got1);
+				stack.push(VarType.STRUCT_HI);
+				stack.push(VarType.STRUCT_LO);
+
+				opcode = DUP2_X2;
+			} else {
+				if (stack.peek(1) == VarType.STRUCT_LO || stack.peek(2) == VarType.STRUCT_LO) {
+					throw new UnsupportedOperationException();
+				}
+
+				VarType got1 = stack.pop();
+				VarType got2 = stack.pop();
+				VarType got3 = stack.pop();
+
+				stack.push(got1);
+				stack.push(got3);
+				stack.push(got2);
+				stack.push(got1);
+			}
 			break;
 		}
 
 		case DUP2: {
-			for (int i = 0; i < 2; i++)
-				if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
-					throw new IllegalStateException();
-			VarType got1 = stack.pop();
-			VarType got2 = stack.pop();
-			stack.push(got2);
-			stack.push(got1);
-			stack.push(got2);
-			stack.push(got1);
+			if (stack.peek(0) == VarType.STRUCT_LO) {
+				if (stack.peek(2) == VarType.STRUCT_LO) {
+					// DUP4 [.., 64b, 64b]
+					stack.push(stack.peek(3));
+					stack.push(stack.peek(3));
+					stack.push(stack.peek(3));
+					stack.push(stack.peek(3));
+
+					// [.., AABB]
+					super.visitInsn(DUP2_X2);
+					// [.., BBAABB]
+					super.visitInsn(POP2);
+					// [.., BBAA]
+					super.visitInsn(DUP2_X2);
+					// [.., AABBAA]
+					super.visitInsn(DUP2_X2);
+					// [.., AAAABBAA]
+					super.visitInsn(POP2);
+					// [.., AAAABB]
+					super.visitInsn(DUP2_X2);
+					// [.., AABBAABB]
+				} else {
+					// DUP3 [.., 32b, 64b]
+					stack.push(stack.peek(2));
+					stack.push(stack.peek(2));
+					stack.push(stack.peek(2));
+
+					// [.., ABB]
+					super.visitInsn(DUP2_X1);
+					// [.., BBABB]
+					super.visitInsn(DUP2_X1);
+					// [.., BBBBABB]
+					super.visitInsn(POP2);
+					// [.., BBBBA]
+					super.visitInsn(DUP_X2);
+					// [.., BBABBA]
+				}
+				return;
+			} else if (stack.peek(1) == VarType.STRUCT_LO) {
+				// DUP3 [.., 64b, 32b]
+				stack.push(stack.peek(2));
+				stack.push(stack.peek(2));
+				stack.push(stack.peek(2));
+
+				// [.., AAB]
+				super.visitInsn(DUP_X2);
+				// [.., BAAB]
+				super.visitInsn(DUP_X2);
+				// [.., BBAAB]
+				super.visitInsn(POP);
+				// [.., BBAA]
+				super.visitInsn(DUP2_X2);
+				// [.., AABBAA]
+				super.visitInsn(DUP2_X1);
+				// [.., AABAABAA]
+				super.visitInsn(POP2);
+				// [.., AABAAB]
+				return;
+			} else {
+				// DUP2 [.., 32b, 32b]
+				stack.push(stack.peek(1));
+				stack.push(stack.peek(1));
+			}
 			break;
 		}
 
 		case DUP2_X1: {
 			for (int i = 0; i < 3; i++)
 				if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
-					throw new IllegalStateException();
+					throw new UnsupportedOperationException();
 			VarType got1 = stack.pop();
 			VarType got2 = stack.pop();
 			VarType got3 = stack.pop();
@@ -293,7 +411,7 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 		case DUP2_X2: {
 			for (int i = 0; i < 4; i++)
 				if (stack.peek(i) == VarType.STRUCT_LO || stack.peek(i) == VarType.STRUCT_HI)
-					throw new IllegalStateException();
+					throw new UnsupportedOperationException();
 			VarType got1 = stack.pop();
 			VarType got2 = stack.pop();
 			VarType got3 = stack.pop();
