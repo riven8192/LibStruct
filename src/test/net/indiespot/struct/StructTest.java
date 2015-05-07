@@ -2,8 +2,10 @@ package test.net.indiespot.struct;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Stream;
 
 import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.Struct;
@@ -201,8 +203,19 @@ public class StructTest {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static class TestLambda {
+		private static List<Integer> list = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9);
 
+		public static void test() {
+			new Vec3(); // triggers transform
+
+			list.stream().filter(i -> {
+				return i % 2 == 0;
+			}).forEach(i -> System.out.println(i));
+		}
+	}
+
+	public static void main(String[] args) {
 		StructGC.addListener(new StructGC.GcInfo() {
 
 			@Override
@@ -219,7 +232,6 @@ public class StructTest {
 			public void onPanic() {
 				//
 			}
-
 		});
 
 		if (false)
@@ -239,6 +251,7 @@ public class StructTest {
 		EmbeddedArrayTest.test();
 		TestStackOps.test1();
 		TestInterf.test1();
+		TestLambda.test();
 
 		if (true) {
 			TestCalloc.test();

@@ -866,92 +866,97 @@ public class FlowAnalysisMethodVisitor extends MethodVisitor {
 
 	@Override
 	public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+		desc = this.visitInvokeMethodInsnImpl(opcode, owner, name, desc, null);
+		super.visitMethodInsn(opcode, owner, name, desc, itf);
+	}
+
+	@Override
+	public void visitInvokeDynamicInsn(String name, String desc, Handle bsm, Object... bsmArgs) {
+		String lambdaRet = bsm.getDesc().substring(bsm.getDesc().indexOf(')') + 1);
+		
+		desc = this.visitInvokeMethodInsnImpl(INVOKEDYNAMIC, null, name, desc, lambdaRet);
+		super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs);
+	}
+
+	private String visitInvokeMethodInsnImpl(int opcode, String owner, String name, String desc, String lambdaRet) {
 		if (StructEnv.PRINT_LOG)
-			System.out.println("\t1)\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
+			System.out.println("\t1)\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc+(lambdaRet==null?"":" lambda "+lambdaRet));
+
+		if (lambdaRet != null) {
+			pushDescType(this.stack, descToType(lambdaRet));
+		}
 
 		String params = desc.substring(desc.indexOf('(') + 1, desc.indexOf(')'));
 		String ret = desc.substring(desc.indexOf(')') + 1);
 
-		if (opcode == INVOKESTATIC || //
-				opcode == INVOKEVIRTUAL || //
-				opcode == INVOKEINTERFACE || //
-				opcode == INVOKESPECIAL) {
+		String[] arr = splitDescArray(params);
+		VarStack paramTypes = new VarStack(8);
+		for (int k = 0; k < arr.length; k++)
+			pushDescType(paramTypes, descToType(arr[k]));
 
-			String[] arr = splitDescArray(params);
-			VarStack paramTypes = new VarStack(8);
-			for (int k = 0; k < arr.length; k++)
-				pushDescType(paramTypes, descToType(arr[k]));
+		boolean hasStructToRef = false;
+		boolean hasNullRefToStruct = false;
+		for (int i = 0; i < paramTypes.size(); i++) {
+			if (stack.peek(i) == paramTypes.peek(i))
+				continue;
+			if (stack.peek(i) == VarType.NULL_REFERENCE && paramTypes.peek(i) == VarType.REFERENCE)
+				continue;
 
-			boolean hasStructToRef = false;
-			boolean hasNullRefToStruct = false;
-			for (int i = 0; i < paramTypes.size(); i++) {
-				if (stack.peek(i) == paramTypes.peek(i))
-					continue;
-				if (stack.peek(i) == VarType.NULL_REFERENCE && paramTypes.peek(i) == VarType.REFERENCE)
-					continue;
-
-				if (stack.peek(i) == VarType.STRUCT_LO && paramTypes.peek(i) == VarType.REFERENCE) {
-					hasStructToRef = true;
-				}
-
-				if (stack.peek(i) == VarType.NULL_REFERENCE && paramTypes.peek(i) == VarType.STRUCT_LO) {
-					hasNullRefToStruct = true;
-					break;
-				}
-			}
-			int off = 0;
-
-			if (hasStructToRef || hasNullRefToStruct) {
-				for (int i = 0; i < paramTypes.size(); i++, off++)
-					if (paramTypes.peek(i) == VarType.REFERENCE && stack.peek(off) == VarType.STRUCT_LO)
-						off++;
-					else if (paramTypes.peek(i) == VarType.STRUCT_LO && stack.peek(off) == VarType.NULL_REFERENCE)
-						off--;
-
-				if (hasNullRefToStruct || !owner.equals(Struct.class.getName().replace('.', '/'))) {
-					String msg = "";
-					if (hasStructToRef)
-						msg += "Cannot pass struct-argument to method expecting object-parameter";
-					if (hasStructToRef && hasNullRefToStruct)
-						msg += "\r\n\t\t";
-					if (hasNullRefToStruct)
-						msg += "Not allowed to pass null-argument to a struct-parameter, use Struct.nullStruct(type) instead of 'null'";
-
-					throw new UnsupportedCallsiteException(msg, //
-							callsiteDescription, //
-							owner + "." + name + "" + desc, // target
-							paramTypes.toString().replace(VarType.STRUCT_HI + "," + VarType.STRUCT_LO, "STRUCT"), //
-							stack.topToString(off).replace(VarType.STRUCT_HI + "," + VarType.STRUCT_LO, "STRUCT"));
-				}
+			if (stack.peek(i) == VarType.STRUCT_LO && paramTypes.peek(i) == VarType.REFERENCE) {
+				hasStructToRef = true;
 			}
 
-			for (int i = arr.length - 1; i >= 0; i--) {
-				try {
-					popDescType(stack, descToType(arr[i]));
-				} catch (Exception exc) {
-					throw new IllegalStateException("failed to pop parameter: " + arr[i] + " (all: " + params + ")", exc);
-				}
+			if (stack.peek(i) == VarType.NULL_REFERENCE && paramTypes.peek(i) == VarType.STRUCT_LO) {
+				hasNullRefToStruct = true;
+				break;
 			}
-
-			if (opcode != INVOKESTATIC) {
-				stack.popEQ(VarType.REFERENCE);
-			}
-			pushDescType(stack, descToType(ret));
-		} else {
-			throw new IllegalStateException("unhandled opcode: " + opcodeToString(opcode));
 		}
+		int off = 0;
+
+		if (hasStructToRef || hasNullRefToStruct) {
+			for (int i = 0; i < paramTypes.size(); i++, off++)
+				if (paramTypes.peek(i) == VarType.REFERENCE && stack.peek(off) == VarType.STRUCT_LO)
+					off++;
+				else if (paramTypes.peek(i) == VarType.STRUCT_LO && stack.peek(off) == VarType.NULL_REFERENCE)
+					off--;
+
+			if (hasNullRefToStruct || !owner.equals(Struct.class.getName().replace('.', '/'))) {
+				String msg = "";
+				if (hasStructToRef)
+					msg += "Cannot pass struct-argument to method expecting object-parameter";
+				if (hasStructToRef && hasNullRefToStruct)
+					msg += "\r\n\t\t";
+				if (hasNullRefToStruct)
+					msg += "Not allowed to pass null-argument to a struct-parameter, use Struct.nullStruct(type) instead of 'null'";
+
+				throw new UnsupportedCallsiteException(msg, //
+						callsiteDescription, //
+						owner + "." + name + "" + desc, // target
+						paramTypes.toString().replace(VarType.STRUCT_HI + "," + VarType.STRUCT_LO, "STRUCT"), //
+						stack.topToString(off).replace(VarType.STRUCT_HI + "," + VarType.STRUCT_LO, "STRUCT"));
+			}
+		}
+
+		for (int i = arr.length - 1; i >= 0; i--) {
+			try {
+				popDescType(stack, descToType(arr[i]));
+			} catch (Exception exc) {
+				throw new IllegalStateException("failed to pop parameter: " + arr[i] + " (all: " + params + ")", exc);
+			}
+		}
+
+		if (opcode != INVOKESTATIC) {
+			stack.popEQ(VarType.REFERENCE);
+		}
+		pushDescType(stack, descToType(ret));
 
 		if (desc.contains(StructEnv.wrapped_struct_flag)) {
 			desc = desc.replace(StructEnv.wrapped_struct_flag, "J");
 			if (StructEnv.PRINT_LOG)
 				System.out.println("\t2)\t" + opcodeToString(opcode) + " " + owner + " " + name + " " + desc);
 		}
-		super.visitMethodInsn(opcode, owner, name, desc, itf);
-	}
 
-	@Override
-	public void visitInvokeDynamicInsn(String name, String desc, Handle bsm, Object... bsmArgs) {
-		super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs);
+		return desc;
 	}
 
 	Label[] labels = new Label[8];
